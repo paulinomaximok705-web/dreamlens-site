@@ -135,12 +135,19 @@ function buildPromptAndSeed(dreamText, style, variant = 0) {
     return { prompt, seed, styleInfo };
 }
 
+function _sanitizePrompt(prompt) {
+    const safe = prompt.replace(/"/g, "'").replace(/\s+/g, ' ').trim();
+    return safe.length > 380 ? safe.slice(0, 380) : safe;
+}
+
 /* ──────────────────────────────────────────────────
    构建图片源列表
 ────────────────────────────────────────────────── */
 function buildImageSources(dreamText, style) {
     const first = buildPromptAndSeed(dreamText, style, 0);
     const second = buildPromptAndSeed(dreamText, style, 1);
+    first.prompt = _sanitizePrompt(first.prompt);
+    second.prompt = _sanitizePrompt(second.prompt);
     const enc1 = encodeURIComponent(first.prompt);
     const enc2 = encodeURIComponent(second.prompt);
 
@@ -250,7 +257,8 @@ function loadPollinationsWithVerify(url, timeoutMs) {
         fetch(url, {
             signal: controller.signal,
             cache:  'no-store',
-            mode:   'cors'
+            mode:   'cors',
+            referrerPolicy: 'no-referrer'
         })
         .then(res => {
             clearTimeout(timer);
@@ -285,6 +293,8 @@ function loadPollinationsWithVerify(url, timeoutMs) {
 function loadImageDirect(url, timeoutMs) {
     return new Promise((resolve, reject) => {
         const img = new Image();
+        img.referrerPolicy = 'no-referrer';
+        img.crossOrigin = 'anonymous';
         let settled = false;
 
         const timer = setTimeout(() => {
