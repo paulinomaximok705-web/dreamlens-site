@@ -37,8 +37,7 @@ module.exports = async (req, res) => {
         model: 'gpt-image-1-mini',
         prompt,
         size,
-        quality,
-        response_format: 'b64_json'
+        quality
       })
     });
 
