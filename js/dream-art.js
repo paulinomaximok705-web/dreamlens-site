@@ -3,8 +3,8 @@
    AI 梦境图片生成模块
    核心修复：
    1. fetch HEAD 验证 content-type，拒绝 HTML 响应
-   2. 多服务降级：Pollinations flux → turbo → picsum(稳定兜底)
-   3. 梦境内容精准匹配词典 → 生成符合梦境的提示词
+   2. 多提示词尝试：同一梦境多提示词组合（更相关）
+   3. 梦境内容精准匹配词典 → 生成更聚焦的提示词
 ==================================================== */
 
 /* ──────────────────────────────────────────────────
@@ -93,7 +93,12 @@ let lastGeneratedUrl = '';
    提示词构建
 ────────────────────────────────────────────────── */
 function extractVisualFromDream(text) {
-    if (!text) return 'mysterious dream landscape, ethereal surreal atmosphere, subconscious imagery';
+    if (!text) {
+        return {
+            visualCore: 'mysterious dream landscape, ethereal surreal atmosphere, subconscious imagery',
+            motifs: []
+        };
+    }
 
     const scored = SCENE_DICT.map(entry => ({
         score: entry.kw.reduce((s, kw) => s + (text.includes(kw) ? entry.w : 0), 0),
@@ -101,19 +106,31 @@ function extractVisualFromDream(text) {
     })).filter(e => e.score > 0).sort((a, b) => b.score - a.score);
 
     if (scored.length === 0) {
-        // 无匹配时：用原文片段作为场景锚点
         const cleaned = text.replace(/[，。！？、；：\n\r]/g, ' ').trim().slice(0, 50);
-        return `dreamlike surreal scene of "${cleaned}", subconscious visualization, symbolic dream imagery, ethereal atmosphere`;
+        return {
+            visualCore: `dreamlike surreal scene of "${cleaned}", subconscious visualization, symbolic dream imagery, ethereal atmosphere`,
+            motifs: []
+        };
     }
 
-    // 取得分最高的前2条拼合
-    return scored.slice(0, 2).map(e => e.en).join(', ');
+    const visualCore = scored.slice(0, 2).map(e => e.en).join(', ');
+    const motifs = scored
+        .slice(0, 3)
+        .map(e => e.en.split(',')[0].trim())
+        .filter(Boolean);
+
+    return { visualCore, motifs };
 }
 
-function buildPromptAndSeed(dreamText, style) {
+function buildPromptAndSeed(dreamText, style, variant = 0) {
     const styleInfo  = ART_STYLE_MAP[style] || ART_STYLE_MAP.surreal;
-    const visualCore = extractVisualFromDream(dreamText);
-    const prompt     = `${visualCore}, ${styleInfo.suffix}, highly detailed, no text, no watermark`;
+    const { visualCore, motifs } = extractVisualFromDream(dreamText);
+    const motifLine = motifs.length ? `key motifs: ${motifs.join(', ')}` : '';
+    const coherence = 'coherent single scene, consistent subject, cinematic lighting, avoid unrelated elements';
+    const promptBase = `${visualCore}, ${styleInfo.suffix}, ${coherence}`;
+    const prompt = variant === 0
+        ? `${promptBase}, ${motifLine}, highly detailed, no text, no watermark`
+        : `${motifLine}, ${promptBase}, dreamy atmosphere, highly detailed, no text, no watermark`;
     const seed       = Math.floor(Math.random() * 999999);
     return { prompt, seed, styleInfo };
 }
@@ -122,51 +139,34 @@ function buildPromptAndSeed(dreamText, style) {
    构建图片源列表
 ────────────────────────────────────────────────── */
 function buildImageSources(dreamText, style) {
-    const { prompt, seed, styleInfo } = buildPromptAndSeed(dreamText, style);
-    const enc = encodeURIComponent(prompt);
+    const first = buildPromptAndSeed(dreamText, style, 0);
+    const second = buildPromptAndSeed(dreamText, style, 1);
+    const enc1 = encodeURIComponent(first.prompt);
+    const enc2 = encodeURIComponent(second.prompt);
 
-    console.log('[DreamArt] 生成提示词:', prompt.slice(0, 120));
+    console.log('[DreamArt] 生成提示词 #1:', first.prompt.slice(0, 120));
+    console.log('[DreamArt] 生成提示词 #2:', second.prompt.slice(0, 120));
 
     return [
-        // ① Pollinations flux 主力
         {
-            name: 'pollinations-flux',
+            name: 'pollinations-flux-v1',
             type: 'pollinations',
-            url:  `https://image.pollinations.ai/prompt/${enc}?width=1280&height=720&seed=${seed}&model=flux&nologo=true&nofeed=true`,
-            prompt, seed, styleInfo
+            url:  `https://image.pollinations.ai/prompt/${enc1}?width=1280&height=720&seed=${first.seed}&model=flux&nologo=true&nofeed=true`,
+            prompt: first.prompt, seed: first.seed, styleInfo: first.styleInfo
         },
-        // ② Pollinations turbo（备用）
+        {
+            name: 'pollinations-flux-v2',
+            type: 'pollinations',
+            url:  `https://image.pollinations.ai/prompt/${enc2}?width=1280&height=720&seed=${second.seed}&model=flux&nologo=true&nofeed=true`,
+            prompt: second.prompt, seed: second.seed, styleInfo: second.styleInfo
+        },
         {
             name: 'pollinations-turbo',
             type: 'pollinations',
-            url:  `https://image.pollinations.ai/prompt/${enc}?width=1024&height=576&seed=${seed+7}&model=turbo&nologo=true&nofeed=true`,
-            prompt, seed, styleInfo
-        },
-        // ③ Picsum 按梦境主题分类（稳定可靠的兜底）
-        {
-            name: 'picsum-themed',
-            type: 'picsum',
-            url:  `https://picsum.photos/seed/${_picsumSeed(dreamText, seed)}/1280/720`,
-            prompt, seed, styleInfo,
-            isFallback: true
+            url:  `https://image.pollinations.ai/prompt/${enc1}?width=1024&height=576&seed=${first.seed+7}&model=turbo&nologo=true&nofeed=true`,
+            prompt: first.prompt, seed: first.seed + 7, styleInfo: first.styleInfo
         }
     ];
-}
-
-/**
- * 根据梦境内容选择 Picsum seed 范围，让兜底图尽量有氛围感
- * Picsum 有固定图片库，不同 seed 对应不同图
- */
-function _picsumSeed(text, numSeed) {
-    // 选择氛围相近的图片 seed 段
-    if (/海|水|鱼|海洋/.test(text))           return `ocean-${numSeed % 50}`;
-    if (/森林|树|丛林/.test(text))            return `forest-${numSeed % 50}`;
-    if (/山|峰|雪山/.test(text))              return `mountain-${numSeed % 50}`;
-    if (/宇宙|星空|太空/.test(text))          return `space-${numSeed % 50}`;
-    if (/城市|街道|楼/.test(text))            return `city-${numSeed % 50}`;
-    if (/花|草|植物/.test(text))              return `nature-${numSeed % 50}`;
-    // 默认使用抽象/艺术感数字段
-    return `dream-${(numSeed % 200) + 100}`;
 }
 
 /* ──────────────────────────────────────────────────
@@ -228,12 +228,8 @@ function showArtPanel(id) {
    策略：
    - Pollinations：先用 fetch HEAD 检查 content-type，
      确认是 image/* 才用 img 显示（防止 HTML 错误页被当图片加载）
-   - Picsum：直接 img 直连（100% 返回真实图片）
 ────────────────────────────────────────────────── */
 function loadSource(src, timeoutMs) {
-    if (src.type === 'picsum') {
-        return loadImageDirect(src.url, timeoutMs);
-    }
     // Pollinations: fetch 验证 content-type
     return loadPollinationsWithVerify(src.url, timeoutMs);
 }
@@ -349,8 +345,7 @@ async function generateDreamArt() {
         if (genAborted) return;
 
         const src     = sources[i];
-        // 第一源 55s，后续 40s，兜底 15s
-        const timeout = i === 0 ? 55000 : (src.isFallback ? 15000 : 40000);
+        const timeout = i === 0 ? 50000 : 38000;
 
         console.log(`[DreamArt] 尝试 #${i+1} (${src.name}) timeout=${timeout/1000}s`);
 
@@ -385,13 +380,9 @@ async function generateDreamArt() {
                 promptEl.textContent = `以「${snippet}${currentDreamText.length > 40 ? '…' : ''}」为灵感，${styleInfo.label}风格绘制。`;
             }
 
-            if (src.isFallback) {
-                console.log('[DreamArt] 使用了兜底图片');
-            }
-
             showArtPanel('artResult');
             if (typeof showToast === 'function') {
-                showToast(src.isFallback ? '🎨 梦境画作已生成（替代风格）' : '✨ 梦境艺术画生成完成！');
+                showToast('✨ 梦境艺术画生成完成！');
             }
             return;
 

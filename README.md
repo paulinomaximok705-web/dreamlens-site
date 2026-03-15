@@ -38,7 +38,7 @@ js/
 ### 🔮 梦境解析页 `analyze.html`
 - 文字 + 语音双模式输入
 - **动态 AI 解析引擎**：严格基于用户输入原文生成，含摘要、象征解读（25种）、情绪能量（8类）、心理学解读、潜意识信息、行动建议
-- **AI 梦境艺术画生成**（Pollinations.ai，3源降级）
+- **AI 梦境艺术画生成**（Pollinations.ai，多提示词尝试）
 - 4 种艺术风格切换
 - 解析完成后自动保存到日记（含完整 AI 解析数据）
 - "保存到日记"按钮直接跳转日记页
@@ -106,7 +106,7 @@ js/
 
 | 服务 | 用途 | 费用 |
 |------|------|------|
-| [Pollinations.ai](https://pollinations.ai) | AI 图片生成（3源降级）| 完全免费 |
+| [Pollinations.ai](https://pollinations.ai) | AI 图片生成（多提示词尝试）| 完全免费 |
 | Chart.js 4.4 CDN | 日记情绪趋势图 | 免费 |
 | Google Fonts | Noto Serif/Sans SC | 免费 |
 | Font Awesome 6 | 图标库 | 免费 |
