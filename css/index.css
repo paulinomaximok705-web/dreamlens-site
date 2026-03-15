@@ -83,7 +83,7 @@
 .idx-hero__title {
   line-height: 1.02;
   margin-bottom: 16px;
-  font-size: clamp(3rem, 6.6vw, 5rem);
+  font-size: clamp(2.4rem, 5.2vw, 4rem);
   animation: ds-fade-up 0.7s cubic-bezier(0.34,1.56,0.64,1) 0.1s both;
   letter-spacing: -0.02em;
 }
