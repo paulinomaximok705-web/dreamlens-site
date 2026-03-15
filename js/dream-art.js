@@ -2,10 +2,12 @@
    DreamLens — dream-art.js  v5
    AI 梦境图片生成模块
    核心修复：
-   1. fetch HEAD 验证 content-type，拒绝 HTML 响应
+   1. OpenAI gpt-image-1-mini 生成
    2. 多提示词尝试：同一梦境多提示词组合（更相关）
    3. 梦境内容精准匹配词典 → 生成更聚焦的提示词
 ==================================================== */
+
+const IMAGE_API_ENDPOINT = window.DREAMLENS_IMAGE_API || 'https://YOUR-VERCEL-APP.vercel.app/api/image';
 
 /* ──────────────────────────────────────────────────
    风格配置
@@ -143,36 +145,18 @@ function _sanitizePrompt(prompt) {
 /* ──────────────────────────────────────────────────
    构建图片源列表
 ────────────────────────────────────────────────── */
-function buildImageSources(dreamText, style) {
+function buildImagePrompts(dreamText, style) {
     const first = buildPromptAndSeed(dreamText, style, 0);
     const second = buildPromptAndSeed(dreamText, style, 1);
     first.prompt = _sanitizePrompt(first.prompt);
     second.prompt = _sanitizePrompt(second.prompt);
-    const enc1 = encodeURIComponent(first.prompt);
-    const enc2 = encodeURIComponent(second.prompt);
 
     console.log('[DreamArt] 生成提示词 #1:', first.prompt.slice(0, 120));
     console.log('[DreamArt] 生成提示词 #2:', second.prompt.slice(0, 120));
 
     return [
-        {
-            name: 'pollinations-flux-v1',
-            type: 'pollinations',
-            url:  `https://image.pollinations.ai/prompt/${enc1}?width=1280&height=720&seed=${first.seed}&model=flux&nologo=true&nofeed=true`,
-            prompt: first.prompt, seed: first.seed, styleInfo: first.styleInfo
-        },
-        {
-            name: 'pollinations-flux-v2',
-            type: 'pollinations',
-            url:  `https://image.pollinations.ai/prompt/${enc2}?width=1280&height=720&seed=${second.seed}&model=flux&nologo=true&nofeed=true`,
-            prompt: second.prompt, seed: second.seed, styleInfo: second.styleInfo
-        },
-        {
-            name: 'pollinations-turbo',
-            type: 'pollinations',
-            url:  `https://image.pollinations.ai/prompt/${enc1}?width=1024&height=576&seed=${first.seed+7}&model=turbo&nologo=true&nofeed=true`,
-            prompt: first.prompt, seed: first.seed + 7, styleInfo: first.styleInfo
-        }
+        { prompt: first.prompt, styleInfo: first.styleInfo },
+        { prompt: second.prompt, styleInfo: second.styleInfo }
     ];
 }
 
@@ -231,99 +215,30 @@ function showArtPanel(id) {
 }
 
 /* ──────────────────────────────────────────────────
-   核心加载函数
-   策略：
-   - Pollinations：先用 fetch HEAD 检查 content-type，
-     确认是 image/* 才用 img 显示（防止 HTML 错误页被当图片加载）
+   图片生成请求
 ────────────────────────────────────────────────── */
-function loadSource(src, timeoutMs) {
-    // Pollinations: fetch 验证 content-type
-    return loadPollinationsWithVerify(src.url, timeoutMs);
-}
+async function requestImage(prompt) {
+    if (!IMAGE_API_ENDPOINT || IMAGE_API_ENDPOINT.includes('YOUR-VERCEL-APP')) {
+        throw new Error('NO_API_ENDPOINT');
+    }
 
-/**
- * Pollinations 加载：fetch 获取并验证是真图片
- * 使用 no-cors 模式无法读 headers，改用带 cors 的普通 fetch
- * Pollinations 支持 CORS，所以 fetch 可以读取 content-type
- */
-function loadPollinationsWithVerify(url, timeoutMs) {
-    return new Promise((resolve, reject) => {
-        const controller = new AbortController();
-        const timer = setTimeout(() => {
-            controller.abort();
-            reject(new Error('TIMEOUT'));
-        }, timeoutMs);
-
-        fetch(url, {
-            signal: controller.signal,
-            cache:  'no-store',
-            mode:   'cors',
-            referrerPolicy: 'no-referrer'
-        })
-        .then(res => {
-            clearTimeout(timer);
-            if (!res.ok) {
-                throw new Error(`HTTP_${res.status}`);
-            }
-            const ct = res.headers.get('content-type') || '';
-            if (!ct.startsWith('image/')) {
-                throw new Error(`NOT_IMAGE: ${ct.slice(0, 30)}`);
-            }
-            return res.blob();
-        })
-        .then(blob => {
-            if (blob.size < 2000) throw new Error('BLOB_TOO_SMALL');
-            const blobUrl = URL.createObjectURL(blob);
-            resolve({ imgSrc: blobUrl, originalUrl: url });
-        })
-        .catch(err => {
-            clearTimeout(timer);
-            // fetch 失败则降级为 img 直连
-            console.warn('[DreamArt] fetch验证失败，尝试img直连:', err.message);
-            loadImageDirect(url, 30000)
-                .then(resolve)
-                .catch(reject);
-        });
+    const res = await fetch(IMAGE_API_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt, size: '1024x1024', quality: 'low' })
     });
-}
 
-/**
- * 纯 img 直连（适用于 Picsum 等始终返回图片的源）
- */
-function loadImageDirect(url, timeoutMs) {
-    return new Promise((resolve, reject) => {
-        const img = new Image();
-        img.referrerPolicy = 'no-referrer';
-        img.crossOrigin = 'anonymous';
-        let settled = false;
+    const data = await res.json();
+    if (!res.ok) {
+        const msg = data?.error?.message || data?.error || `HTTP_${res.status}`;
+        throw new Error(String(msg));
+    }
 
-        const timer = setTimeout(() => {
-            if (settled) return;
-            settled = true;
-            img.src = '';
-            reject(new Error('TIMEOUT'));
-        }, timeoutMs);
+    if (!data?.b64) {
+        throw new Error('NO_IMAGE');
+    }
 
-        img.onload = () => {
-            if (settled) return;
-            settled = true;
-            clearTimeout(timer);
-            if (img.naturalWidth < 10 || img.naturalHeight < 10) {
-                reject(new Error('INVALID_IMAGE'));
-                return;
-            }
-            resolve({ imgSrc: url, originalUrl: url });
-        };
-
-        img.onerror = () => {
-            if (settled) return;
-            settled = true;
-            clearTimeout(timer);
-            reject(new Error('LOAD_ERROR'));
-        };
-
-        img.src = url;
-    });
+    return `data:image/png;base64,${data.b64}`;
 }
 
 /* ──────────────────────────────────────────────────
@@ -343,24 +258,20 @@ async function generateDreamArt() {
     showArtPanel('artGenerating');
     startGenProgress();
 
-    const sources   = buildImageSources(currentDreamText, currentArtStyle);
+    const prompts   = buildImagePrompts(currentDreamText, currentArtStyle);
     const styleInfo = ART_STYLE_MAP[currentArtStyle] || ART_STYLE_MAP.surreal;
-
-    lastGeneratedUrl = sources[0].url;
-    _updateOpenTabBtn(lastGeneratedUrl);
 
     let lastErr = null;
 
-    for (let i = 0; i < sources.length; i++) {
+    for (let i = 0; i < prompts.length; i++) {
         if (genAborted) return;
 
-        const src     = sources[i];
-        const timeout = i === 0 ? 50000 : 38000;
+        const src = prompts[i];
 
-        console.log(`[DreamArt] 尝试 #${i+1} (${src.name}) timeout=${timeout/1000}s`);
+        console.log(`[DreamArt] 尝试 #${i+1} (OpenAI image)`);
 
         try {
-            const result = await loadSource(src, timeout);
+            const imgSrc = await requestImage(src.prompt);
             if (genAborted) return;
 
             // ── 成功 ──
@@ -368,18 +279,18 @@ async function generateDreamArt() {
 
             const imgEl = document.getElementById('artResultImg');
             if (imgEl) {
-                imgEl.src = result.imgSrc;
+                imgEl.src = imgSrc;
                 imgEl.alt = `AI 梦境艺术 - ${styleInfo.label}`;
             }
 
             const dlBtn = document.getElementById('artDownloadBtn');
             if (dlBtn) {
-                dlBtn.href     = result.imgSrc;
+                dlBtn.href     = imgSrc;
                 dlBtn.target   = '_blank';
-                dlBtn.download = `dreamlens-${currentArtStyle}-${src.seed || Date.now()}.jpg`;
+                dlBtn.download = `dreamlens-${currentArtStyle}-${Date.now()}.png`;
             }
 
-            _updateOpenTabBtn(result.originalUrl);
+            _updateOpenTabBtn(imgSrc);
 
             const styleEl = document.getElementById('artResultStyle');
             if (styleEl) styleEl.textContent = `🎨 ${styleInfo.label}`;
@@ -415,8 +326,7 @@ async function generateDreamArt() {
 function _showError(err) {
     let msg = '图片生成失败，请重试';
     if (err) {
-        if (err.message === 'TIMEOUT')         msg = 'AI 服务响应超时——请点击「重试」或稍后再试';
-        else if (err.message === 'LOAD_ERROR') msg = '图片加载失败——请检查网络连接后重试';
+        if (err.message === 'NO_API_ENDPOINT') msg = '未配置图片生成服务——请先部署后端并填写接口地址';
         else if (err.message.startsWith('HTTP')) msg = `服务器返回错误（${err.message}）——请稍后重试`;
         else                                   msg = `生成出错（${err.message}）——请重试`;
     }
