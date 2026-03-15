@@ -1,0 +1,939 @@
+/* ═══════════════════════════════════════════════════════════════
+   DreamLens — Dreamscape Design System v3
+   梦幻星云 · 极光流光 · 柔光玻璃 · 梦境漂浮
+   Palette: Deep violet night + aurora pink/teal + gold stars
+════════════════════════════════════════════════════════════════ */
+
+/* ─── 1. Design Tokens ────────────────────────────────────────── */
+:root {
+  /* ── Background System ── */
+  --ds-bg:          #050712;
+  --ds-bg-2:        #080b18;
+  --ds-bg-3:        #0c1120;
+  --ds-surface:     rgba(255,255,255,0.06);
+  --ds-surface-2:   rgba(255,255,255,0.09);
+  --ds-surface-3:   rgba(255,255,255,0.14);
+  --ds-hover:       rgba(255,255,255,0.08);
+
+  /* ── Dream Color Palette (Cosmic) ── */
+  --ds-violet:      #9b6bff;
+  --ds-violet-l:    #b89bff;
+  --ds-violet-xl:   #d8cfff;
+  --ds-violet-xxl:  #f0ecff;
+  --ds-indigo:      #5b7bff;
+  --ds-blue:        #4db8ff;
+  --ds-cyan:        #4cd3ff;
+  --ds-teal:        #4fb6c9;
+  --ds-rose:        #ff70a6;
+  --ds-pink:        #ff9ad6;
+  --ds-pink-l:      #ffd9f1;
+  --ds-amber:       #f7c45f;
+  --ds-gold:        #f1ae3d;
+  --ds-emerald:     #63d3a6;
+  --ds-lavender:    #d6d5ff;
+
+  /* ── Text Hierarchy ── */
+  --ds-t1:  #edf2ff;
+  --ds-t2:  #c4cdef;
+  --ds-t3:  #8fa1cf;
+  --ds-t4:  #6073a8;
+  --ds-t5:  #3d4a73;
+
+  /* ── Border & Glass ── */
+  --ds-border:       rgba(255,255,255,0.1);
+  --ds-border-glow:  rgba(155,196,255,0.28);
+  --ds-border-rose:  rgba(255,112,166,0.28);
+  --ds-glass:        rgba(255,255,255,0.08);
+  --ds-glass-2:      rgba(255,255,255,0.12);
+  --ds-frosted:      rgba(255,255,255,0.06);
+  --ds-frosted-2:    rgba(255,255,255,0.1);
+
+  /* ── Gradients ── */
+  --ds-g-dream:      linear-gradient(140deg, #9b6bff 0%, #4db8ff 50%, #0f1628 100%);
+  --ds-g-aurora:     linear-gradient(135deg, #ff70a6 0%, #9b6bff 50%, #4cd3ff 100%);
+  --ds-g-violet:     linear-gradient(135deg, #9b6bff, #5b7bff);
+  --ds-g-cosmic:     linear-gradient(135deg, #4db8ff, #4cd3ff);
+  --ds-g-rose-gold:  linear-gradient(135deg, #ff70a6, #f7c45f);
+  --ds-g-night:      linear-gradient(180deg, #050712 0%, #080b18 50%, #0c1120 100%);
+  --ds-g-card:       linear-gradient(155deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
+  --ds-g-glow-v:     radial-gradient(ellipse at center, rgba(155,107,255,0.24) 0%, transparent 70%);
+  --ds-g-glow-p:     radial-gradient(ellipse at center, rgba(255,112,166,0.22) 0%, transparent 70%);
+  --ds-g-glow-t:     radial-gradient(ellipse at center, rgba(76,211,255,0.18) 0%, transparent 70%);
+
+  /* ── Shadows & Glows ── */
+  --ds-shadow:       0 6px 24px rgba(0,0,0,0.42), 0 1px 0 rgba(255,255,255,0.03);
+  --ds-shadow-lg:    0 14px 48px rgba(0,0,0,0.55), 0 1px 0 rgba(255,255,255,0.04);
+  --ds-glow-v:       0 0 36px rgba(155,107,255,0.35);
+  --ds-glow-p:       0 0 30px rgba(255,112,166,0.3);
+  --ds-glow-t:       0 0 28px rgba(76,211,255,0.28);
+  --ds-glow-gold:    0 0 20px rgba(247,196,95,0.32);
+  --ds-card-shadow:  0 12px 36px rgba(0,0,0,0.45), 0 0 0 1px var(--ds-border);
+
+  /* ── Motion ── */
+  --ds-ease:         cubic-bezier(0.4, 0, 0.2, 1);
+  --ds-ease-out:     cubic-bezier(0, 0, 0.2, 1);
+  --ds-ease-spring:  cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ds-dur-fast:     0.18s;
+  --ds-dur:          0.3s;
+  --ds-dur-slow:     0.6s;
+
+  /* ── Layout ── */
+  --ds-radius-sm:    10px;
+  --ds-radius:       16px;
+  --ds-radius-lg:    24px;
+  --ds-radius-xl:    36px;
+  --ds-radius-pill:  9999px;
+  --ds-container:    1200px;
+  --ds-container-sm: 800px;
+  --ds-nav-h:        64px;
+
+  /* ── Typography ── */
+  --ds-font:         -apple-system, 'SF Pro Text', 'Noto Sans SC', 'PingFang SC', sans-serif;
+  --ds-font-serif:   'Noto Serif SC', 'Georgia', serif;
+  --ds-font-display: 'Noto Serif SC', 'Georgia', serif;
+}
+
+/* ─── 2. Base Reset ────────────────────────────────────────────── */
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box }
+html { scroll-behavior: smooth; font-size: 16px; -webkit-text-size-adjust: 100% }
+body {
+  font-family: var(--ds-font);
+  background: var(--ds-bg);
+  color: var(--ds-t1);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+  line-height: 1.65;
+}
+a { text-decoration: none; color: inherit }
+img { max-width: 100%; display: block }
+button { font-family: var(--ds-font); cursor: pointer; border: none }
+ul { list-style: none }
+input, textarea { font-family: var(--ds-font) }
+
+/* ─── 3. Dream Background ──────────────────────────────────────── */
+.ds-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: var(--ds-g-night);
+  overflow: hidden;
+}
+
+/* Aurora layers */
+.ds-bg::before {
+  content: '';
+  position: absolute;
+  width: 140%;
+  height: 140%;
+  top: -20%;
+  left: -20%;
+  background:
+    radial-gradient(ellipse 70% 40% at 20% 30%, rgba(127,107,242,0.12) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 50% at 80% 70%, rgba(243,178,91,0.1) 0%, transparent 60%);
+  animation: ds-aurora-drift 32s ease-in-out infinite alternate;
+}
+.ds-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 45% 30% at 70% 80%, rgba(99,163,227,0.12) 0%, transparent 60%),
+    radial-gradient(ellipse 28% 36% at 30% 60%, rgba(245,163,199,0.08) 0%, transparent 60%);
+  animation: ds-aurora-drift 26s ease-in-out infinite alternate-reverse;
+}
+
+@keyframes ds-aurora-drift {
+  0%   { transform: translate(0, 0) scale(1) }
+  33%  { transform: translate(3%, -2%) scale(1.04) }
+  66%  { transform: translate(-2%, 3%) scale(0.97) }
+  100% { transform: translate(1%, -1%) scale(1.02) }
+}
+
+/* Stars layer */
+.ds-stars {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+  opacity: 0.45;
+}
+.ds-star {
+  position: absolute;
+  border-radius: 50%;
+  background: #fff;
+  animation: ds-twinkle var(--star-dur, 3s) ease-in-out infinite var(--star-delay, 0s);
+  opacity: 0;
+}
+@keyframes ds-twinkle {
+  0%, 100% { opacity: 0; transform: scale(0.5) }
+  50%       { opacity: var(--star-op, 0.8); transform: scale(1) }
+}
+
+/* Shooting star */
+.ds-shooting-star {
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  background: linear-gradient(90deg, #fff, transparent);
+  border-radius: 1px;
+  animation: ds-shoot 6s linear infinite;
+}
+@keyframes ds-shoot {
+  0%   { transform: translate(0, 0) rotate(-45deg) scaleX(1); opacity: 1 }
+  100% { transform: translate(300px, 300px) rotate(-45deg) scaleX(80); opacity: 0 }
+}
+
+/* Floating mist particles */
+.ds-mist {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.45;
+}
+.ds-mist-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(60px);
+  animation: ds-mist-float linear infinite;
+  opacity: 0.18;
+}
+@keyframes ds-mist-float {
+  0%   { transform: translateY(0) translateX(0) scale(1) }
+  50%  { transform: translateY(-40px) translateX(20px) scale(1.08) }
+  100% { transform: translateY(0) translateX(0) scale(1) }
+}
+
+/* ─── 4. Navigation ────────────────────────────────────────────── */
+.ds-nav {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 1000;
+  height: var(--ds-nav-h);
+  display: flex;
+  align-items: center;
+  transition: background var(--ds-dur) var(--ds-ease),
+              border-color var(--ds-dur),
+              backdrop-filter var(--ds-dur);
+}
+.ds-nav.ds-nav--scrolled {
+  background: rgba(12,10,24,0.65);
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
+  border-bottom: 1px solid rgba(120,110,220,0.12);
+  box-shadow: 0 12px 38px rgba(6,6,20,0.4);
+}
+.ds-nav__inner {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 0 32px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+.ds-nav--centered .ds-nav__inner {
+  justify-content: center;
+}
+.ds-nav__links--left,
+.ds-nav__links--right {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ds-nav__links--left { justify-content: flex-end; }
+.ds-nav__links--right { justify-content: flex-start; }
+.ds-nav__logo--center {
+  flex-shrink: 0;
+  padding: 6px 14px;
+  border-radius: var(--ds-radius-pill);
+  background: rgba(255,255,255,0.04);
+  box-shadow: 0 6px 24px rgba(0,0,0,0.35);
+}
+.ds-nav__logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.ds-nav__logo-icon {
+  font-size: 1.35rem;
+  filter: drop-shadow(0 0 10px rgba(167,139,250,0.7));
+  animation: ds-moon-glow 4s ease-in-out infinite alternate;
+}
+@keyframes ds-moon-glow {
+  from { filter: drop-shadow(0 0 6px rgba(167,139,250,0.5)) }
+  to   { filter: drop-shadow(0 0 16px rgba(167,139,250,0.9)) }
+}
+.ds-nav__logo-text {
+  font-size: 1.15rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  background: var(--ds-g-dream);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.ds-nav__logo-sub {
+  font-size: 0.6rem;
+  color: var(--ds-t4);
+  border-left: 1px solid var(--ds-border-glow);
+  padding-left: 10px;
+  margin-left: 2px;
+  letter-spacing: 0.05em;
+}
+.ds-nav__links {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.ds-nav__link {
+  padding: 7px 16px;
+  border-radius: var(--ds-radius-pill);
+  font-size: 0.875rem;
+  color: var(--ds-t3);
+  transition: color var(--ds-dur), background var(--ds-dur);
+}
+.ds-nav__link:hover {
+  color: var(--ds-t1);
+  background: var(--ds-surface);
+}
+.ds-nav__link--cta {
+  background: var(--ds-g-violet);
+  color: #fff !important;
+  padding: 8px 22px;
+  font-weight: 700;
+  box-shadow: 0 4px 20px rgba(124,58,237,0.5);
+  transition: transform var(--ds-dur), box-shadow var(--ds-dur);
+}
+.ds-nav__link--cta:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 28px rgba(124,58,237,0.65);
+}
+.ds-nav__toggle {
+  display: none;
+  background: none;
+  color: var(--ds-t1);
+  font-size: 1.1rem;
+  padding: 8px;
+  border-radius: 10px;
+  transition: background var(--ds-dur);
+}
+.ds-nav__toggle:hover { background: var(--ds-surface) }
+
+/* ─── 5. Layout Utilities ──────────────────────────────────────── */
+.ds-container { max-width: var(--ds-container); margin: 0 auto; padding: 0 32px }
+.ds-container-sm { max-width: var(--ds-container-sm); margin: 0 auto; padding: 0 32px }
+.ds-z1 { position: relative; z-index: 1 }
+.ds-text-center { text-align: center }
+.ds-section { padding: 96px 0 }
+.ds-section-sm { padding: 56px 0 }
+
+/* ─── 6. Typography System ─────────────────────────────────────── */
+.ds-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--ds-violet-l);
+  padding: 5px 15px;
+  border-radius: var(--ds-radius-pill);
+  background: rgba(167,139,250,0.1);
+  border: 1px solid rgba(167,139,250,0.22);
+  margin-bottom: 14px;
+}
+.ds-eyebrow i { font-size: 0.65rem }
+
+.ds-headline {
+  font-family: var(--ds-font-display);
+  font-size: clamp(2.1rem, 4vw, 3.1rem);
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1.1;
+  color: var(--ds-t1);
+  margin-bottom: 16px;
+}
+.ds-headline-xl {
+  font-family: var(--ds-font-display);
+  font-size: clamp(3.2rem, 7vw, 5.2rem);
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  line-height: 1.05;
+  color: var(--ds-t1);
+}
+.ds-subhead {
+  font-size: clamp(0.95rem, 1.4vw, 1.08rem);
+  color: var(--ds-t2);
+  line-height: 1.75;
+  max-width: 640px;
+}
+.ds-subhead-center { text-align: center; margin: 0 auto }
+
+/* Gradient text variants */
+.ds-gt {
+  background: var(--ds-g-dream);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.ds-gt-aurora {
+  background: var(--ds-g-aurora);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.ds-gt-cosmic {
+  background: var(--ds-g-cosmic);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.ds-gt-rose {
+  background: var(--ds-g-rose-gold);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ─── 7. Glass Card System ─────────────────────────────────────── */
+.ds-card {
+  background: var(--ds-g-card);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-lg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: var(--ds-card-shadow);
+  transition:
+    border-color var(--ds-dur) var(--ds-ease),
+    box-shadow var(--ds-dur) var(--ds-ease),
+    transform var(--ds-dur) var(--ds-ease);
+  overflow: hidden;
+}
+.ds-card:hover {
+  border-color: var(--ds-border-glow);
+  box-shadow: var(--ds-card-shadow), 0 0 40px rgba(124,58,237,0.15);
+  transform: translateY(-4px);
+}
+.ds-card--flat {
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.ds-card--glow {
+  box-shadow: var(--ds-card-shadow), 0 0 0 1px rgba(167,139,250,0.2), var(--ds-glow-v);
+}
+
+/* ─── 8. Button System ─────────────────────────────────────────── */
+.ds-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 26px;
+  border-radius: var(--ds-radius-pill);
+  font-size: 0.92rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  transition:
+    transform var(--ds-dur) var(--ds-ease-spring),
+    box-shadow var(--ds-dur),
+    background var(--ds-dur);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.ds-btn-primary {
+  background: var(--ds-g-violet);
+  color: #fff;
+  box-shadow: 0 6px 28px rgba(124,58,237,0.5);
+}
+.ds-btn-primary:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 14px 36px rgba(124,58,237,0.65);
+}
+.ds-btn-aurora {
+  background: var(--ds-g-aurora);
+  color: #fff;
+  box-shadow: 0 6px 28px rgba(236,72,153,0.4);
+}
+.ds-btn-aurora:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 14px 36px rgba(236,72,153,0.55);
+}
+.ds-btn-ghost {
+  background: var(--ds-surface-2);
+  color: var(--ds-t1);
+  border: 1px solid var(--ds-border-glow);
+  backdrop-filter: blur(8px);
+}
+.ds-btn-ghost:hover {
+  background: var(--ds-surface-3);
+  transform: translateY(-2px);
+  border-color: var(--ds-violet-l);
+}
+.ds-btn-sm {
+  padding: 9px 20px;
+  font-size: 0.82rem;
+}
+.ds-btn-lg {
+  padding: 16px 36px;
+  font-size: 1.05rem;
+}
+
+/* ─── 9. Dream Orb / Visual Elements ──────────────────────────── */
+.ds-orb {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ds-orb__ring {
+  position: absolute;
+  border-radius: 50%;
+  border: 1px solid;
+  animation: ds-orb-rotate linear infinite;
+}
+@keyframes ds-orb-rotate { to { transform: rotate(360deg) } }
+.ds-orb__core {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, rgba(196,181,253,0.6), rgba(124,58,237,0.8));
+  box-shadow: var(--ds-glow-v), inset 0 0 30px rgba(255,255,255,0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3rem;
+  animation: ds-orb-float 6s ease-in-out infinite;
+}
+@keyframes ds-orb-float {
+  0%, 100% { transform: translateY(0) scale(1) }
+  50%       { transform: translateY(-12px) scale(1.03) }
+}
+
+/* ─── 10. Scroll Animation ─────────────────────────────────────── */
+.ds-reveal {
+  opacity: 0;
+  transform: translateY(32px);
+  transition:
+    opacity 0.7s var(--ds-ease-out),
+    transform 0.7s var(--ds-ease-out);
+}
+.ds-reveal.ds-in {
+  opacity: 1;
+  transform: translateY(0);
+}
+.ds-reveal-delay-1 { transition-delay: 0.1s }
+.ds-reveal-delay-2 { transition-delay: 0.2s }
+.ds-reveal-delay-3 { transition-delay: 0.3s }
+.ds-reveal-delay-4 { transition-delay: 0.4s }
+
+/* ─── 11. Tag / Badge / Pill ───────────────────────────────────── */
+.ds-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 12px;
+  border-radius: var(--ds-radius-pill);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+.ds-badge--violet {
+  background: rgba(124,58,237,0.18);
+  color: var(--ds-violet-l);
+  border: 1px solid rgba(124,58,237,0.3);
+}
+.ds-badge--pink {
+  background: rgba(236,72,153,0.15);
+  color: var(--ds-pink-l);
+  border: 1px solid rgba(236,72,153,0.28);
+}
+.ds-badge--teal {
+  background: rgba(6,182,212,0.14);
+  color: #7dd3fc;
+  border: 1px solid rgba(6,182,212,0.25);
+}
+.ds-badge--gold {
+  background: rgba(245,158,11,0.15);
+  color: var(--ds-gold);
+  border: 1px solid rgba(245,158,11,0.28);
+}
+.ds-badge--new {
+  background: linear-gradient(135deg, rgba(124,58,237,0.4), rgba(236,72,153,0.4));
+  color: #fff;
+  font-size: 0.6rem;
+  padding: 2px 7px;
+  animation: ds-badge-pulse 2s ease-in-out infinite;
+}
+@keyframes ds-badge-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(167,139,250,0.4) }
+  50%       { box-shadow: 0 0 0 4px rgba(167,139,250,0) }
+}
+
+/* ─── 12. Section Divider ──────────────────────────────────────── */
+.ds-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--ds-border-glow), transparent);
+  margin: 0;
+}
+
+/* ─── 13. Dreamscape Particles (JS injected) ───────────────────── */
+.ds-particle {
+  position: absolute;
+  pointer-events: none;
+  animation: ds-particle-rise linear infinite;
+  opacity: 0;
+}
+@keyframes ds-particle-rise {
+  0%   { transform: translateY(0) rotate(0deg); opacity: 0 }
+  10%  { opacity: 0.6 }
+  90%  { opacity: 0.3 }
+  100% { transform: translateY(-100px) rotate(360deg); opacity: 0 }
+}
+
+/* ─── 14. Toast Notification ───────────────────────────────────── */
+.ds-toast {
+  position: fixed;
+  bottom: 32px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: var(--ds-glass-2);
+  color: var(--ds-t1);
+  padding: 12px 24px;
+  border-radius: var(--ds-radius-pill);
+  border: 1px solid var(--ds-border-glow);
+  backdrop-filter: blur(20px);
+  font-size: 0.875rem;
+  font-weight: 600;
+  z-index: 9999;
+  opacity: 0;
+  transition: opacity 0.3s, transform 0.3s;
+  pointer-events: none;
+  white-space: nowrap;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+}
+.ds-toast.ds-toast--show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* ─── 15. Scrollbar ────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px }
+::-webkit-scrollbar-track { background: var(--ds-bg-2) }
+::-webkit-scrollbar-thumb {
+  background: rgba(124,58,237,0.4);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover { background: rgba(167,139,250,0.6) }
+
+/* ─── 16. Selection ────────────────────────────────────────────── */
+::selection {
+  background: rgba(124,58,237,0.35);
+  color: var(--ds-t1);
+}
+
+/* ─── 17. Focus ring ───────────────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid var(--ds-violet-l);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+/* ─── 18. Responsive nav ───────────────────────────────────────── */
+@media (max-width: 768px) {
+  .ds-nav__links {
+    position: fixed;
+    top: var(--ds-nav-h);
+    left: 0; right: 0;
+    flex-direction: column;
+    background: rgba(8,6,22,0.96);
+    backdrop-filter: blur(24px);
+    padding: 16px;
+    gap: 4px;
+    border-bottom: 1px solid var(--ds-border);
+    transform: translateY(-10px);
+    opacity: 0;
+    pointer-events: none;
+    transition: transform var(--ds-dur), opacity var(--ds-dur);
+  }
+  .ds-nav__links.ds-nav--open {
+    transform: translateY(0);
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .ds-nav__toggle { display: flex }
+  .ds-nav__link { width: 100%; text-align: center; padding: 12px }
+  .ds-nav__link--cta { margin-top: 8px }
+  .ds-container, .ds-container-sm { padding: 0 20px }
+  .ds-headline { font-size: clamp(1.6rem, 6vw, 2.2rem) }
+  .ds-headline-xl { font-size: clamp(2.2rem, 8vw, 3.5rem) }
+  .ds-section { padding: 64px 0 }
+}
+
+/* ─── 19. Floating sparkle elements ───────────────────────────── */
+.ds-sparkle {
+  position: absolute;
+  font-size: 0.8rem;
+  opacity: 0;
+  animation: ds-sparkle-anim var(--sp-dur, 4s) ease-in-out infinite var(--sp-delay, 0s);
+  pointer-events: none;
+}
+@keyframes ds-sparkle-anim {
+  0%, 100% { opacity: 0; transform: scale(0.5) rotate(0deg) }
+  40%, 60%  { opacity: 0.7; transform: scale(1) rotate(180deg) }
+}
+
+/* ─── 20. Page transition overlay ─────────────────────────────── */
+.ds-page-enter {
+  animation: ds-page-in 0.5s var(--ds-ease-out) both;
+}
+@keyframes ds-page-in {
+  from { opacity: 0; transform: translateY(16px) }
+  to   { opacity: 1; transform: translateY(0) }
+}
+
+/* ─── 21. Input / Textarea base ────────────────────────────────── */
+.ds-input,
+.ds-textarea {
+  width: 100%;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius);
+  color: var(--ds-t1);
+  font-family: var(--ds-font);
+  font-size: 0.95rem;
+  line-height: 1.7;
+  padding: 14px 18px;
+  transition: border-color var(--ds-dur), box-shadow var(--ds-dur), background var(--ds-dur);
+  resize: none;
+}
+.ds-input::placeholder,
+.ds-textarea::placeholder { color: var(--ds-t4) }
+.ds-input:focus,
+.ds-textarea:focus {
+  outline: none;
+  border-color: rgba(167,139,250,0.45);
+  background: rgba(255,255,255,0.06);
+  box-shadow: 0 0 0 3px rgba(124,58,237,0.15), 0 0 20px rgba(124,58,237,0.1);
+}
+
+/* ─── 22. Loading / skeleton shimmer ───────────────────────────── */
+.ds-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(255,255,255,0.03) 25%,
+    rgba(255,255,255,0.07) 50%,
+    rgba(255,255,255,0.03) 75%
+  );
+  background-size: 200% 100%;
+  animation: ds-shimmer 1.5s ease-in-out infinite;
+}
+@keyframes ds-shimmer {
+  from { background-position: 200% 0 }
+  to   { background-position: -200% 0 }
+}
+
+/* ─── 23. Glassmorphism panel ──────────────────────────────────── */
+.ds-panel {
+  background: rgba(13,11,34,0.8);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-xl);
+  backdrop-filter: blur(32px);
+  -webkit-backdrop-filter: blur(32px);
+  padding: 40px;
+  position: relative;
+  overflow: hidden;
+}
+.ds-panel::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+}
+
+/* ─── 24. Feature icon backgrounds ────────────────────────────── */
+.ds-icon-bg {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3rem;
+  flex-shrink: 0;
+  margin-bottom: 16px;
+}
+.ds-icon-bg--violet { background: rgba(124,58,237,0.18); color: var(--ds-violet-l) }
+.ds-icon-bg--pink   { background: rgba(236,72,153,0.15); color: var(--ds-pink-l) }
+.ds-icon-bg--teal   { background: rgba(6,182,212,0.14);  color: #7dd3fc }
+.ds-icon-bg--amber  { background: rgba(245,158,11,0.15); color: var(--ds-gold) }
+.ds-icon-bg--emerald{ background: rgba(16,185,129,0.14); color: #6ee7b7 }
+.ds-icon-bg--rose   { background: rgba(244,63,94,0.14);  color: #fda4af }
+
+/* ─── 25. Progress / emotion bar ──────────────────────────────── */
+.ds-progress-track {
+  height: 6px;
+  background: rgba(255,255,255,0.06);
+  border-radius: var(--ds-radius-pill);
+  overflow: hidden;
+}
+.ds-progress-fill {
+  height: 100%;
+  border-radius: var(--ds-radius-pill);
+  background: var(--ds-g-dream);
+  transition: width 1s var(--ds-ease-spring);
+}
+
+/* ─── 26. Footer ───────────────────────────────────────────────── */
+.ds-footer {
+  position: relative;
+  z-index: 1;
+  border-top: 1px solid var(--ds-border);
+  padding: 64px 0 0;
+  margin-top: 80px;
+}
+.ds-footer__inner {
+  max-width: var(--ds-container);
+  margin: 0 auto;
+  padding: 0 40px;
+  display: grid;
+  grid-template-columns: 1.4fr repeat(3, 1fr);
+  gap: 48px;
+}
+.ds-footer__brand {}
+.ds-footer__logo {
+  font-size: 1.2rem;
+  font-weight: 800;
+  background: var(--ds-g-dream);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 12px;
+}
+.ds-footer__tagline {
+  font-size: 0.85rem;
+  color: var(--ds-t3);
+  line-height: 1.7;
+  margin-bottom: 20px;
+}
+.ds-footer__social { display: flex; gap: 10px }
+.ds-footer__social-link {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--ds-surface-2);
+  border: 1px solid var(--ds-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ds-t3);
+  font-size: 0.9rem;
+  transition: background var(--ds-dur), color var(--ds-dur), border-color var(--ds-dur);
+}
+.ds-footer__social-link:hover {
+  background: var(--ds-surface-3);
+  color: var(--ds-violet-l);
+  border-color: var(--ds-border-glow);
+}
+.ds-footer__col h4 {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ds-t3);
+  margin-bottom: 16px;
+}
+.ds-footer__col a {
+  display: block;
+  font-size: 0.875rem;
+  color: var(--ds-t4);
+  margin-bottom: 10px;
+  transition: color var(--ds-dur);
+}
+.ds-footer__col a:hover { color: var(--ds-t1) }
+.ds-footer__bottom {
+  border-top: 1px solid var(--ds-border);
+  padding: 20px 40px;
+  max-width: var(--ds-container);
+  margin: 40px auto 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.ds-footer__bottom p { font-size: 0.78rem; color: var(--ds-t4) }
+
+@media (max-width: 900px) {
+  .ds-footer__inner { grid-template-columns: 1fr 1fr; gap: 32px }
+}
+@media (max-width: 600px) {
+  .ds-footer__inner { grid-template-columns: 1fr }
+  .ds-footer__bottom { padding: 20px }
+  .ds-footer { padding: 48px 0 0 }
+}
+
+/* ─── 27. Section header utility ───────────────────────────────── */
+.ds-section-header {
+  text-align: center;
+  margin-bottom: 64px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* ─── 28. Dream Nebula Glow Layer ──────────────────────────────── */
+.ds-nebula {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 0;
+}
+.ds-nebula::before {
+  content: '';
+  position: absolute;
+  width: 600px; height: 600px;
+  top: 10%; left: 50%;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(124,58,237,0.12) 0%, transparent 70%);
+  filter: blur(40px);
+}
+
+/* ─── 29. Page header band ─────────────────────────────────────── */
+.ds-page-header {
+  position: relative;
+  z-index: 1;
+  padding: calc(var(--ds-nav-h) + 60px) 40px 60px;
+  text-align: center;
+  max-width: 700px;
+  margin: 0 auto;
+}
+.ds-page-header .ds-headline {
+  margin-bottom: 16px;
+}
+
+/* ─── 30. Image utilities ──────────────────────────────────────── */
+.ds-img-glow {
+  border-radius: var(--ds-radius);
+  box-shadow: 0 0 40px rgba(124,58,237,0.3), 0 0 80px rgba(124,58,237,0.1);
+}
+.ds-img-float {
+  animation: ds-img-float 5s ease-in-out infinite;
+}
+@keyframes ds-img-float {
+  0%, 100% { transform: translateY(0) }
+  50%       { transform: translateY(-10px) }
+}
