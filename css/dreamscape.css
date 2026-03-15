@@ -16,11 +16,11 @@
   --ds-hover:       rgba(255,255,255,0.08);
 
   /* ── Dream Color Palette (Cosmic) ── */
-  --ds-violet:      #a87dff;
-  --ds-violet-l:    #c3a6ff;
-  --ds-violet-xl:   #e2d6ff;
-  --ds-violet-xxl:  #f6f1ff;
-  --ds-indigo:      #6d86ff;
+  --ds-violet:      #b88cff;
+  --ds-violet-l:    #d2b6ff;
+  --ds-violet-xl:   #ede2ff;
+  --ds-violet-xxl:  #faf6ff;
+  --ds-indigo:      #7e95ff;
   --ds-blue:        #4db8ff;
   --ds-cyan:        #4cd3ff;
   --ds-teal:        #4fb6c9;
@@ -49,21 +49,21 @@
   --ds-frosted-2:    rgba(255,255,255,0.1);
 
   /* ── Gradients ── */
-  --ds-g-dream:      linear-gradient(140deg, #a87dff 0%, #63c2ff 50%, #0f1628 100%);
-  --ds-g-aurora:     linear-gradient(135deg, #ff70a6 0%, #a87dff 50%, #4cd3ff 100%);
-  --ds-g-violet:     linear-gradient(135deg, #a87dff, #6d86ff);
+  --ds-g-dream:      linear-gradient(140deg, #b88cff 0%, #6cc8ff 50%, #0f1628 100%);
+  --ds-g-aurora:     linear-gradient(135deg, #ff70a6 0%, #b88cff 50%, #4cd3ff 100%);
+  --ds-g-violet:     linear-gradient(135deg, #b88cff, #7e95ff);
   --ds-g-cosmic:     linear-gradient(135deg, #4db8ff, #4cd3ff);
   --ds-g-rose-gold:  linear-gradient(135deg, #ff70a6, #f7c45f);
   --ds-g-night:      linear-gradient(180deg, #04050f 0%, #070a16 50%, #0b1020 100%);
   --ds-g-card:       linear-gradient(155deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
-  --ds-g-glow-v:     radial-gradient(ellipse at center, rgba(168,125,255,0.34) 0%, transparent 70%);
+  --ds-g-glow-v:     radial-gradient(ellipse at center, rgba(184,140,255,0.45) 0%, transparent 70%);
   --ds-g-glow-p:     radial-gradient(ellipse at center, rgba(255,112,166,0.22) 0%, transparent 70%);
   --ds-g-glow-t:     radial-gradient(ellipse at center, rgba(76,211,255,0.18) 0%, transparent 70%);
 
   /* ── Shadows & Glows ── */
   --ds-shadow:       0 6px 24px rgba(0,0,0,0.42), 0 1px 0 rgba(255,255,255,0.03);
   --ds-shadow-lg:    0 14px 48px rgba(0,0,0,0.55), 0 1px 0 rgba(255,255,255,0.04);
-  --ds-glow-v:       0 0 42px rgba(168,125,255,0.45);
+  --ds-glow-v:       0 0 56px rgba(184,140,255,0.6);
   --ds-glow-p:       0 0 30px rgba(255,112,166,0.3);
   --ds-glow-t:       0 0 28px rgba(76,211,255,0.28);
   --ds-glow-gold:    0 0 20px rgba(247,196,95,0.32);
