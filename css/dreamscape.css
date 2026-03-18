@@ -254,9 +254,9 @@ input, textarea { font-family: var(--ds-font) }
   height: 1px;
   background: linear-gradient(90deg,
     rgba(196,186,255,0) 0%,
-    rgba(196,186,255,0.08) 18%,
-    rgba(214,205,255,0.34) 50%,
-    rgba(196,186,255,0.08) 82%,
+    rgba(196,186,255,0.1) 18%,
+    rgba(228,220,255,0.52) 50%,
+    rgba(196,186,255,0.1) 82%,
     rgba(196,186,255,0) 100%);
 }
 .ds-nav.ds-nav--scrolled {
