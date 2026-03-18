@@ -88,12 +88,7 @@
     const toggle = document.getElementById('navToggle');
     const links = document.getElementById('navLinks');
     if (!nav) return;
-
-    const onScroll = () => {
-      nav.classList.toggle('ds-nav--scrolled', window.scrollY > 40);
-    };
-    window.addEventListener('scroll', onScroll, { passive: true });
-    onScroll();
+    nav.classList.add('ds-nav--scrolled');
 
     if (toggle && links) {
       toggle.addEventListener('click', () => {

@@ -239,15 +239,11 @@ input, textarea { font-family: var(--ds-font) }
   height: var(--ds-nav-h);
   display: flex;
   align-items: center;
-  transition: background var(--ds-dur) var(--ds-ease),
-              border-color var(--ds-dur),
-              backdrop-filter var(--ds-dur),
-              box-shadow var(--ds-dur);
-  background: rgba(11,10,26,0.42);
+  background: rgba(10,8,24,0.72);
   backdrop-filter: blur(22px);
   -webkit-backdrop-filter: blur(22px);
-  border-bottom: 1px solid rgba(120,110,220,0.1);
-  box-shadow: 0 14px 42px rgba(6,6,20,0.18);
+  border-bottom: 1px solid rgba(162,146,255,0.16);
+  box-shadow: 0 16px 48px rgba(6,6,20,0.44);
 }
 .ds-nav.ds-nav--scrolled {
   background: rgba(10,8,24,0.72);

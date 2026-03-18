@@ -120,9 +120,7 @@ function initNav() {
     const toggle = document.getElementById('navToggle');
     const links  = document.getElementById('navLinks');
     if (!nav) return;
-    window.addEventListener('scroll', () => {
-        nav.classList.toggle('ds-nav--scrolled', window.scrollY > 20);
-    }, { passive: true });
+    nav.classList.add('ds-nav--scrolled');
     if (toggle && links) {
         toggle.addEventListener('click', () => links.classList.toggle('ds-nav--open'));
     }
