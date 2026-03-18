@@ -161,15 +161,53 @@ function extractVisualFromDream(text) {
     return { visualCore, motifs };
 }
 
+function buildLiteralDreamPrompt(text) {
+    const cleaned = String(text || '')
+        .replace(/[，。！？、；：]/g, ', ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, 220);
+
+    if (!cleaned) {
+        return 'dream scene based on the user description';
+    }
+
+    return `faithful visual depiction of this dream: ${cleaned}`;
+}
+
+function buildRelationHints(text) {
+    const hints = [];
+    const hasHuman = /(我|自己|本人|我们)/.test(text);
+    const hasGlassBuilding = /(玻璃).*(建筑|大楼|房子|宫殿|房间)|((建筑|大楼|房子|宫殿|房间).*(玻璃))/.test(text);
+    const hasWhale = /(鲸|鲸鱼)/.test(text);
+
+    if (hasHuman) {
+        hints.push('a human figure must be clearly visible');
+    }
+    if (hasGlassBuilding) {
+        hints.push('the scene must clearly show a giant transparent glass building interior');
+    }
+    if (hasHuman && hasWhale) {
+        hints.push('the whale must appear beside the person in the same frame');
+    } else if (hasWhale) {
+        hints.push('a whale must be clearly visible in the main scene');
+    }
+
+    hints.push('preserve the main objects and their spatial relationships from the dream');
+    return hints.join(', ');
+}
+
 function buildPromptAndSeed(dreamText, variant = 0) {
     const styleInfo  = DEFAULT_ART_STYLE;
     const { visualCore, motifs } = extractVisualFromDream(dreamText);
+    const literalScene = buildLiteralDreamPrompt(dreamText);
+    const relationHints = buildRelationHints(dreamText);
     const motifLine = motifs.length ? `key motifs: ${motifs.join(', ')}` : '';
-    const coherence = 'coherent single scene, consistent subject, cinematic lighting, avoid unrelated elements';
-    const promptBase = `${visualCore}, ${styleInfo.suffix}, ${coherence}`;
+    const coherence = 'coherent single scene, consistent subject, cinematic lighting, avoid unrelated elements, no extra subjects dominating the frame';
+    const promptBase = `${literalScene}, ${visualCore}, ${relationHints}, ${styleInfo.suffix}, ${coherence}`;
     const prompt = variant === 0
-        ? `${promptBase}, ${motifLine}, highly detailed, no text, no watermark`
-        : `${motifLine}, ${promptBase}, dreamy atmosphere, highly detailed, no text, no watermark`;
+        ? `${promptBase}, ${motifLine}, highly detailed, faithful to the described dream, no text, no watermark`
+        : `${relationHints}, ${literalScene}, ${promptBase}, ${motifLine}, dreamy atmosphere, highly detailed, faithful to the described dream, no text, no watermark`;
     const seed       = Math.floor(Math.random() * 999999);
     return { prompt, seed, styleInfo };
 }
