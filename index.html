@@ -10,7 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@300;400;600;700;900&family=Noto+Sans+SC:wght@300;400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
 </head>
-<body class="ds-page-enter">
+<body class="ds-page-enter ds-shell ds-shell--home">
 
 <!-- ── Backgrounds ── -->
 <div class="ds-bg" id="dsBg"></div>
@@ -26,7 +26,7 @@
     </a>
 
     <ul class="ds-nav__links ds-nav__links--center">
-      <li><a href="#features" class="ds-nav__link">能力</a></li>
+      <li><a href="#features" class="ds-nav__link ds-nav__link--active">能力</a></li>
       <li><a href="pricing.html" class="ds-nav__link">方案</a></li>
       <li><a href="#about" class="ds-nav__link">关于</a></li>
       <li><a href="#articles" class="ds-nav__link">灵感</a></li>
@@ -53,7 +53,7 @@
       <span>AI 记录灵感</span>
     </div>
     <h1 class="ds-headline-xl idx-hero__title">
-      <span class="idx-hero__title-line2">别让你的灵感，在醒来时破碎</span>
+      <span class="idx-hero__title-line2">你的梦，藏着另一个你</span>
     </h1>
 
     <p class="idx-hero__desc">
@@ -75,36 +75,52 @@
   <div class="idx-hero__glow" aria-hidden="true"></div>
   <div class="idx-hero__dock" aria-hidden="true">
     <div class="idx-hero__dock-panel">
-      <div class="idx-hero__dock-bar">
-        <div class="idx-hero__dock-search">
-          <span class="idx-hero__dock-icon">🔍</span>
-          <span class="idx-hero__dock-placeholder">Search anything...</span>
+      <div class="idx-hero__dock-bar idx-hero__dock-bar--dream">
+        <div class="idx-hero__dock-kicker">
+          <span class="idx-hero__dock-kicker-icon">✦</span>
+          <span>AI 梦境解读预览</span>
         </div>
-        <div class="idx-hero__dock-chip">AI</div>
+        <div class="idx-hero__dock-chip">深度解析中</div>
       </div>
       <div class="idx-hero__dock-body">
-        <div class="idx-hero__dock-sidebar">
-          <div class="idx-hero__dock-item idx-hero__dock-item--active">Daily notes</div>
-          <div class="idx-hero__dock-item">All notes</div>
-          <div class="idx-hero__dock-item">Tasks</div>
-          <div class="idx-hero__dock-item">Map</div>
+        <div class="idx-hero__dock-column idx-hero__dock-column--dream">
+          <div class="idx-hero__dock-panel-title">梦境片段</div>
+          <p class="idx-hero__dock-dream">
+            “我走进一片发光的森林，树叶像玻璃一样轻轻作响。远处有一扇门，门后传来海浪声。”
+          </p>
+          <div class="idx-hero__dock-tags">
+            <span>森林</span>
+            <span>门</span>
+            <span>海浪</span>
+          </div>
         </div>
-        <div class="idx-hero__dock-main">
-          <div class="idx-hero__dock-date">Sun, April 2nd, 2023</div>
+        <div class="idx-hero__dock-column idx-hero__dock-column--analysis">
+          <div class="idx-hero__dock-panel-title">AI 正在看见</div>
           <ul class="idx-hero__dock-list">
-            <li>Today I started using DreamLens</li>
-            <li>What is DreamLens?</li>
-            <li>A dream log designed to mirror the way we think</li>
-            <li>Our brains remember through associations</li>
+            <li>森林象征未知的内在地带，与自我探索有关</li>
+            <li>门代表正在靠近的转变，潜意识希望你跨过去</li>
+            <li>海浪意味着情绪正在涌动，但并不是危险信号</li>
+            <li>整体梦感偏“召唤”，不是“逃离”</li>
           </ul>
         </div>
-        <div class="idx-hero__dock-calendar">
-          <div class="idx-hero__dock-month">April 2023</div>
-          <div class="idx-hero__dock-grid">
-            <span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span><span>Su</span>
-            <span class="muted">27</span><span class="muted">28</span><span class="muted">29</span><span class="muted">30</span><span>31</span><span>1</span><span class="active">2</span>
-            <span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span>
-            <span>10</span><span>11</span><span>12</span><span>13</span><span>14</span><span>15</span><span>16</span>
+        <div class="idx-hero__dock-column idx-hero__dock-column--signals">
+          <div class="idx-hero__dock-panel-title">情绪能量</div>
+          <div class="idx-hero__dock-meters">
+            <div class="idx-hero__dock-meter">
+              <span>好奇</span>
+              <div class="idx-hero__dock-meter-track"><i style="width: 82%"></i></div>
+            </div>
+            <div class="idx-hero__dock-meter">
+              <span>不安</span>
+              <div class="idx-hero__dock-meter-track"><i style="width: 36%"></i></div>
+            </div>
+            <div class="idx-hero__dock-meter">
+              <span>直觉</span>
+              <div class="idx-hero__dock-meter-track"><i style="width: 74%"></i></div>
+            </div>
+          </div>
+          <div class="idx-hero__dock-insight">
+            今夜关键词：靠近内心深处那扇还没打开的门
           </div>
         </div>
       </div>

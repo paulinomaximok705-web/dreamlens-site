@@ -2,12 +2,15 @@
    DreamLens — dream-art.js  v5
    AI 梦境图片生成模块
    核心修复：
-   1. OpenAI gpt-image-1-mini 生成
+   1. fal FLUX.1 schnell 生成
    2. 多提示词尝试：同一梦境多提示词组合（更相关）
    3. 梦境内容精准匹配词典 → 生成更聚焦的提示词
 ==================================================== */
 
 const IMAGE_API_ENDPOINT = window.DREAMLENS_IMAGE_API || 'https://YOUR-VERCEL-APP.vercel.app/api/image';
+const DAILY_IMAGE_LIMIT = 3;
+const CLIENT_ID_STORAGE_KEY = 'dreamlens_client_id';
+const USAGE_STORAGE_KEY = 'dreamlens_art_daily_usage';
 
 /* ──────────────────────────────────────────────────
    风格配置
@@ -90,6 +93,62 @@ let currentDreamText = '';
 let genProgressTimer = null;
 let genAborted       = false;
 let lastGeneratedUrl = '';
+
+function getTodayKey() {
+    return new Date().toISOString().slice(0, 10);
+}
+
+function getOrCreateClientId() {
+    try {
+        const existing = localStorage.getItem(CLIENT_ID_STORAGE_KEY);
+        if (existing) return existing;
+
+        const clientId = `dl_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+        localStorage.setItem(CLIENT_ID_STORAGE_KEY, clientId);
+        return clientId;
+    } catch (_) {
+        return `dl_fallback_${Date.now()}`;
+    }
+}
+
+function getLocalUsageState() {
+    const today = getTodayKey();
+
+    try {
+        const raw = localStorage.getItem(USAGE_STORAGE_KEY);
+        const parsed = raw ? JSON.parse(raw) : null;
+
+        if (parsed && parsed.date === today) {
+            return { date: today, count: Number(parsed.count) || 0 };
+        }
+    } catch (_) {}
+
+    return { date: today, count: 0 };
+}
+
+function saveLocalUsageCount(count) {
+    try {
+        localStorage.setItem(USAGE_STORAGE_KEY, JSON.stringify({
+            date: getTodayKey(),
+            count: Math.max(0, count)
+        }));
+    } catch (_) {}
+}
+
+function getRemainingLocalQuota() {
+    const state = getLocalUsageState();
+    return Math.max(0, DAILY_IMAGE_LIMIT - state.count);
+}
+
+function syncLocalQuotaFromResponse(data) {
+    if (typeof data?.remaining === 'number') {
+        saveLocalUsageCount(DAILY_IMAGE_LIMIT - data.remaining);
+        return;
+    }
+
+    const state = getLocalUsageState();
+    saveLocalUsageCount(state.count + 1);
+}
 
 /* ──────────────────────────────────────────────────
    提示词构建
@@ -222,9 +281,16 @@ async function requestImage(prompt) {
         throw new Error('NO_API_ENDPOINT');
     }
 
+    if (getRemainingLocalQuota() <= 0) {
+        throw new Error('DAILY_LIMIT_REACHED');
+    }
+
     const res = await fetch(IMAGE_API_ENDPOINT, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Dreamlens-Client-Id': getOrCreateClientId()
+        },
         body: JSON.stringify({ prompt, size: '1024x1024', quality: 'low' })
     });
 
@@ -234,11 +300,54 @@ async function requestImage(prompt) {
         throw new Error(String(msg));
     }
 
-    if (!data?.b64) {
+    const imageSrc = data?.imageUrl || (data?.b64 ? `data:image/png;base64,${data.b64}` : '');
+    if (!imageSrc) {
         throw new Error('NO_IMAGE');
     }
 
-    return `data:image/png;base64,${data.b64}`;
+    syncLocalQuotaFromResponse(data);
+    return imageSrc;
+}
+
+function _formatImageErrorMessage(err) {
+    if (!err || !err.message) return '图片生成失败，请重试';
+
+    const raw = String(err.message);
+    const lower = raw.toLowerCase();
+
+    if (raw === 'NO_API_ENDPOINT') {
+        return '未配置图片生成服务——请先部署后端并填写接口地址';
+    }
+
+    if (raw === 'NO_IMAGE') {
+        return '图片服务未返回图片数据——请稍后重试';
+    }
+
+    if (raw === 'DAILY_LIMIT_REACHED') {
+        return `你今天的梦境艺术生成次数已达上限（${DAILY_IMAGE_LIMIT} 次）——请明天再试`;
+    }
+
+    if (raw.startsWith('HTTP')) {
+        return `服务器返回错误（${raw}）——请稍后重试`;
+    }
+
+    if (lower.includes('billing hard limit')) {
+        return '图片生成额度已用尽：当前图片服务账户触发了 billing hard limit，请充值或提高项目预算后重试';
+    }
+
+    if (lower.includes('insufficient_quota')) {
+        return '图片生成额度不足：当前图片服务配额已耗尽，请检查账户余额或套餐限制';
+    }
+
+    if (lower.includes('rate limit')) {
+        return '图片生成请求过于频繁，已触发限流——请稍等片刻后重试';
+    }
+
+    if (lower.includes('invalid_api_key')) {
+        return '图片服务配置错误：API Key 无效，请检查部署环境变量';
+    }
+
+    return `生成出错（${raw}）——请重试`;
 }
 
 /* ──────────────────────────────────────────────────
@@ -268,7 +377,7 @@ async function generateDreamArt() {
 
         const src = prompts[i];
 
-        console.log(`[DreamArt] 尝试 #${i+1} (OpenAI image)`);
+        console.log(`[DreamArt] 尝试 #${i+1} (fal image)`);
 
         try {
             const imgSrc = await requestImage(src.prompt);
@@ -324,12 +433,7 @@ async function generateDreamArt() {
    错误面板
 ────────────────────────────────────────────────── */
 function _showError(err) {
-    let msg = '图片生成失败，请重试';
-    if (err) {
-        if (err.message === 'NO_API_ENDPOINT') msg = '未配置图片生成服务——请先部署后端并填写接口地址';
-        else if (err.message.startsWith('HTTP')) msg = `服务器返回错误（${err.message}）——请稍后重试`;
-        else                                   msg = `生成出错（${err.message}）——请重试`;
-    }
+    const msg = _formatImageErrorMessage(err);
 
     const errMsgEl = document.getElementById('artErrorMsg');
     if (errMsgEl) errMsgEl.textContent = msg;

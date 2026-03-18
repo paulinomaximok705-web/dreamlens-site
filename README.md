@@ -38,7 +38,7 @@ js/
 ### 🔮 梦境解析页 `analyze.html`
 - 文字 + 语音双模式输入
 - **动态 AI 解析引擎**：严格基于用户输入原文生成，含摘要、象征解读（25种）、情绪能量（8类）、心理学解读、潜意识信息、行动建议
-- **AI 梦境艺术画生成**（OpenAI gpt-image-1-mini，多提示词尝试）
+- **AI 梦境艺术画生成**（fal FLUX.1 schnell，多提示词尝试）
 - 4 种艺术风格切换
 - 解析完成后自动保存到日记（含完整 AI 解析数据）
 - "保存到日记"按钮直接跳转日记页
@@ -106,13 +106,13 @@ js/
 
 | 服务 | 用途 | 费用 |
 |------|------|------|
-| OpenAI gpt-image-1-mini | AI 图片生成（多提示词尝试）| 低成本 |
+| fal FLUX.1 schnell | AI 图片生成（多提示词尝试）| 低成本 |
 
 ### Image API 配置
 默认使用后端接口 `/api/image`（需部署）。在 `analyze.html` 里设置：
 `window.DREAMLENS_IMAGE_API = 'https://YOUR-VERCEL-APP.vercel.app/api/image';`
 
-后端函数在 `api/image.js`，需要环境变量 `OPENAI_API_KEY`。
+后端函数在 `api/image.js`，需要环境变量 `FAL_KEY`。
 | Chart.js 4.4 CDN | 日记情绪趋势图 | 免费 |
 | Google Fonts | Noto Serif/Sans SC | 免费 |
 | Font Awesome 6 | 图标库 | 免费 |

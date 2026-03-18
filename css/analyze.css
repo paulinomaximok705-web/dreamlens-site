@@ -4,20 +4,59 @@
 ════════════════════════════════════════════════════════ */
 
 /* ─── Page Header ───────────────────────────────────── */
+.az-hero-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(120% 120% at 50% 15%, rgba(132,86,255,0.35) 0%, transparent 45%),
+    radial-gradient(140% 140% at 50% 70%, rgba(90,72,180,0.32) 0%, transparent 60%),
+    radial-gradient(ellipse at 55% 45%, rgba(255,255,255,0.12) 0%, transparent 60%);
+  opacity: 0.75;
+}
+
 .az-page-header {
-  padding: calc(var(--ds-nav-h) + 56px) 40px 40px;
+  padding: calc(var(--ds-nav-h) + 56px) 32px 34px;
   text-align: center;
-  max-width: 680px;
-  margin: 0 auto;
+  max-width: 860px;
+  margin: 0 auto 10px;
   position: relative;
   z-index: 1;
 }
+.az-page-header::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: calc(var(--ds-nav-h) + 24px);
+  width: min(680px, 82vw);
+  height: 220px;
+  transform: translateX(-50%);
+  background: radial-gradient(circle, rgba(167,139,250,0.22) 0%, transparent 72%);
+  filter: blur(18px);
+  pointer-events: none;
+}
+.az-page-header > * {
+  position: relative;
+  z-index: 1;
+}
+.az-page-header {
+  background:
+    linear-gradient(180deg, rgba(21,17,48,0.72) 0%, rgba(15,12,37,0.46) 100%);
+  border: 1px solid rgba(167,139,250,0.12);
+  border-radius: 32px;
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  box-shadow: 0 24px 70px rgba(6,6,20,0.28);
+}
 .az-page-header .ds-eyebrow { margin-bottom: 16px }
-.az-page-header .ds-headline { margin-bottom: 12px; font-size: clamp(1.8rem, 3.5vw, 2.8rem) }
+.az-page-header .ds-headline { margin-bottom: 14px; font-size: clamp(2.1rem, 4vw, 3.2rem) }
 .az-page-desc {
-  font-size: 0.95rem;
-  color: var(--ds-t3);
+  font-size: 1rem;
+  color: var(--ds-t2);
   line-height: 1.85;
+  max-width: 620px;
+  margin: 0 auto;
 }
 
 /* ─── Main Container ────────────────────────────────── */
@@ -58,6 +97,10 @@
   padding: 36px;
   position: relative;
   overflow: hidden;
+  background:
+    linear-gradient(180deg, rgba(24,19,54,0.92) 0%, rgba(12,11,33,0.82) 100%),
+    radial-gradient(70% 60% at 100% 0%, rgba(76,211,255,0.08) 0%, transparent 60%);
+  border-color: rgba(167,139,250,0.16);
 }
 .az-input-card__glow {
   position: absolute;
