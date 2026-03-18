@@ -12,30 +12,9 @@ const DAILY_IMAGE_LIMIT = 3;
 const CLIENT_ID_STORAGE_KEY = 'dreamlens_client_id';
 const USAGE_STORAGE_KEY = 'dreamlens_art_daily_usage';
 
-/* ──────────────────────────────────────────────────
-   风格配置
-────────────────────────────────────────────────── */
-const ART_STYLE_MAP = {
-    surreal: {
-        label: '超现实主义',
-        suffix: 'surrealist dream painting, Salvador Dali style, dreamlike impossible scene, vivid oil painting, 8k detailed',
-        model: 'flux'
-    },
-    impressionist: {
-        label: '印象派水彩',
-        suffix: 'impressionist watercolor painting, soft dreamy brush strokes, Monet style, pastel colors, poetic atmosphere',
-        model: 'flux'
-    },
-    inkwash: {
-        label: '东方水墨',
-        suffix: 'Chinese ink wash painting, sumi-e style, elegant brushwork, zen minimalism, misty ethereal',
-        model: 'flux'
-    },
-    neon: {
-        label: '霓虹赛博',
-        suffix: 'cyberpunk neon dream art, glowing neon colors, synthwave aesthetic, digital art, vivid purple cyan',
-        model: 'flux'
-    }
+const DEFAULT_ART_STYLE = {
+    label: '梦境艺术',
+    suffix: 'dreamlike surreal painting, ethereal atmosphere, cinematic lighting, painterly texture, highly detailed'
 };
 
 /* ──────────────────────────────────────────────────
@@ -88,7 +67,6 @@ const SCENE_DICT = [
 /* ──────────────────────────────────────────────────
    状态
 ────────────────────────────────────────────────── */
-let currentArtStyle  = 'surreal';
 let currentDreamText = '';
 let genProgressTimer = null;
 let genAborted       = false;
@@ -183,8 +161,8 @@ function extractVisualFromDream(text) {
     return { visualCore, motifs };
 }
 
-function buildPromptAndSeed(dreamText, style, variant = 0) {
-    const styleInfo  = ART_STYLE_MAP[style] || ART_STYLE_MAP.surreal;
+function buildPromptAndSeed(dreamText, variant = 0) {
+    const styleInfo  = DEFAULT_ART_STYLE;
     const { visualCore, motifs } = extractVisualFromDream(dreamText);
     const motifLine = motifs.length ? `key motifs: ${motifs.join(', ')}` : '';
     const coherence = 'coherent single scene, consistent subject, cinematic lighting, avoid unrelated elements';
@@ -204,9 +182,9 @@ function _sanitizePrompt(prompt) {
 /* ──────────────────────────────────────────────────
    构建图片源列表
 ────────────────────────────────────────────────── */
-function buildImagePrompts(dreamText, style) {
-    const first = buildPromptAndSeed(dreamText, style, 0);
-    const second = buildPromptAndSeed(dreamText, style, 1);
+function buildImagePrompts(dreamText) {
+    const first = buildPromptAndSeed(dreamText, 0);
+    const second = buildPromptAndSeed(dreamText, 1);
     first.prompt = _sanitizePrompt(first.prompt);
     second.prompt = _sanitizePrompt(second.prompt);
 
@@ -217,15 +195,6 @@ function buildImagePrompts(dreamText, style) {
         { prompt: first.prompt, styleInfo: first.styleInfo },
         { prompt: second.prompt, styleInfo: second.styleInfo }
     ];
-}
-
-/* ──────────────────────────────────────────────────
-   风格切换
-────────────────────────────────────────────────── */
-function selectArtStyle(btn) {
-    document.querySelectorAll('.az-art__style-btn').forEach(b => b.classList.remove('az-art__style-btn--active'));
-    btn.classList.add('az-art__style-btn--active');
-    currentArtStyle = btn.dataset.style;
 }
 
 /* ──────────────────────────────────────────────────
@@ -367,8 +336,8 @@ async function generateDreamArt() {
     showArtPanel('artGenerating');
     startGenProgress();
 
-    const prompts   = buildImagePrompts(currentDreamText, currentArtStyle);
-    const styleInfo = ART_STYLE_MAP[currentArtStyle] || ART_STYLE_MAP.surreal;
+    const prompts   = buildImagePrompts(currentDreamText);
+    const styleInfo = DEFAULT_ART_STYLE;
 
     let lastErr = null;
 
@@ -396,18 +365,15 @@ async function generateDreamArt() {
             if (dlBtn) {
                 dlBtn.href     = imgSrc;
                 dlBtn.target   = '_blank';
-                dlBtn.download = `dreamlens-${currentArtStyle}-${Date.now()}.png`;
+                dlBtn.download = `dreamlens-art-${Date.now()}.png`;
             }
 
             _updateOpenTabBtn(imgSrc);
 
-            const styleEl = document.getElementById('artResultStyle');
-            if (styleEl) styleEl.textContent = `🎨 ${styleInfo.label}`;
-
             const promptEl = document.getElementById('artResultPrompt');
             if (promptEl) {
                 const snippet = currentDreamText.slice(0, 40).replace(/\n/g, ' ');
-                promptEl.textContent = `以「${snippet}${currentDreamText.length > 40 ? '…' : ''}」为灵感，${styleInfo.label}风格绘制。`;
+                promptEl.textContent = `以「${snippet}${currentDreamText.length > 40 ? '…' : ''}」为灵感生成的梦境艺术画。`;
             }
 
             showArtPanel('artResult');
@@ -514,7 +480,6 @@ function artOnAnalysisComplete(dreamText) {
 /* ──────────────────────────────────────────────────
    暴露全局
 ────────────────────────────────────────────────── */
-window.selectArtStyle        = selectArtStyle;
 window.generateDreamArt      = generateDreamArt;
 window.regenerateArt         = regenerateArt;
 window.retryArt              = retryArt;
