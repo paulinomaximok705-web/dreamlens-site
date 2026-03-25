@@ -20,6 +20,18 @@
       ].join(';');
       f.appendChild(s);
     }
+    const shootCount = window.innerWidth < 768 ? 2 : 3;
+    for (let i = 0; i < shootCount; i++) {
+      const ss = document.createElement('div');
+      ss.className = 'ds-shooting-star';
+      ss.style.cssText = [
+        `left:${Math.random() * 70}%`,
+        `top:${Math.random() * 38}%`,
+        `animation-delay:${(i * 3.1 + Math.random() * 1.6).toFixed(1)}s`,
+        `animation-duration:${(Math.random() * 3 + 5.5).toFixed(1)}s`
+      ].join(';');
+      f.appendChild(ss);
+    }
     c.appendChild(f);
   }
 

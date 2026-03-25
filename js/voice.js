@@ -5,6 +5,11 @@
 
 (function () {
 
+    const VOICE_STATUS_IDLE = '轻触麦克风，让梦慢慢被听见';
+    const VOICE_STATUS_RECORDING = '继续轻声说下去，梦会被慢慢收拢';
+    const VOICE_STATUS_CAPTURED = '这段梦已经被收拢下来';
+    const VOICE_SUB_COPY = '自动识别停顿与断句 · 语音仅在本地处理 · 说完后自动整理片段';
+
     /* ---- 状态变量 ---- */
     let recognition = null;       // SpeechRecognition 实例
     let isRecording = false;      // 当前是否正在录音
@@ -15,9 +20,123 @@
     let mediaStream = null;
     let animFrameId = null;
     let currentMode = 'text';     // 'text' | 'voice'
+    let voiceSessionBaseText = '';
+    let textModePlaceholder = '';
 
     /* ---- DOM 快捷引用 ---- */
     const $ = id => document.getElementById(id);
+
+    function getDreamInput() {
+        return $('dreamInput');
+    }
+
+    function getSharedInputStage() {
+        return $('sharedInputStage');
+    }
+
+    function getTextComposerMount() {
+        return $('textComposerMount');
+    }
+
+    function getVoiceEditorMount() {
+        return $('voiceEditorMount');
+    }
+
+    function syncDreamInputValue(text) {
+        const dreamInput = getDreamInput();
+        if (!dreamInput) return;
+
+        const nextValue = typeof text === 'string' ? text : '';
+        if (dreamInput.value === nextValue) return;
+
+        dreamInput.value = nextValue;
+        dreamInput.dispatchEvent(new Event('input'));
+    }
+
+    function ensureDreamInputEditable() {
+        const dreamInput = getDreamInput();
+        if (!dreamInput) return;
+        dreamInput.readOnly = false;
+        dreamInput.disabled = false;
+    }
+
+    function focusDreamInputAtEnd() {
+        const dreamInput = getDreamInput();
+        if (!dreamInput) return;
+
+        ensureDreamInputEditable();
+        requestAnimationFrame(() => {
+            dreamInput.focus({ preventScroll: true });
+            const pos = dreamInput.value.length;
+            try {
+                dreamInput.setSelectionRange(pos, pos);
+            } catch (e) {
+                /* 某些输入法环境下无需强制设置光标 */
+            }
+        });
+    }
+
+    function getVoiceDraftText() {
+        return getDreamInput()?.value.trim() || '';
+    }
+
+    function mountSharedInputStage(mode) {
+        const stage = getSharedInputStage();
+        const target = mode === 'voice' ? getVoiceEditorMount() : getTextComposerMount();
+        const dreamInput = getDreamInput();
+        if (!stage || !target || !dreamInput) return;
+
+        if (stage.parentElement !== target) {
+            target.appendChild(stage);
+        }
+
+        const isVoice = mode === 'voice';
+        stage.classList.toggle('az-text-input-stage--voice', isVoice);
+        dreamInput.placeholder = isVoice ? '' : textModePlaceholder;
+        ensureDreamInputEditable();
+    }
+
+    function syncVoiceEditorVisibility(forceVisible = null) {
+        const box = $('voiceTranscriptBox');
+        const dreamInput = getDreamInput();
+        if (!box || !dreamInput) return;
+
+        const hasContent = !!dreamInput.value.trim();
+        const shouldShow = typeof forceVisible === 'boolean'
+            ? forceVisible
+            : (isRecording || hasContent);
+
+        box.classList.toggle('shell-visible', shouldShow);
+        box.classList.toggle('has-text', hasContent);
+    }
+
+    function composeVoiceDraft(final, interim) {
+        const draft = `${final}${interim}`.trim();
+        if (!voiceSessionBaseText) return draft;
+        if (!draft) return voiceSessionBaseText.trim();
+        return `${voiceSessionBaseText}${draft}`.trim();
+    }
+
+    function updateVoiceActionsVisibility() {
+        const btns = $('voiceActionBtns');
+        const hasText = !!getVoiceDraftText();
+        if (!btns) return;
+        btns.style.display = !isRecording && hasText ? 'flex' : 'none';
+    }
+
+    function syncVoiceStatusFromInput() {
+        if (currentMode !== 'voice' || isRecording) return;
+
+        const status = $('voiceStatusText');
+        const sub = $('voiceStatusSub');
+        const hasText = !!getVoiceDraftText();
+        if (!status || !sub) return;
+
+        status.textContent = hasText ? VOICE_STATUS_CAPTURED : VOICE_STATUS_IDLE;
+        sub.textContent = hasText
+            ? '可以继续手动修正内容，也可以再次口述补充新的片段'
+            : VOICE_SUB_COPY;
+    }
 
     /* ---- 检测浏览器支持 ---- */
     const SpeechRecognition =
@@ -39,6 +158,8 @@
             tabVoice.classList.remove('az-mode-tab--active');
             textArea.style.display  = 'block';
             voiceArea.style.display = 'none';
+            mountSharedInputStage('text');
+            $('inputSection') && $('inputSection').classList.remove('voice-active');
             // 如果正在录音，先停止
             if (isRecording) stopRecognition();
         } else {
@@ -50,7 +171,15 @@
             tabVoice.classList.add('az-mode-tab--active');
             tabText.classList.remove('az-mode-tab--active');
             textArea.style.display  = 'none';
-            voiceArea.style.display = 'block';
+            voiceArea.style.display = 'flex';
+            mountSharedInputStage('voice');
+            syncVoiceEditorVisibility();
+            syncVoiceStatusFromInput();
+            updateVoiceActionsVisibility();
+        }
+
+        if (!window.__dreamlensRouteHydrating && typeof window.updateAnalyzeModeRoute === 'function') {
+            window.updateAnalyzeModeRoute(mode, { replace: true });
         }
     }
 
@@ -126,14 +255,18 @@
     }
 
     function startRecognition() {
-        finalTranscript = $('voiceTranscript').textContent || '';
+        const dreamInput = getDreamInput();
+        voiceSessionBaseText = dreamInput ? dreamInput.value.trim() : '';
+        finalTranscript = '';
         recognition = initRecognition();
         if (!recognition) return;
 
         isRecording = true;
-        $('inputCard') && $('inputCard').classList.add('voice-active');
+        $('inputSection') && $('inputSection').classList.add('voice-active');
         $('voiceTranscriptBox').classList.add('recording');
-        $('voicePlaceholder').classList.add('hidden');
+        mountSharedInputStage('voice');
+        syncVoiceEditorVisibility(true);
+        updateVoiceActionsVisibility();
 
         try {
             recognition.start();
@@ -155,10 +288,14 @@
         setRecordingUI(false);
         stopAudioVisualize();
         $('voiceTranscriptBox').classList.remove('recording');
+        syncVoiceEditorVisibility(!!getVoiceDraftText());
+        syncVoiceStatusFromInput();
 
         // 有内容则展示操作按钮
-        if (finalTranscript.trim()) {
-            showActionBtns();
+        updateVoiceActionsVisibility();
+
+        if (currentMode === 'voice' && getVoiceDraftText()) {
+            focusDreamInputAtEnd();
         }
     }
 
@@ -171,13 +308,15 @@
         const waveCont = $('voiceWaveContainer');
         const bars     = $('voiceBars');
         const status   = $('voiceStatusText');
+        const sub      = $('voiceStatusSub');
 
         if (recording) {
             micBtn.classList.add('recording');
             micIcon.className = 'fas fa-stop';
             waveCont.classList.add('active');
             bars.classList.add('active');
-            status.textContent = '正在聆听你的梦境...';
+            status.textContent = VOICE_STATUS_RECORDING;
+            if (sub) sub.textContent = VOICE_SUB_COPY;
         } else {
             micBtn.classList.remove('recording');
             micIcon.className = 'fas fa-microphone';
@@ -186,35 +325,26 @@
             // 重置柱子高度
             document.querySelectorAll('.az-wbar').forEach(b => b.style.height = '4px');
             status.textContent = finalTranscript.trim()
-                ? '录音已完成 — 请确认或继续录制'
-                : '点击麦克风开始录音';
+                ? VOICE_STATUS_CAPTURED
+                : VOICE_STATUS_IDLE;
+            if (sub) {
+                sub.textContent = finalTranscript.trim()
+                    ? '可继续补充口述，或将这段梦整理进输入区继续编辑'
+                    : VOICE_SUB_COPY;
+            }
         }
     }
 
     /* 渲染转写文字 */
     function renderTranscript(final, interim) {
-        const transcriptEl = $('voiceTranscript');
-        const interimEl    = $('voiceInterim');
-        const placeholder  = $('voicePlaceholder');
-        const box          = $('voiceTranscriptBox');
+        const dreamInput = getDreamInput();
+        const draftText = composeVoiceDraft(final, interim);
 
-        transcriptEl.textContent = final;
-        interimEl.textContent    = interim;
+        syncDreamInputValue(draftText);
+        syncVoiceEditorVisibility(isRecording || !!draftText);
 
-        const hasContent = final.trim() || interim.trim();
-        placeholder.classList.toggle('hidden', !!hasContent);
-        box.classList.toggle('has-text', !!final.trim());
-
-        // 自动滚动到底部
-        box.scrollTop = box.scrollHeight;
-    }
-
-    /* 显示操作按钮 */
-    function showActionBtns() {
-        const btns = $('voiceActionBtns');
-        if (btns) {
-            btns.style.display = 'flex';
-            btns.style.animation = 'fadeInUp 0.3s ease both';
+        if (dreamInput) {
+            dreamInput.scrollTop = dreamInput.scrollHeight;
         }
     }
 
@@ -288,28 +418,27 @@
        操作：清空 / 确认使用
     ==================================================== */
     function clearVoiceText() {
+        const dreamInput = getDreamInput();
         finalTranscript = '';
-        renderTranscript('', '');
-        $('voiceActionBtns').style.display = 'none';
-        $('voiceStatusText').textContent = '点击麦克风开始录音';
+        voiceSessionBaseText = '';
+        syncDreamInputValue('');
+        if (dreamInput) {
+            dreamInput.scrollTop = 0;
+        }
+        updateVoiceActionsVisibility();
+        $('voiceStatusText').textContent = VOICE_STATUS_IDLE;
+        $('voiceStatusSub').textContent = VOICE_SUB_COPY;
         $('voiceTranscriptBox').classList.remove('has-text');
-        $('voicePlaceholder').classList.remove('hidden');
+        syncVoiceEditorVisibility(false);
         showToast('已清空，可以重新录制');
     }
 
     function confirmVoiceText() {
-        const text = finalTranscript.trim();
+        const dreamInput = getDreamInput();
+        const text = dreamInput ? dreamInput.value.trim() : '';
         if (!text) {
             showToast('暂无识别内容，请先录音');
             return;
-        }
-
-        // 将语音文字填入文字输入框
-        const dreamInput = $('dreamInput');
-        if (dreamInput) {
-            dreamInput.value = text;
-            // 触发字数更新
-            dreamInput.dispatchEvent(new Event('input'));
         }
 
         // 切回文字模式，让用户确认/编辑
@@ -333,11 +462,37 @@
     ==================================================== */
     window.switchMode  = switchMode;
     window.toggleVoice = toggleVoice;
+    window.getVoiceDraftText = getVoiceDraftText;
     window.clearVoiceText   = clearVoiceText;
     window.confirmVoiceText = confirmVoiceText;
 
     /* 页面加载后初始化 */
     document.addEventListener('DOMContentLoaded', () => {
+        const dreamInput = getDreamInput();
+        if (dreamInput) {
+            textModePlaceholder = dreamInput.getAttribute('placeholder') || '';
+            ensureDreamInputEditable();
+
+            dreamInput.addEventListener('pointerdown', () => {
+                if (currentMode === 'voice' && isRecording) {
+                    stopRecognition();
+                }
+            });
+
+            dreamInput.addEventListener('focus', () => {
+                if (currentMode === 'voice') {
+                    ensureDreamInputEditable();
+                }
+            });
+
+            dreamInput.addEventListener('input', () => {
+                if (currentMode !== 'voice') return;
+                syncVoiceEditorVisibility();
+                syncVoiceStatusFromInput();
+                updateVoiceActionsVisibility();
+            });
+        }
+
         // 如果浏览器不支持，禁用语音Tab提示
         if (!SpeechRecognition) {
             const tabVoice = $('tabVoice');
@@ -345,6 +500,8 @@
                 tabVoice.title = '当前浏览器不支持语音识别，请使用Chrome/Edge';
             }
         }
+
+        mountSharedInputStage('text');
     });
 
 })();

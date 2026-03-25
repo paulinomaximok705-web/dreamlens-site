@@ -21,6 +21,18 @@
       ].join(';');
       frag.appendChild(s);
     }
+    const shootCount = window.innerWidth < 768 ? 2 : 3;
+    for (let i = 0; i < shootCount; i++) {
+      const ss = document.createElement('div');
+      ss.className = 'ds-shooting-star';
+      ss.style.cssText = [
+        `left:${Math.random() * 70}%`,
+        `top:${Math.random() * 38}%`,
+        `animation-delay:${(i * 3.1 + Math.random() * 1.6).toFixed(1)}s`,
+        `animation-duration:${(Math.random() * 3 + 5.5).toFixed(1)}s`
+      ].join(';');
+      frag.appendChild(ss);
+    }
     c.appendChild(frag);
   }
 
@@ -151,7 +163,7 @@
   function initPaymentBtns() {
     document.querySelectorAll('.pr-modal__pay-btn').forEach(btn => {
       btn.addEventListener('click', () => {
-        showToast('🌙 Demo 版本，支付功能即将上线');
+        showToast('📝 已切换到升级意向登记页');
       });
     });
   }

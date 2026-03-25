@@ -5,43 +5,16 @@
 
 /* ─── Page Header ───────────────────────────────────── */
 .pr-page-header {
-  position: relative;
-  z-index: 1;
-  padding: calc(var(--ds-nav-h) + 58px) 32px 28px;
-  text-align: center;
-  max-width: 900px;
-  margin: 0 auto 12px;
-  border: 1px solid rgba(167,139,250,0.12);
-  border-radius: 32px;
-  background:
-    linear-gradient(180deg, rgba(22,18,50,0.7) 0%, rgba(15,12,37,0.46) 100%);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
-  box-shadow: 0 24px 70px rgba(6,6,20,0.26);
-}
-.pr-page-header::before {
-  content: '';
-  position: absolute;
-  left: 50%;
-  top: calc(var(--ds-nav-h) + 18px);
-  width: min(720px, 82vw);
-  height: 220px;
-  transform: translateX(-50%);
-  background: radial-gradient(circle, rgba(167,139,250,0.2) 0%, transparent 72%);
-  filter: blur(18px);
-  pointer-events: none;
-}
-.pr-page-header > * {
-  position: relative;
-  z-index: 1;
+  margin-bottom: 12px;
 }
 .pr-page-header__title {
-  font-size: clamp(2.2rem, 5vw, 4rem);
+  font-size: var(--ds-sub-fs-display);
   margin-bottom: 16px;
 }
 .pr-page-header .ds-subhead {
   margin: 0 auto 8px;
-  color: var(--ds-t2);
+  color: var(--ds-sub-text-body);
+  font-size: var(--ds-sub-fs-body-lg);
 }
 
 /* ─── Billing Toggle ────────────────────────────────── */
@@ -59,13 +32,13 @@
   margin-right: auto;
   border: 1px solid rgba(167,139,250,0.12);
   border-radius: 999px;
-  background: rgba(18,15,40,0.48);
+  background: rgba(18,15,40,0.58);
   backdrop-filter: blur(14px);
 }
 .pr-billing-toggle__label {
-  font-size: 0.9rem;
+  font-size: var(--ds-sub-fs-body);
   font-weight: 600;
-  color: var(--ds-t3);
+  color: var(--ds-sub-text-soft);
   transition: color var(--ds-dur);
 }
 .pr-billing-toggle__label.active { color: var(--ds-t1) }
@@ -119,8 +92,7 @@
   position: relative;
   overflow: hidden;
   transition: transform var(--ds-dur) var(--ds-ease-spring), box-shadow var(--ds-dur);
-  background:
-    linear-gradient(180deg, rgba(22,18,48,0.82) 0%, rgba(12,11,32,0.72) 100%);
+  background: var(--ds-g-shell);
   border-color: rgba(167,139,250,0.12);
 }
 .pr-card--featured {
@@ -178,14 +150,14 @@
 }
 .pr-card__name {
   font-family: var(--ds-font-display);
-  font-size: 1.15rem;
+  font-size: var(--ds-sub-fs-title);
   font-weight: 800;
-  color: var(--ds-t1);
+  color: var(--ds-sub-text-strong);
   margin-bottom: 4px;
 }
 .pr-card__desc {
-  font-size: 0.78rem;
-  color: var(--ds-t4);
+  font-size: var(--ds-sub-fs-meta);
+  color: var(--ds-sub-text-muted);
   margin-bottom: 14px;
 }
 .pr-card__price {
@@ -207,11 +179,11 @@
   background-clip: text;
 }
 .pr-card__period {
-  font-size: 0.82rem;
-  color: var(--ds-t4);
+  font-size: var(--ds-sub-fs-meta);
+  color: var(--ds-sub-text-muted);
 }
 .pr-card__annual-note {
-  font-size: 0.72rem;
+  font-size: var(--ds-sub-fs-micro);
   color: var(--ds-violet-l);
   margin-top: 6px;
   text-align: center;
@@ -227,7 +199,7 @@
   display: flex;
   align-items: center;
   gap: 9px;
-  font-size: 0.85rem;
+  font-size: var(--ds-sub-fs-body);
   line-height: 1.4;
 }
 .pr-feat i { flex-shrink: 0; font-size: 0.7rem; width: 14px; text-align: center }
@@ -242,7 +214,7 @@
   width: 100%;
   justify-content: center;
   padding: 12px;
-  font-size: 0.875rem;
+  font-size: var(--ds-sub-fs-body);
   border-radius: var(--ds-radius) !important;
 }
 .pr-card__btn--free {
@@ -280,14 +252,14 @@
 .pr-compare-table td {
   padding: 14px 20px;
   text-align: center;
-  font-size: 0.875rem;
+  font-size: var(--ds-sub-fs-body);
   border-bottom: 1px solid var(--ds-border);
-  color: var(--ds-t3);
+  color: var(--ds-sub-text-soft);
 }
 .pr-compare-table th {
   font-weight: 700;
-  color: var(--ds-t1);
-  font-size: 0.82rem;
+  color: var(--ds-sub-text-strong);
+  font-size: var(--ds-sub-fs-meta);
   letter-spacing: 0.04em;
   text-transform: uppercase;
   background: rgba(255,255,255,0.02);
@@ -297,7 +269,7 @@
 .pr-compare-table .pr-compare-table__feature {
   text-align: left;
   font-weight: 600;
-  color: var(--ds-t2);
+  color: var(--ds-sub-text-body);
 }
 .pr-compare-table .pro-col {
   background: rgba(124,58,237,0.07);
@@ -323,9 +295,9 @@
   justify-content: space-between;
   align-items: center;
   gap: 12px;
-  font-size: 0.95rem;
+  font-size: var(--ds-sub-fs-title);
   font-weight: 700;
-  color: var(--ds-t1);
+  color: var(--ds-sub-text-strong);
 }
 .pr-faq__arrow {
   flex-shrink: 0;
@@ -335,8 +307,8 @@
 }
 .pr-faq__item.open .pr-faq__arrow { transform: rotate(180deg); color: var(--ds-violet-l) }
 .pr-faq__a {
-  font-size: 0.875rem;
-  color: var(--ds-t3);
+  font-size: var(--ds-sub-fs-body);
+  color: var(--ds-sub-text-soft);
   line-height: 1.8;
   max-height: 0;
   overflow: hidden;
@@ -368,7 +340,7 @@
   display: block;
 }
 .pr-cta__btns { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; margin-bottom: 16px }
-.pr-cta__note { font-size: 0.78rem; color: var(--ds-t4) }
+.pr-cta__note { font-size: var(--ds-sub-fs-meta); color: var(--ds-sub-text-muted) }
 
 /* ─── Upgrade Modal ─────────────────────────────────── */
 .pr-modal-overlay {
@@ -426,9 +398,9 @@
 .pr-modal__icon { font-size: 3rem; margin-bottom: 12px }
 .pr-modal__title {
   font-family: var(--ds-font-display);
-  font-size: 1.3rem;
+  font-size: var(--ds-sub-fs-heading);
   font-weight: 800;
-  color: var(--ds-t1);
+  color: var(--ds-sub-text-strong);
   margin-bottom: 8px;
 }
 .pr-modal__price {
@@ -447,8 +419,8 @@
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
-.pr-modal__price-period { font-size: 0.85rem; color: var(--ds-t4) }
-.pr-modal__desc { font-size: 0.875rem; color: var(--ds-t3); margin-bottom: 20px; line-height: 1.6 }
+.pr-modal__price-period { font-size: var(--ds-sub-fs-body); color: var(--ds-sub-text-muted) }
+.pr-modal__desc { font-size: var(--ds-sub-fs-body); color: var(--ds-sub-text-soft); margin-bottom: 20px; line-height: 1.6 }
 
 .pr-modal__perks {
   display: flex;
@@ -464,8 +436,8 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 0.82rem;
-  color: var(--ds-t2);
+  font-size: var(--ds-sub-fs-body);
+  color: var(--ds-sub-text-body);
 }
 .pr-modal__perk i { color: var(--ds-emerald); font-size: 0.72rem }
 
@@ -478,7 +450,7 @@
   gap: 7px;
   padding: 12px;
   border-radius: var(--ds-radius);
-  font-size: 0.9rem;
+  font-size: var(--ds-sub-fs-body);
   font-weight: 700;
   cursor: pointer;
   transition: all var(--ds-dur);
@@ -495,7 +467,7 @@
   border: 1px solid rgba(0,160,233,0.28);
 }
 .pr-modal__pay-btn--alipay:hover { background: rgba(0,160,233,0.25); transform: translateY(-2px) }
-.pr-modal__note { font-size: 0.72rem; color: var(--ds-t5); line-height: 1.6 }
+.pr-modal__note { font-size: var(--ds-sub-fs-micro); color: var(--ds-sub-text-muted); line-height: 1.6 }
 
 /* ─── Responsive ────────────────────────────────────── */
 @media (max-width: 1060px) {

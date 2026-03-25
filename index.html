@@ -26,15 +26,19 @@
     </a>
 
     <ul class="ds-nav__links ds-nav__links--center">
-      <li><a href="#features" class="ds-nav__link ds-nav__link--active">能力</a></li>
-      <li><a href="pricing.html" class="ds-nav__link">方案</a></li>
-      <li><a href="#about" class="ds-nav__link">关于</a></li>
-      <li><a href="#articles" class="ds-nav__link">灵感</a></li>
+      <li><a href="about.html" class="ds-nav__link">关于我们</a></li>
+      <li><a href="analyze.html" class="ds-nav__link">梦境解析</a></li>
       <li><a href="diary.html" class="ds-nav__link">梦境日记</a></li>
+      <li><a href="community.html" class="ds-nav__link">梦境广场</a></li>
     </ul>
 
     <ul class="ds-nav__links ds-nav__links--right">
-      <li><a href="analyze.html" class="ds-nav__link ds-nav__link--ghost">登录</a></li>
+      <li>
+        <a href="feedback.html" class="ds-nav__link ds-nav__link--mail" aria-label="进入公开反馈墙">
+          <i class="fas fa-comment-dots"></i>
+        </a>
+      </li>
+      <li><a href="#" class="ds-nav__link ds-nav__link--ghost" data-beta-login>登录</a></li>
       <li><a href="analyze.html" class="ds-nav__link ds-nav__link--cta">免费体验</a></li>
     </ul>
     <button class="ds-nav__toggle" id="navToggle" aria-label="Menu">
@@ -42,6 +46,18 @@
     </button>
   </div>
 </nav>
+
+<section class="ds-beta-bar">
+  <div class="ds-beta-bar__inner">
+    <div class="ds-beta-bar__main">
+      <span class="ds-beta-bar__chip">
+        <i class="fas fa-flask" aria-hidden="true"></i>
+        <span>Internal Beta</span>
+      </span>
+      <p class="ds-beta-bar__text">当前为小范围内测版。梦境记录仅保存在当前浏览器，不支持跨设备同步，也不能替代专业心理咨询。</p>
+    </div>
+  </div>
+</section>
  
 <!-- ══════════════════════════════════════════
      HERO SECTION
@@ -50,7 +66,7 @@
   <div class="idx-hero__content ds-z1">
     <div class="idx-hero__badge">
       <span class="idx-hero__badge-icon">✦</span>
-      <span>AI 记录灵感</span>
+      <span>AI Dream Insights</span>
     </div>
     <h1 class="ds-headline-xl idx-hero__title">
       <span class="idx-hero__title-line2">你的梦，藏着另一个你</span>
@@ -59,11 +75,6 @@
     <p class="idx-hero__desc">
       不错过任何一个灵感碎片、梦境线索或潜意识连接。
     </p>
-
-    <a class="idx-hero__discover" href="#how-it-works">
-      <span>探索更多</span>
-      <i class="fas fa-arrow-down"></i>
-    </a>
   </div>
 
   <div class="idx-hero__rings" aria-hidden="true">
@@ -130,371 +141,54 @@
       <div class="idx-hero__dock-scrim"></div>
     </div>
   </div>
+  <div class="idx-footerband ds-z1">
+  <div class="idx-footerband__inner">
+    <div class="idx-footerband__brand">
+      <div class="idx-footerband__logo">
+        <span class="ds-nav__logo-icon" aria-hidden="true"></span>
+        <span class="idx-footerband__logo-text">DreamLens</span>
+      </div>
+      <div class="idx-footerband__social">
+        <a href="#" class="idx-footerband__social-link" aria-label="微博">
+          <i class="fab fa-weibo"></i>
+        </a>
+        <a href="#" class="idx-footerband__social-link" aria-label="微信">
+          <i class="fab fa-weixin"></i>
+        </a>
+        <a href="#" class="idx-footerband__social-link" aria-label="Instagram">
+          <i class="fab fa-instagram"></i>
+        </a>
+      </div>
+    </div>
 
-  <!-- scroll hint -->
-  <div class="idx-hero__scroll ds-z1">
-    <span>下滑解梦</span>
-    <div class="idx-hero__scroll-line"></div>
+    <div class="idx-footerband__cols">
+      <div class="idx-footerband__col">
+        <h3>产品</h3>
+        <a href="analyze.html" class="idx-footerband__item">梦境解析</a>
+        <a href="community.html" class="idx-footerband__item">梦境广场</a>
+        <a href="diary.html" class="idx-footerband__item">梦境日记</a>
+      </div>
+      <div class="idx-footerband__col">
+        <h3>了解更多</h3>
+        <a href="about.html" class="idx-footerband__item">关于我们</a>
+        <a href="#" class="idx-footerband__item">心理学博客</a>
+        <a href="#" class="idx-footerband__item">象征库</a>
+      </div>
+      <div class="idx-footerband__col">
+        <h3>支持</h3>
+        <a href="#" class="idx-footerband__item">常见问题</a>
+        <a href="#" class="idx-footerband__item">隐私政策</a>
+        <a href="#" class="idx-footerband__item">服务条款</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="idx-footerband__bottom">
+    <p>© 2026 DreamLens</p>
+    <p>内测版 · 数据仅保存在当前浏览器 · 本产品不替代专业心理咨询</p>
+  </div>
   </div>
 </section>
-
-<!-- ══════════════════════════════════════════
-     DREAM SHOWCASE SECTION
-══════════════════════════════════════════ -->
-<section class="idx-showcase ds-section">
-  <div class="ds-divider"></div>
-  <div class="ds-container">
-    <div class="ds-section-header ds-reveal">
-      <div class="ds-eyebrow"><i class="fas fa-book-open"></i> 真实梦例</div>
-      <h2 class="ds-headline">梦境故事<span class="ds-gt">选集</span></h2>
-    </div>
-
-    <div class="idx-showcase__grid">
-
-      <!-- Card 1: Ocean -->
-      <div class="idx-showcase-card ds-card ds-reveal">
-        <div class="idx-showcase-card__bg idx-showcase-card__bg--ocean"></div>
-        <div class="idx-showcase-card__body">
-          <div class="idx-showcase-card__tag">
-            <i class="fas fa-water"></i> 海洋梦境
-          </div>
-          <p class="idx-showcase-card__dream">
-            “我站在无垠的海里，水面平静如镜，一条金色的鱼跃起，在我周围盘旋……”
-          </p>
-          <div class="idx-showcase-card__analysis">
-            <div class="idx-showcase-card__analysis-label">🧠 AI 精要</div>
-            <p>海洋指向集体潜意识；金鱼是直觉与丰盛正在浮现的信号。</p>
-          </div>
-          <div class="idx-showcase-card__footer">
-            <span>匿名 · 上海</span>
-            <span class="ds-badge ds-badge--violet">进阶版</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Card 2: Sky (featured) -->
-      <div class="idx-showcase-card idx-showcase-card--featured ds-card ds-reveal ds-reveal-delay-1">
-        <div class="idx-showcase-card__bg idx-showcase-card__bg--sky"></div>
-        <div class="idx-showcase-card__featured-mark">✨ Featured</div>
-        <div class="idx-showcase-card__body">
-          <div class="idx-showcase-card__tag">
-            <i class="fas fa-cloud"></i> 飞行梦境
-          </div>
-          <p class="idx-showcase-card__dream">
-            “我飞在云海之上，身体比空气更轻，第一次感到完全的自由……”
-          </p>
-          <div class="idx-showcase-card__analysis">
-            <div class="idx-showcase-card__analysis-label">🧠 AI 精要</div>
-            <p>飞行象征超越与解放，指向自我突破现实束缚的强烈动能。</p>
-          </div>
-          <div class="idx-showcase-card__art">
-            <img src="https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=400&q=80" alt="Dream art" loading="lazy">
-            <span class="idx-showcase-card__art-label"><i class="fas fa-sparkles"></i> AI dream art</span>
-          </div>
-          <div class="idx-showcase-card__footer">
-            <span>Anonymous · Beijing</span>
-            <span class="ds-badge ds-badge--gold">专业版</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Card 3: Forest -->
-      <div class="idx-showcase-card ds-card ds-reveal ds-reveal-delay-2">
-        <div class="idx-showcase-card__bg idx-showcase-card__bg--forest"></div>
-        <div class="idx-showcase-card__body">
-          <div class="idx-showcase-card__tag">
-            <i class="fas fa-tree"></i> 森林梦境
-          </div>
-          <p class="idx-showcase-card__dream">
-            “我独自行走在古老森林，树木直入云端，空地上突然出现一扇孤立的木门……”
-          </p>
-          <div class="idx-showcase-card__analysis">
-            <div class="idx-showcase-card__analysis-label">🧠 AI 精要</div>
-            <p>森林是潜意识的未知疆域，木门代表即将开启的新阶段与抉择。</p>
-          </div>
-          <div class="idx-showcase-card__footer">
-            <span>匿名 · 成都</span>
-            <span class="ds-badge ds-badge--teal">基础版</span>
-          </div>
-        </div>
-      </div>
-
-    </div>
-  </div>
-</section>
-
-<!-- ══════════════════════════════════════════
-     HOW IT WORKS
-══════════════════════════════════════════ -->
-<section class="idx-how ds-section" id="how-it-works">
-  <div class="ds-divider"></div>
-  <div class="ds-container">
-    <div class="ds-section-header ds-reveal">
-      <div class="ds-eyebrow"><i class="fas fa-route"></i> 三步完成</div>
-      <h2 class="ds-headline">我们如何<span class="ds-gt-aurora">解读梦境</span></h2>
-    </div>
-
-    <div class="idx-how__steps">
-      <!-- Step 1 -->
-      <div class="idx-how__step ds-card ds-reveal">
-        <div class="idx-how__step-num">01</div>
-        <div class="ds-icon-bg ds-icon-bg--violet">
-          <i class="fas fa-pen-nib"></i>
-        </div>
-        <h3 class="idx-how__step-title">描述梦境</h3>
-        <p class="idx-how__step-desc">把记得的片段直接写或说出来，越真实越好，我们会保留最原始的信号。</p>
-        <div class="idx-how__step-tags">
-          <span>文本</span><span>语音</span><span>多语言</span>
-        </div>
-      </div>
-
-      <!-- Arrow -->
-      <div class="idx-how__arrow" aria-hidden="true">
-        <i class="fas fa-chevron-right"></i>
-      </div>
-
-      <!-- Step 2 -->
-      <div class="idx-how__step ds-card ds-reveal ds-reveal-delay-1">
-        <div class="idx-how__step-num">02</div>
-        <div class="ds-icon-bg ds-icon-bg--pink">
-          <i class="fas fa-brain"></i>
-        </div>
-        <h3 class="idx-how__step-title">AI 深读</h3>
-        <p class="idx-how__step-desc">融合荣格原型、弗洛伊德象征及东方意象，映射情绪、符号与潜在意图。</p>
-        <div class="idx-how__step-tags">
-          <span>原型</span><span>象征</span><span>情绪图谱</span>
-        </div>
-      </div>
-
-      <!-- Arrow -->
-      <div class="idx-how__arrow" aria-hidden="true">
-        <i class="fas fa-chevron-right"></i>
-      </div>
-
-      <!-- Step 3 -->
-      <div class="idx-how__step ds-card ds-reveal ds-reveal-delay-2">
-        <div class="idx-how__step-num">03</div>
-        <div class="ds-icon-bg ds-icon-bg--amber">
-          <i class="fas fa-palette"></i>
-        </div>
-        <h3 class="idx-how__step-title">报告与艺术</h3>
-        <p class="idx-how__step-desc">收到精炼心理报告，同时生成专属梦境艺术图，可保存或打印。</p>
-        <div class="idx-how__step-tags">
-          <span>PDF</span><span>艺术图</span><span>行动建议</span>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ══════════════════════════════════════════
-     FEATURES SECTION
-══════════════════════════════════════════ -->
-<section class="idx-features ds-section" id="features">
-  <div class="ds-divider"></div>
-  <div class="ds-container">
-    <div class="ds-section-header ds-reveal">
-      <div class="ds-eyebrow"><i class="fas fa-magic"></i> 核心能力</div>
-      <h2 class="ds-headline">强大的<span class="ds-gt">解析引擎</span></h2>
-    </div>
-
-    <div class="idx-features__grid">
-
-      <!-- Large card 1: Psychology -->
-      <div class="idx-features__card idx-features__card--large ds-card ds-reveal">
-        <div class="idx-features__card-glow idx-features__card-glow--violet"></div>
-        <div class="ds-icon-bg ds-icon-bg--violet">
-          <i class="fas fa-brain"></i>
-        </div>
-        <h3>多维心理框架</h3>
-        <p>结合荣格、阿德勒、认知行为与象征分析，从 12 个视角解读反复出现的意象与张力。</p>
-        <div class="idx-features__pills">
-          <span class="idx-pill">原型</span>
-          <span class="idx-pill">集体潜意识</span>
-          <span class="idx-pill">阴影工作</span>
-          <span class="idx-pill">阿尼玛 / 阿尼姆斯</span>
-        </div>
-      </div>
-
-      <!-- Art generation -->
-      <div class="idx-features__card ds-card ds-reveal ds-reveal-delay-1">
-        <div class="idx-features__card-glow idx-features__card-glow--pink"></div>
-        <div class="ds-icon-bg ds-icon-bg--pink">
-          <i class="fas fa-image"></i>
-        </div>
-        <h3>梦境艺术生成</h3>
-        <p>把梦境转化为超现实、油画或水墨风，每一幅都独一无二。</p>
-      </div>
-
-      <!-- Dream diary -->
-      <div class="idx-features__card ds-card ds-reveal ds-reveal-delay-2">
-        <div class="idx-features__card-glow idx-features__card-glow--teal"></div>
-        <div class="ds-icon-bg ds-icon-bg--teal">
-          <i class="fas fa-book-open"></i>
-        </div>
-        <h3>梦境日记</h3>
-        <p>长期记录模式，AI 自动识别重复意象与情绪走势。</p>
-      </div>
-
-      <!-- Action guidance -->
-      <div class="idx-features__card ds-card ds-reveal">
-        <div class="idx-features__card-glow idx-features__card-glow--amber"></div>
-        <div class="ds-icon-bg ds-icon-bg--amber">
-          <i class="fas fa-compass"></i>
-        </div>
-        <h3>行动指导</h3>
-        <p>不仅解读，还给出基于梦境洞察的落地行动建议。</p>
-      </div>
-
-      <!-- East-West fusion -->
-      <div class="idx-features__card ds-card ds-reveal ds-reveal-delay-1">
-        <div class="idx-features__card-glow idx-features__card-glow--rose"></div>
-        <div class="ds-icon-bg ds-icon-bg--rose">
-          <i class="fas fa-globe-asia"></i>
-        </div>
-        <h3>东西融合</h3>
-        <p>连接西方深度心理学与东方意象体系，提供跨文化视角。</p>
-      </div>
-
-      <!-- Large card 2: Health tracking -->
-      <div class="idx-features__card idx-features__card--large ds-card ds-reveal ds-reveal-delay-2">
-        <div class="idx-features__card-glow idx-features__card-glow--cosmic"></div>
-        <div class="ds-icon-bg ds-icon-bg--emerald">
-          <i class="fas fa-chart-line"></i>
-        </div>
-        <h3>情绪健康追踪</h3>
-        <p>纵向梦境数据监测情绪，提前发现压力信号与转折点。</p>
-        <!-- mini dream bars -->
-        <div class="idx-features__chart">
-          <div class="idx-features__chart-bar" style="--h:40%"></div>
-          <div class="idx-features__chart-bar" style="--h:62%"></div>
-          <div class="idx-features__chart-bar" style="--h:48%"></div>
-          <div class="idx-features__chart-bar" style="--h:80%"></div>
-          <div class="idx-features__chart-bar" style="--h:55%"></div>
-          <div class="idx-features__chart-bar" style="--h:90%"></div>
-          <div class="idx-features__chart-bar" style="--h:72%"></div>
-        </div>
-      </div>
-
-    </div>
-  </div>
-</section>
-
-
-
-<!-- ══════════════════════════════════════════
-     TESTIMONIALS
-══════════════════════════════════════════ -->
-<section class="idx-testimonials ds-section">
-  <div class="ds-divider"></div>
-  <div class="ds-container">
-    <div class="ds-section-header ds-reveal">
-      <div class="ds-eyebrow"><i class="fas fa-comment-dots"></i> 用户心声</div>
-      <h2 class="ds-headline">他们的<span class="ds-gt">梦境旅程</span></h2>
-    </div>
-
-    <div class="idx-testimonials__grid">
-
-      <div class="idx-testimonial ds-card ds-reveal">
-        <div class="idx-testimonial__stars">★★★★★</div>
-        <p class="idx-testimonial__text">“DreamLens 解开我重复三年的坠落噩梦。解析指出那是对工作失控感的投射，看见真相后我开始真正调整。”</p>
-        <div class="idx-testimonial__user">
-          <div class="idx-testimonial__avatar" style="background:var(--ds-g-violet)">Y</div>
-          <div>
-            <span class="idx-testimonial__name">小雨</span>
-            <span class="idx-testimonial__info">进阶版 · 上海</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="idx-testimonial idx-testimonial--featured ds-card ds-reveal ds-reveal-delay-1">
-        <div class="idx-testimonial__quote-icon">"</div>
-        <div class="idx-testimonial__stars">★★★★★</div>
-        <p class="idx-testimonial__text">“梦境艺术让我直接破防——就是我梦里的色彩与气息。我把它打印装框，每晚看着都被疗愈。”</p>
-        <div class="idx-testimonial__user">
-          <div class="idx-testimonial__avatar" style="background:var(--ds-g-aurora)">C</div>
-          <div>
-            <span class="idx-testimonial__name">陈晓晓</span>
-            <span class="idx-testimonial__info">专业版 · 北京</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="idx-testimonial ds-card ds-reveal ds-reveal-delay-2">
-        <div class="idx-testimonial__stars">★★★★★</div>
-        <p class="idx-testimonial__text">“作为心理学学生我原本怀疑，但逻辑严谨、引用充分，专业度超出预期。”</p>
-        <div class="idx-testimonial__user">
-          <div class="idx-testimonial__avatar" style="background:var(--ds-g-cosmic)">L</div>
-          <div>
-            <span class="idx-testimonial__name">林</span>
-            <span class="idx-testimonial__info">进阶版 · 武汉</span>
-          </div>
-        </div>
-      </div>
-
-    </div>
-  </div>
-</section>
-
-<!-- ══════════════════════════════════════════
-     CTA BAND
-══════════════════════════════════════════ -->
-<section class="idx-cta ds-section-sm">
-  <div class="idx-cta__inner ds-panel">
-    <div class="idx-cta__nebula"></div>
-    <div class="idx-cta__stars-decor" aria-hidden="true">✦ ✧ ✦ ✧ ✦</div>
-    <h2 class="ds-headline ds-text-center">你的梦境<span class="ds-gt">正在开口</span></h2>
-    <p class="ds-subhead ds-subhead-center" style="margin-bottom:40px">
-      加入 50,000+ 解梦者，和潜意识对话
-    </p>
-    <a href="analyze.html" class="ds-btn ds-btn-primary ds-btn-lg idx-btn-glow">
-      <i class="fas fa-moon"></i> 立即免费解梦
-    </a>
-    <p class="idx-cta__note">无需信用卡 · 免费体验 3 次完整解析</p>
-  </div>
-</section>
-
-<!-- ══════════════════════════════════════════
-     FOOTER
-══════════════════════════════════════════ -->
-<footer class="ds-footer ds-z1">
-  <div class="ds-footer__inner">
-    <div class="ds-footer__brand">
-      <div class="ds-footer__logo">🌙 DreamLens</div>
-      <p class="ds-footer__tagline">解码潜意识，描绘你的梦境宇宙。<br>每一个梦，都是你留给自己的礼物。</p>
-      <div class="ds-footer__social">
-        <a href="#" class="ds-footer__social-link" aria-label="Weibo"><i class="fab fa-weibo"></i></a>
-        <a href="#" class="ds-footer__social-link" aria-label="WeChat"><i class="fab fa-weixin"></i></a>
-        <a href="#" class="ds-footer__social-link" aria-label="Instagram"><i class="fab fa-instagram"></i></a>
-      </div>
-    </div>
-    <div class="ds-footer__col">
-      <h4>产品</h4>
-      <a href="analyze.html">梦境解析</a>
-      <a href="pricing.html">订阅方案</a>
-      <a href="#">梦境日记</a>
-      <a href="#">API 接入</a>
-    </div>
-    <div class="ds-footer__col">
-      <h4>了解更多</h4>
-      <a href="#">关于我们</a>
-      <a href="#">心理学博客</a>
-      <a href="#">象征库</a>
-      <a href="#">研究报告</a>
-    </div>
-    <div class="ds-footer__col">
-      <h4>支持</h4>
-      <a href="#">常见问题</a>
-      <a href="#">联系我们</a>
-      <a href="#">隐私政策</a>
-      <a href="#">服务条款</a>
-    </div>
-  </div>
-  <div class="ds-footer__bottom">
-    <p>© 2026 DreamLens · 保留所有权利</p>
-    <p>本产品不替代专业心理咨询</p>
-  </div>
-</footer>
 
 <script src="js/main.js"></script>
 <script src="js/index-init.js"></script>

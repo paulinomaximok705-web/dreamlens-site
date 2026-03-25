@@ -24,13 +24,14 @@
       frag.appendChild(s);
     }
     /* shooting stars */
-    for (let i = 0; i < 3; i++) {
+    const shootCount = 4;
+    for (let i = 0; i < shootCount; i++) {
       const ss = document.createElement('div');
       ss.className = 'ds-shooting-star';
       ss.style.cssText = [
         `left:${Math.random() * 60}%`,
         `top:${Math.random() * 40}%`,
-        `animation-delay:${(i * 3 + Math.random() * 2).toFixed(1)}s`,
+        `animation-delay:${(i * 2.4 + Math.random() * 1.6).toFixed(1)}s`,
         `animation-duration:${(Math.random() * 4 + 5).toFixed(1)}s`
       ].join(';');
       frag.appendChild(ss);

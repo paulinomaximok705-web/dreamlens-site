@@ -25,37 +25,53 @@
     </a>
     <ul class="ds-nav__links" id="navLinks">
       <li><a href="index.html"   class="ds-nav__link">首页</a></li>
+      <li><a href="analyze.html" class="ds-nav__link">梦境解析</a></li>
       <li><a href="diary.html"   class="ds-nav__link ds-nav__link--active">梦境日记</a></li>
-      <li><a href="analyze.html" class="ds-nav__link ds-nav__link--cta ds-btn ds-btn-primary ds-btn-sm">
-        <i class="fas fa-magic"></i> 解析梦境
-      </a></li>
+      <li><a href="community.html" class="ds-nav__link">梦境广场</a></li>
     </ul>
     <button class="ds-nav__toggle" id="navToggle"><i class="fas fa-bars"></i></button>
   </div>
 </nav>
 
+<section class="ds-subpage-shell">
+  <div class="ds-subpage-shell__rings" aria-hidden="true">
+    <span class="ds-subpage-shell__ring ds-subpage-shell__ring--1"></span>
+    <span class="ds-subpage-shell__ring ds-subpage-shell__ring--2"></span>
+    <span class="ds-subpage-shell__ring ds-subpage-shell__ring--3"></span>
+  </div>
+
 <!-- ── Page Header ── -->
-<div class="dy-header ds-z1">
-  <div class="ds-eyebrow"><i class="fas fa-book-open"></i> 我的梦境日记</div>
-  <h1 class="ds-headline"><span class="ds-gt">记录每一个梦</span></h1>
-  <p class="dy-header__sub">你的梦境是内心最诚实的语言，每一条记录都是与自己深处的一次对话。</p>
-  <!-- 统计数字 -->
-  <div class="dy-stats" id="dyStats">
-    <div class="dy-stat">
-      <span class="dy-stat__num" id="statTotal">0</span>
-      <span class="dy-stat__label">梦境记录</span>
+<div class="dy-hero ds-page-hero ds-z1">
+  <div class="dy-hero__main">
+    <div class="dy-hero__copy">
+      <div class="dy-hero__eyebrow">我的梦境日记</div>
+      <h1 class="dy-hero__title">记录每一个梦</h1>
+      <p class="dy-hero__sub">那些被记住的梦，会在这里慢慢留下形状。</p>
     </div>
-    <div class="dy-stat">
-      <span class="dy-stat__num" id="statDays">0</span>
-      <span class="dy-stat__label">记录天数</span>
+
+    <div class="dy-hero__echo" aria-label="最近梦境回声">
+      <div class="dy-hero__echo-track">
+        <div class="dy-mood-track dy-mood-track--hero" id="dyMoodTrack" aria-label="最近梦境情绪轨迹"></div>
+      </div>
     </div>
-    <div class="dy-stat">
-      <span class="dy-stat__num" id="statEmotion">—</span>
-      <span class="dy-stat__label">最常见情绪</span>
+  </div>
+
+  <div class="dy-hero__actions">
+    <div class="dy-hero__search-shell">
+      <div class="dy-search dy-search--hero">
+        <i class="fas fa-search dy-search__icon"></i>
+        <input type="text" id="dySearchInput" class="dy-search__input" placeholder="搜索梦题、内容或图腾">
+        <button class="dy-search__clear" id="dySearchClear" style="display:none" onclick="clearSearch()">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
     </div>
-    <div class="dy-stat">
-      <span class="dy-stat__num" id="statTheme">—</span>
-      <span class="dy-stat__label">主要梦境主题</span>
+
+    <div class="dy-hero__meta-row">
+      <span class="dy-hero__count" id="dyDreamCount">已收留 0 个梦</span>
+      <button class="ds-btn ds-btn-primary ds-btn-sm dy-hero__record" onclick="openWriteModal()">
+        <i class="fas fa-pen"></i> 手动记录
+      </button>
     </div>
   </div>
 </div>
@@ -64,111 +80,55 @@
      MAIN CONTAINER
 ════════════════════════════════ -->
 <div class="dy-container ds-z1">
+  <section class="dy-track ds-card">
+    <div class="dy-track__stage">
+      <div class="dy-track__surface">
+        <div class="dy-section-head">
+          <div class="dy-section-head__copy">
+            <h2>梦境图腾</h2>
+            <p>每一次记录都会留下一个主意向符号，它们会在时间里慢慢组成你的梦境轨迹。</p>
+          </div>
+        </div>
 
-  <!-- ── 工具栏 ── -->
-  <div class="dy-toolbar">
-    <!-- 搜索框 -->
-    <div class="dy-search">
-      <i class="fas fa-search dy-search__icon"></i>
-      <input type="text" id="dySearchInput" class="dy-search__input" placeholder="搜索梦境内容、标题、情绪...">
-      <button class="dy-search__clear" id="dySearchClear" style="display:none" onclick="clearSearch()">
-        <i class="fas fa-times"></i>
-      </button>
-    </div>
-    <!-- 过滤 & 排序 -->
-    <div class="dy-filters">
-      <select class="dy-select" id="dyFilterEmotion" onchange="applyFilters()">
-        <option value="">全部情绪</option>
-        <option value="安宁">😌 安宁</option>
-        <option value="焦虑">😰 焦虑</option>
-        <option value="兴奋">🤩 兴奋</option>
-        <option value="悲伤">😢 悲伤</option>
-        <option value="困惑">😵 困惑</option>
-        <option value="恐惧">😱 恐惧</option>
-        <option value="释然">🥹 释然</option>
-        <option value="疲惫">😫 疲惫</option>
-      </select>
-      <select class="dy-select" id="dyFilterTheme" onchange="applyFilters()">
-        <option value="">全部主题</option>
-        <option value="water">🌊 水域梦境</option>
-        <option value="chase">🏃 追逐梦境</option>
-        <option value="fall">🍂 坠落蜕变</option>
-        <option value="fly">🕊️ 飞翔自由</option>
-        <option value="forest">🌳 森林迷途</option>
-        <option value="house">🏠 家与空间</option>
-        <option value="light">✨ 光与洞见</option>
-        <option value="general">🌙 其他梦境</option>
-      </select>
-      <select class="dy-select" id="dySort" onchange="applyFilters()">
-        <option value="newest">最新优先</option>
-        <option value="oldest">最早优先</option>
-      </select>
-    </div>
-    <!-- 操作按钮 -->
-    <div class="dy-toolbar__actions">
-      <button class="ds-btn ds-btn-primary ds-btn-sm" onclick="openWriteModal()">
-        <i class="fas fa-pen"></i> 手动记录
-      </button>
-      <button class="ds-btn ds-btn-ghost ds-btn-sm" onclick="exportDiary()" title="导出日记">
-        <i class="fas fa-download"></i>
-      </button>
-      <button class="ds-btn ds-btn-ghost ds-btn-sm dy-btn--danger" onclick="confirmClearAll()" title="清空日记">
-        <i class="fas fa-trash"></i>
-      </button>
-    </div>
-  </div>
+        <div class="dy-track__toolbar">
+          <div class="dy-track__month" id="dyTrackMeta">2026 年 3 月</div>
+          <div class="dy-track__controls">
+            <button type="button" class="dy-track__nav" id="dyTrackPrev" aria-label="查看上一个月">
+              <i class="fas fa-chevron-left"></i>
+            </button>
+            <div class="dy-track__selects">
+              <label class="dy-track__select-wrap">
+                <select class="dy-track__select" id="dyTrackYear" aria-label="选择年份"></select>
+              </label>
+              <label class="dy-track__select-wrap">
+                <select class="dy-track__select" id="dyTrackMonth" aria-label="选择月份"></select>
+              </label>
+            </div>
+            <button type="button" class="dy-track__nav" id="dyTrackNext" aria-label="查看下一个月">
+              <i class="fas fa-chevron-right"></i>
+            </button>
+          </div>
+        </div>
 
-  <!-- ── 情绪趋势图 ── -->
-  <div class="dy-chart-wrap ds-card" id="dyChartWrap" style="display:none">
-    <div class="dy-chart__header">
-      <span class="dy-chart__title"><i class="fas fa-chart-line"></i> 情绪趋势（最近 20 条）</span>
-      <button class="dy-chart__toggle" onclick="toggleChart()" id="dyChartToggleBtn">
-        <i class="fas fa-chevron-up"></i>
-      </button>
-    </div>
-    <div id="dyChartBody">
-      <canvas id="dyEmotionChart" height="120"></canvas>
-    </div>
-  </div>
+        <div class="dy-track__panel">
+          <div class="dy-track__calendar">
+            <div class="dy-track__weekdays" aria-hidden="true">
+              <span>周一</span>
+              <span>周二</span>
+              <span>周三</span>
+              <span>周四</span>
+              <span>周五</span>
+              <span>周六</span>
+              <span>周日</span>
+            </div>
+            <div class="dy-track__grid" id="dyTotemGrid"></div>
+          </div>
+        </div>
 
-  <!-- ── 日记列表 ── -->
-  <div class="dy-list" id="dyList">
-    <!-- 空状态 -->
-    <div class="dy-empty" id="dyEmpty">
-      <div class="dy-empty__icon">🌙</div>
-      <h3 class="dy-empty__title">还没有梦境记录</h3>
-      <p class="dy-empty__sub">去解析你的第一个梦境，或者手动记录一段梦境吧</p>
-      <div class="dy-empty__actions">
-        <a href="analyze.html" class="ds-btn ds-btn-primary">
-          <i class="fas fa-magic"></i> 解析梦境
-        </a>
-        <button class="ds-btn ds-btn-ghost" onclick="openWriteModal()">
-          <i class="fas fa-pen"></i> 手动记录
-        </button>
+        <div class="dy-track__summary" id="dyTotemLegend"></div>
       </div>
     </div>
-    <!-- 搜索无结果 -->
-    <div class="dy-no-result" id="dyNoResult" style="display:none">
-      <div class="dy-empty__icon">🔍</div>
-      <p class="dy-empty__title">没有找到匹配的梦境</p>
-      <p class="dy-empty__sub">试试其他关键词，或者清除筛选条件</p>
-      <button class="ds-btn ds-btn-ghost ds-btn-sm" onclick="resetFilters()">
-        <i class="fas fa-undo"></i> 清除筛选
-      </button>
-    </div>
-    <!-- 卡片区域 -->
-    <div class="dy-cards" id="dyCards"></div>
-    <!-- 分页 -->
-    <div class="dy-pagination" id="dyPagination" style="display:none">
-      <button class="dy-page-btn" id="dyPrevBtn" onclick="changePage(-1)">
-        <i class="fas fa-chevron-left"></i> 上一页
-      </button>
-      <span class="dy-page-info" id="dyPageInfo">1 / 1</span>
-      <button class="dy-page-btn" id="dyNextBtn" onclick="changePage(1)">
-        下一页 <i class="fas fa-chevron-right"></i>
-      </button>
-    </div>
-  </div>
+  </section>
 
 </div><!-- /dy-container -->
 
@@ -194,14 +154,14 @@
       <div class="dy-form-group">
         <label class="dy-label">醒来时的感受</label>
         <div class="dy-emotion-pick" id="writeEmotionPick">
-          <button class="dy-emo-btn" data-emotion="安宁"  onclick="pickEmotion(this)">😌 安宁</button>
-          <button class="dy-emo-btn" data-emotion="焦虑"  onclick="pickEmotion(this)">😰 焦虑</button>
-          <button class="dy-emo-btn" data-emotion="兴奋"  onclick="pickEmotion(this)">🤩 兴奋</button>
-          <button class="dy-emo-btn" data-emotion="悲伤"  onclick="pickEmotion(this)">😢 悲伤</button>
-          <button class="dy-emo-btn" data-emotion="困惑"  onclick="pickEmotion(this)">😵 困惑</button>
-          <button class="dy-emo-btn" data-emotion="恐惧"  onclick="pickEmotion(this)">😱 恐惧</button>
-          <button class="dy-emo-btn" data-emotion="释然"  onclick="pickEmotion(this)">🥹 释然</button>
-          <button class="dy-emo-btn" data-emotion="疲惫"  onclick="pickEmotion(this)">😫 疲惫</button>
+          <button class="dy-emo-btn" data-emotion="安宁"  onclick="pickEmotion(this)">安宁</button>
+          <button class="dy-emo-btn" data-emotion="焦虑"  onclick="pickEmotion(this)">焦虑</button>
+          <button class="dy-emo-btn" data-emotion="兴奋"  onclick="pickEmotion(this)">兴奋</button>
+          <button class="dy-emo-btn" data-emotion="悲伤"  onclick="pickEmotion(this)">悲伤</button>
+          <button class="dy-emo-btn" data-emotion="困惑"  onclick="pickEmotion(this)">困惑</button>
+          <button class="dy-emo-btn" data-emotion="恐惧"  onclick="pickEmotion(this)">恐惧</button>
+          <button class="dy-emo-btn" data-emotion="释然"  onclick="pickEmotion(this)">释然</button>
+          <button class="dy-emo-btn" data-emotion="疲惫"  onclick="pickEmotion(this)">疲惫</button>
         </div>
       </div>
       <div class="dy-form-group">
@@ -234,13 +194,13 @@
       <!-- 动态填充 -->
     </div>
     <div class="dy-modal__footer">
-      <button class="ds-btn ds-btn-ghost ds-btn-sm" onclick="editEntry(currentDetailId)">
+      <button class="ds-btn ds-btn-ghost ds-btn-sm" id="detailEditBtn" onclick="editEntry(currentDetailId)">
         <i class="fas fa-edit"></i> 编辑
       </button>
-      <button class="ds-btn ds-btn-ghost ds-btn-sm dy-btn--danger" onclick="deleteEntry(currentDetailId)">
+      <button class="ds-btn ds-btn-ghost ds-btn-sm dy-btn--danger" id="detailDeleteBtn" onclick="deleteEntry(currentDetailId)">
         <i class="fas fa-trash"></i> 删除
       </button>
-      <button class="ds-btn ds-btn-primary ds-btn-sm" onclick="reanalyze(currentDetailId)">
+      <button class="ds-btn ds-btn-primary ds-btn-sm" id="detailReanalyzeBtn" onclick="reanalyze(currentDetailId)">
         <i class="fas fa-magic"></i> 重新解析
       </button>
     </div>
@@ -266,12 +226,7 @@
 
 <div class="ds-toast" id="toast"></div>
 
-<footer class="ds-footer ds-z1" style="margin-top:0;padding-top:0">
-  <div class="ds-footer__bottom" style="margin-top:0">
-    <p>© 2026 DreamLens · <a href="index.html" style="color:var(--ds-violet-l)">返回首页</a></p>
-    <p>本产品不替代专业心理咨询</p>
-  </div>
-</footer>
+</section>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="js/main.js"></script>

@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>公开反馈墙 · DreamLens</title>
+<meta name="description" content="DreamLens 内测公开反馈墙。发布反馈、查看其他人的体验，并围绕每条反馈留下温和评论。">
+<link rel="stylesheet" href="css/dreamscape.css">
+<link rel="stylesheet" href="css/feedback.css">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@300;400;600;700;900&family=Noto+Sans+SC:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+</head>
+<body class="ds-page-enter ds-shell">
+<div class="ds-bg"></div>
+<div class="ds-stars" id="dsStars"></div>
+<div class="ds-mist" id="dsMist"></div>
+
+<nav class="ds-nav ds-nav--scrolled" id="dsNav">
+  <div class="ds-nav__inner">
+    <a href="index.html" class="ds-nav__logo">
+      <span class="ds-nav__logo-icon" aria-hidden="true"></span>
+      <span class="ds-nav__logo-text">DreamLens</span>
+      <span class="ds-nav__logo-sub">公开反馈</span>
+    </a>
+    <ul class="ds-nav__links" id="navLinks">
+      <li><a href="index.html" class="ds-nav__link">首页</a></li>
+      <li><a href="analyze.html" class="ds-nav__link">梦境解析</a></li>
+      <li><a href="diary.html" class="ds-nav__link">梦境日记</a></li>
+      <li><a href="community.html" class="ds-nav__link">梦境广场</a></li>
+    </ul>
+    <button class="ds-nav__toggle" id="navToggle" aria-label="切换导航">
+      <i class="fas fa-bars"></i>
+    </button>
+  </div>
+</nav>
+
+<section class="ds-subpage-shell">
+  <div class="ds-subpage-shell__rings" aria-hidden="true">
+    <span class="ds-subpage-shell__ring ds-subpage-shell__ring--1"></span>
+    <span class="ds-subpage-shell__ring ds-subpage-shell__ring--2"></span>
+    <span class="ds-subpage-shell__ring ds-subpage-shell__ring--3"></span>
+  </div>
+
+  <main class="feedback-home">
+    <section class="feedback-compose ds-card ds-reveal">
+      <div class="feedback-compose__head">
+        <div>
+          <h2>留下你的使用反馈</h2>
+        </div>
+      </div>
+
+      <form id="feedbackForm" class="feedback-compose__form">
+        <label class="feedback-field feedback-field--full">
+          <span>反馈内容</span>
+          <textarea id="feedbackContent" maxlength="500" rows="5" placeholder="你可以写下某个页面哪里不顺、哪句文案让你困惑，或你希望 DreamLens 下一步长成什么样。"></textarea>
+        </label>
+        <div class="feedback-compose__actions">
+          <span class="feedback-compose__hint">公开发布后，其他用户也能看到并留下回应。</span>
+          <button type="submit" class="ds-btn ds-btn-primary">发布反馈</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="feedback-stream ds-reveal">
+      <div class="feedback-stream__head">
+        <div>
+          <h2>公开反馈墙</h2>
+        </div>
+        <p id="feedbackCountText">正在读取反馈…</p>
+      </div>
+
+      <div id="feedbackEmpty" class="feedback-empty" style="display:none">
+        <div class="feedback-empty__orb" aria-hidden="true"></div>
+        <h3>这里还很安静</h3>
+        <p>第一条反馈会成为这面公开反馈墙的起点。</p>
+      </div>
+
+      <div id="feedbackList" class="feedback-list"></div>
+    </section>
+  </main>
+</section>
+
+<script src="js/main.js"></script>
+<script src="js/feedback.js"></script>
+</body>
+</html>

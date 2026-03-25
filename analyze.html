@@ -6,15 +6,19 @@
 <title>梦境解析 · DreamLens</title>
 <link rel="stylesheet" href="css/dreamscape.css">
 <link rel="stylesheet" href="css/analyze.css">
-<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@300;400;600;700;900&family=Noto+Sans+SC:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Roboto+Mono:wght@400;500;700&family=Noto+Serif+SC:wght@300;400;600;700;900&family=Noto+Sans+SC:wght@300;400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+<script>
+if ('scrollRestoration' in history) {
+  history.scrollRestoration = 'manual';
+}
+</script>
 </head>
-<body class="ds-page-enter ds-shell ds-shell--analyze">
+<body class="ds-page-enter ds-shell ds-shell--analyze" data-analyze-view="input">
 
 <div class="ds-bg"></div>
 <div class="ds-stars" id="dsStars"></div>
 <div class="ds-mist" id="dsMist"></div>
-<div class="az-hero-backdrop" aria-hidden="true"></div>
 
 <!-- ── Nav ── -->
 <nav class="ds-nav ds-nav--scrolled" id="dsNav">
@@ -26,146 +30,164 @@
     </a>
     <ul class="ds-nav__links" id="navLinks">
       <li><a href="index.html"  class="ds-nav__link">首页</a></li>
-      <li><a href="diary.html"  class="ds-nav__link"><i class="fas fa-book-open"></i> 梦境日记</a></li>
-      <li><a href="analyze.html" class="ds-nav__link ds-nav__link--cta ds-btn ds-btn-primary ds-btn-sm">
-        <i class="fas fa-magic"></i> 开始解析
-      </a></li>
+      <li><a href="analyze.html" class="ds-nav__link ds-nav__link--active">梦境解析</a></li>
+      <li><a href="diary.html"  class="ds-nav__link">梦境日记</a></li>
+      <li><a href="community.html" class="ds-nav__link">梦境广场</a></li>
     </ul>
     <button class="ds-nav__toggle" id="navToggle"><i class="fas fa-bars"></i></button>
   </div>
 </nav>
 
-<!-- ── Page Header ── -->
-<div class="az-page-header ds-z1">
-  <div class="ds-eyebrow"><i class="fas fa-magic"></i> AI 梦境解析引擎</div>
-  <h1 class="ds-headline"><span class="ds-gt">描述你的梦境</span></h1>
-  <p class="az-page-desc">
-    尽量详细地描述梦境，包括场景、人物、情绪和感受。<br>
-    支离破碎没关系，AI 能够理解你想表达的一切。
-  </p>
-</div>
+<section class="ds-subpage-shell">
+  <div class="ds-subpage-shell__rings" aria-hidden="true">
+    <span class="ds-subpage-shell__ring ds-subpage-shell__ring--1"></span>
+    <span class="ds-subpage-shell__ring ds-subpage-shell__ring--2"></span>
+    <span class="ds-subpage-shell__ring ds-subpage-shell__ring--3"></span>
+  </div>
 
 <!-- ══════════════════════════════
      MAIN ANALYZE CONTAINER
 ════════════════════════════════ -->
-<div class="az-container ds-z1" id="analyzeWrap">
+<div class="az-container ds-z1" id="analyzeWrap" data-view="input">
 
   <!-- ═══════════════════════════
        INPUT CARD
   ═══════════════════════════ -->
   <div class="az-input-card ds-card" id="inputSection">
     <div class="az-input-card__glow"></div>
+    <div class="az-input-card__mist"></div>
 
-    <h3 class="az-input-card__title">
-      <i class="fas fa-feather-alt"></i> 描述你的梦境
-    </h3>
-    <p class="az-input-card__sub">
-      越详细越准确。可以描述颜色、情绪、符号、人物，哪怕只是一个碎片画面也没关系。
-    </p>
+    <div class="az-input-card__head">
+      <div class="az-input-card__intro">
+        <h3 class="az-input-card__title">描述你的梦境</h3>
+        <p class="az-input-card__lead">当你醒来，从梦里最清晰的那一幕，慢慢写下</p>
+      </div>
 
-    <!-- ── Mode Tabs ── -->
-    <div class="az-mode-tabs">
-      <button class="az-mode-tab az-mode-tab--active" id="tabText" onclick="switchMode('text')">
-        <i class="fas fa-keyboard"></i> 文字输入
-      </button>
-      <button class="az-mode-tab" id="tabVoice" onclick="switchMode('voice')">
-        <i class="fas fa-microphone"></i> 语音输入
-        <span class="ds-badge ds-badge--new">NEW</span>
-      </button>
-    </div>
-
-    <!-- ── TEXT INPUT ── -->
-    <div id="textInputArea">
-      <textarea id="dreamInput" class="az-textarea ds-textarea"
-        placeholder="例如：我梦见自己站在一个巨大的玻璃建筑里，四周都是镜子，我的倒影不断重复，但每个倒影都有细微的不同。突然地板开始碎裂，我拼命想跑但双腿像灌了铅……整个过程我感到一种奇怪的宁静，而不是恐惧……"
-        maxlength="2000"></textarea>
-      <div class="az-textarea-meta">
-        <span class="az-char-count" id="charCount">0 / 2000</span>
-        <span class="az-char-hint"><i class="fas fa-microphone"></i> 也可切换语音输入</span>
+      <div class="az-mode-tabs" role="tablist" aria-label="梦境输入方式">
+        <button type="button" class="az-mode-tab az-mode-tab--active" id="tabText" onclick="switchMode('text')">
+          <i class="fas fa-keyboard"></i>
+          <span>文字输入</span>
+        </button>
+        <button type="button" class="az-mode-tab" id="tabVoice" onclick="switchMode('voice')">
+          <i class="fas fa-microphone"></i>
+          <span>语音输入</span>
+        </button>
       </div>
     </div>
 
-    <!-- ── VOICE INPUT ── -->
-    <div id="voiceInputArea" style="display:none">
-      <div class="az-voice-box" id="voiceTranscriptBox">
-        <div class="az-voice-placeholder" id="voicePlaceholder">
-          <div class="az-voice-placeholder__icon">🌙</div>
-          <span>点击下方麦克风按钮，开始诉说你的梦境...</span>
+    <div class="az-input-card__composer">
+      <div class="az-writing-stage">
+        <!-- ── TEXT INPUT ── -->
+        <div id="textInputArea" class="az-writing-panel">
+          <div class="az-composer-mount az-composer-mount--text" id="textComposerMount">
+            <div class="az-text-input-stage" id="sharedInputStage">
+              <div class="az-textarea-shell">
+                <textarea id="dreamInput" class="az-textarea ds-textarea"
+                  placeholder="从你记得最清晰的画面开始写&#10;那里有什么场景、人物或物体&#10;有没有特别突出的颜色、动作或声音&#10;醒来时最强烈的感受是什么"
+                  maxlength="2000"></textarea>
+              </div>
+
+              <div class="az-textarea-meta az-textarea-meta--immersive">
+                <div class="az-textarea-meta__main">
+                  <span class="az-char-count" id="charCount">0 字</span>
+                  <span class="az-char-hint">建议至少 60 字，解析会更准确</span>
+                </div>
+                <div class="az-textarea-meta__actions">
+                  <button type="button" class="az-inline-action" id="exampleToggleBtn" onclick="insertExampleDream()">插入示例</button>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-        <div class="az-voice-text" id="voiceTranscript"></div>
-        <div class="az-voice-interim" id="voiceInterim"></div>
+
+        <!-- ── VOICE INPUT ── -->
+        <div id="voiceInputArea" class="az-writing-panel az-writing-panel--voice" style="display:none">
+          <div class="az-voice-box" id="voiceTranscriptBox">
+            <div class="az-voice-box__mist" aria-hidden="true"></div>
+            <div class="az-voice-box__core-glow" aria-hidden="true"></div>
+
+            <div class="az-voice-copy">
+              <p class="az-voice-title">把还没散去的画面，慢慢说出来</p>
+              <p class="az-voice-lead">那些醒来后仍带着形状的片段，会在这里慢慢显影。</p>
+            </div>
+
+            <div class="az-voice-controls">
+              <div class="az-mic-wrap" id="voiceWaveContainer">
+                <div class="az-mic-aura az-mic-aura--outer"></div>
+                <div class="az-mic-aura az-mic-aura--inner"></div>
+                <div class="az-mic-ring az-mic-ring--1"></div>
+                <div class="az-mic-ring az-mic-ring--2"></div>
+                <div class="az-mic-ring az-mic-ring--3"></div>
+                <button type="button" class="az-mic-btn" id="voiceMicBtn" onclick="toggleVoice()">
+                  <span class="az-mic-btn__core" aria-hidden="true"></span>
+                  <i class="fas fa-microphone" id="voiceMicIcon"></i>
+                </button>
+              </div>
+              <div class="az-wave-bars" id="voiceBars">
+                <div class="az-wbar"></div><div class="az-wbar"></div><div class="az-wbar"></div>
+                <div class="az-wbar"></div><div class="az-wbar"></div><div class="az-wbar"></div>
+                <div class="az-wbar"></div><div class="az-wbar"></div><div class="az-wbar"></div>
+                <div class="az-wbar"></div><div class="az-wbar"></div><div class="az-wbar"></div>
+              </div>
+              <p class="az-voice-status" id="voiceStatusText">轻触麦克风，让梦慢慢被听见</p>
+              <p class="az-voice-sub" id="voiceStatusSub">自动识别停顿与断句 · 语音仅在本地处理 · 说完后自动整理片段</p>
+              <div class="az-voice-actions" id="voiceActionBtns" style="display:none">
+                <button type="button" class="az-voice-action az-voice-action--clear" onclick="clearVoiceText()">
+                  重新口述
+                </button>
+                <button type="button" class="az-voice-action az-voice-action--confirm" onclick="confirmVoiceText()">
+                  继续文字编辑
+                </button>
+              </div>
+            </div>
+
+            <div class="az-composer-mount az-voice-editor-mount" id="voiceEditorMount"></div>
+          </div>
+        </div>
       </div>
 
-      <div class="az-voice-controls">
-        <div class="az-mic-wrap" id="voiceWaveContainer">
-          <div class="az-mic-ring az-mic-ring--1"></div>
-          <div class="az-mic-ring az-mic-ring--2"></div>
-          <div class="az-mic-ring az-mic-ring--3"></div>
-          <button class="az-mic-btn" id="voiceMicBtn" onclick="toggleVoice()">
-            <i class="fas fa-microphone" id="voiceMicIcon"></i>
-          </button>
+      <div class="az-input-card__support">
+        <div class="az-support-panel az-support-panel--quiet">
+          <div class="az-support-panel__copy">
+            <div class="az-support-panel__eyebrow">解析方式</div>
+            <p class="az-support-panel__desc">选择你更想靠近的解读方向</p>
+          </div>
+          <div class="az-option-chips">
+            <button type="button" class="az-chip az-chip--active" onclick="toggleChip(this)"><i class="fas fa-brain"></i> 荣格心理学</button>
+            <button type="button" class="az-chip az-chip--active" onclick="toggleChip(this)"><i class="fas fa-yin-yang"></i> 东方象征</button>
+            <button type="button" class="az-chip az-chip--active" onclick="toggleChip(this)"><i class="fas fa-heart"></i> 情绪分析</button>
+            <button type="button" class="az-chip" onclick="toggleChip(this)"><i class="fas fa-star"></i> 原型理论</button>
+          </div>
         </div>
-        <div class="az-wave-bars" id="voiceBars">
-          <div class="az-wbar"></div><div class="az-wbar"></div><div class="az-wbar"></div>
-          <div class="az-wbar"></div><div class="az-wbar"></div><div class="az-wbar"></div>
-          <div class="az-wbar"></div><div class="az-wbar"></div><div class="az-wbar"></div>
-          <div class="az-wbar"></div><div class="az-wbar"></div><div class="az-wbar"></div>
-        </div>
-        <p class="az-voice-status" id="voiceStatusText">点击麦克风开始录音</p>
-        <p class="az-voice-sub"   id="voiceStatusSub">支持普通话 · 自动断句 · 实时转写</p>
-        <div class="az-voice-actions" id="voiceActionBtns" style="display:none">
-          <button class="az-voice-action az-voice-action--clear"   onclick="clearVoiceText()">
-            <i class="fas fa-trash"></i> 清空重录
-          </button>
-          <button class="az-voice-action az-voice-action--confirm" onclick="confirmVoiceText()">
-            <i class="fas fa-check"></i> 使用此内容
-          </button>
-        </div>
-        <div class="az-voice-tips">
-          <span><i class="fas fa-lightbulb"></i> 说完一段后稍作停顿，AI 会自动识别</span>
-          <span><i class="fas fa-shield-alt"></i> 语音仅在本地处理，不上传服务器</span>
+
+        <div class="az-emotion-section az-support-panel az-support-panel--quiet">
+          <div class="az-support-panel__copy">
+            <div class="az-support-panel__eyebrow">醒来的感受</div>
+            <p class="az-support-panel__desc">保留醒来后仍在停留的情绪</p>
+          </div>
+          <div class="az-emotion-grid">
+            <button type="button" class="az-emotion-btn az-emotion-btn--calm" data-emotion="安宁" onclick="selectEmotion(this)"><span class="az-emotion-glyph" aria-hidden="true"><svg viewBox="0 0 20 20"><path d="M13.8 4.8a5.8 5.8 0 1 0 0 10.4A6.7 6.7 0 0 1 13.8 4.8Z"/></svg></span><span>安宁</span></button>
+            <button type="button" class="az-emotion-btn az-emotion-btn--anxious" data-emotion="焦虑" onclick="selectEmotion(this)"><span class="az-emotion-glyph" aria-hidden="true"><svg viewBox="0 0 20 20"><path d="M2.8 11.4c1.7-3.3 3.3 3.3 5 0 1.8-3.4 3.3-3.4 5 0 1.8 3.4 3.3 3.3 4.4 0"/></svg></span><span>焦虑</span></button>
+            <button type="button" class="az-emotion-btn az-emotion-btn--excited" data-emotion="兴奋" onclick="selectEmotion(this)"><span class="az-emotion-glyph" aria-hidden="true"><svg viewBox="0 0 20 20"><path d="M10 3.6 11.4 8.6 16.4 10 11.4 11.4 10 16.4 8.6 11.4 3.6 10 8.6 8.6Z"/></svg></span><span>兴奋</span></button>
+            <button type="button" class="az-emotion-btn az-emotion-btn--sad" data-emotion="悲伤" onclick="selectEmotion(this)"><span class="az-emotion-glyph" aria-hidden="true"><svg viewBox="0 0 20 20"><path d="M10 4.1c1.6 2.1 3.1 4.1 3.1 6.2a3.1 3.1 0 1 1-6.2 0c0-2.1 1.5-4.1 3.1-6.2Z"/><path d="M13.6 14.2c-1 .8-2.2 1.2-3.6 1.2"/></svg></span><span>悲伤</span></button>
+            <button type="button" class="az-emotion-btn az-emotion-btn--confused" data-emotion="困惑" onclick="selectEmotion(this)"><span class="az-emotion-glyph" aria-hidden="true"><svg viewBox="0 0 20 20"><path d="M10.1 4.8c2.7 0 4.5 1.5 4.5 3.8 0 2.2-1.6 3.7-3.9 3.7-1.8 0-3.1-1-3.1-2.3 0-1.1.8-1.9 2-1.9 1 0 1.8.5 2.2 1.3"/><path d="M10 14.6v.2"/></svg></span><span>困惑</span></button>
+            <button type="button" class="az-emotion-btn az-emotion-btn--fear" data-emotion="恐惧" onclick="selectEmotion(this)"><span class="az-emotion-glyph" aria-hidden="true"><svg viewBox="0 0 20 20"><path d="M4.5 5.2c2.6 1.5 2.6 8.1 0 9.6"/><path d="M15.5 5.2c-2.6 1.5-2.6 8.1 0 9.6"/><path d="M8 10h4"/></svg></span><span>恐惧</span></button>
+            <button type="button" class="az-emotion-btn az-emotion-btn--release" data-emotion="释然" onclick="selectEmotion(this)"><span class="az-emotion-glyph" aria-hidden="true"><svg viewBox="0 0 20 20"><path d="M4.8 11.2c1.2 2 3 3 5.2 3s4-1 5.2-3"/><path d="M6.2 7.2c.9 1.3 2.2 2 3.8 2s2.9-.7 3.8-2"/></svg></span><span>释然</span></button>
+            <button type="button" class="az-emotion-btn az-emotion-btn--tired" data-emotion="疲惫" onclick="selectEmotion(this)"><span class="az-emotion-glyph" aria-hidden="true"><svg viewBox="0 0 20 20"><path d="M5 7.2h10"/><path d="M5.6 12.8c1-.9 2.4-1.4 4.4-1.4s3.4.5 4.4 1.4"/></svg></span><span>疲惫</span></button>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- ── Analysis dimensions ── -->
-    <div class="az-options-row">
-      <div class="az-option-chips">
-        <div class="az-chip az-chip--active" onclick="toggleChip(this)"><i class="fas fa-brain"></i> 荣格心理学</div>
-        <div class="az-chip az-chip--active" onclick="toggleChip(this)"><i class="fas fa-yin-yang"></i> 东方象征</div>
-        <div class="az-chip az-chip--active" onclick="toggleChip(this)"><i class="fas fa-heart"></i> 情绪分析</div>
-        <div class="az-chip"                  onclick="toggleChip(this)"><i class="fas fa-star"></i> 原型理论</div>
-      </div>
-    </div>
-
-    <!-- ── Emotion select ── -->
-    <div class="az-emotion-section">
-      <p class="az-emotion-title">🌙 醒来时的感受</p>
-      <div class="az-emotion-grid">
-        <div class="az-emotion-btn" data-emotion="安宁"  onclick="selectEmotion(this)">😌 安宁</div>
-        <div class="az-emotion-btn" data-emotion="焦虑"  onclick="selectEmotion(this)">😰 焦虑</div>
-        <div class="az-emotion-btn" data-emotion="兴奋"  onclick="selectEmotion(this)">🤩 兴奋</div>
-        <div class="az-emotion-btn" data-emotion="悲伤"  onclick="selectEmotion(this)">😢 悲伤</div>
-        <div class="az-emotion-btn" data-emotion="困惑"  onclick="selectEmotion(this)">😵 困惑</div>
-        <div class="az-emotion-btn" data-emotion="恐惧"  onclick="selectEmotion(this)">😱 恐惧</div>
-        <div class="az-emotion-btn" data-emotion="释然"  onclick="selectEmotion(this)">🥹 释然</div>
-        <div class="az-emotion-btn" data-emotion="疲惫"  onclick="selectEmotion(this)">😫 疲惫</div>
-      </div>
-    </div>
-
-    <!-- ── Examples ── -->
-    <div class="az-examples">
-      <p class="az-examples__title">💡 快速示例（点击填入）</p>
-      <div class="az-examples__chips">
-        <div class="az-example-chip" onclick="fillExample(0)">🌊 海洋梦境</div>
-        <div class="az-example-chip" onclick="fillExample(1)">🦋 追逐梦境</div>
-        <div class="az-example-chip" onclick="fillExample(2)">🏚️ 坠落梦境</div>
-        <div class="az-example-chip" onclick="fillExample(3)">🌳 迷失森林</div>
-      </div>
-    </div>
-
-    <button class="az-analyze-btn ds-btn ds-btn-primary ds-btn-lg" id="analyzeBtn" onclick="startAnalysis()">
-      <i class="fas fa-magic"></i> 开始解析梦境
+    <button class="az-dream-gate" id="analyzeBtn" type="button" onclick="startAnalysis()" aria-busy="false">
+      <span class="az-dream-gate__copy" aria-live="polite">
+        <span class="az-dream-gate__label az-dream-gate__label--idle">让梦慢慢浮现</span>
+        <span class="az-dream-gate__label az-dream-gate__label--loading">梦正在回应你</span>
+      </span>
+      <span class="az-dream-gate__status" aria-hidden="true">
+        <span></span><span></span><span></span>
+      </span>
+      <span class="az-dream-gate__ripple" aria-hidden="true"></span>
     </button>
   </div><!-- /input-card -->
 
@@ -173,20 +195,51 @@
        LOADING STATE
   ═══════════════════════════ -->
   <div class="az-loading" id="loadingSection" style="display:none">
-    <div class="az-loading__orb">
-      <div class="az-loading__orb-ring"></div>
-      <span>🌙</span>
-    </div>
-    <p class="az-loading__title">AI 正在解析你的梦境...</p>
-    <p class="az-loading__sub">综合荣格理论 · 象征学 · 情绪心理学</p>
-    <div class="az-loading__steps">
-      <div class="az-loading__step az-loading__step--active" id="step1"><i class="fas fa-circle-dot"></i> 解读梦境符号</div>
-      <div class="az-loading__step" id="step2"><i class="fas fa-circle-dot"></i> 情绪模式分析</div>
-      <div class="az-loading__step" id="step3"><i class="fas fa-circle-dot"></i> 生成解析报告</div>
-      <div class="az-loading__step" id="step4"><i class="fas fa-circle-dot"></i> 创作梦境艺术</div>
-    </div>
-    <div class="az-loading__progress-track ds-progress-track">
-      <div class="az-loading__progress-fill ds-progress-fill" id="loadingProgress" style="width:0%"></div>
+    <div class="az-loading__mist az-loading__mist--1" aria-hidden="true"></div>
+    <div class="az-loading__mist az-loading__mist--2" aria-hidden="true"></div>
+    <div class="az-loading__center">
+      <div class="az-loading__visual" aria-hidden="true">
+        <span class="az-loading__halo az-loading__halo--outer"></span>
+        <span class="az-loading__halo az-loading__halo--inner"></span>
+        <span class="az-loading__phase-pulse"></span>
+        <span class="az-loading__ripple az-loading__ripple--1"></span>
+        <span class="az-loading__ripple az-loading__ripple--2"></span>
+        <span class="az-loading__ripple az-loading__ripple--phase"></span>
+        <span class="az-loading__ring az-loading__ring--base"></span>
+        <span class="az-loading__ring az-loading__ring--mid"></span>
+        <span class="az-loading__ring az-loading__ring--inner"></span>
+        <span class="az-loading__ring az-loading__ring--arc az-loading__ring--arc-a"></span>
+        <span class="az-loading__ring az-loading__ring--arc az-loading__ring--arc-b"></span>
+        <span class="az-loading__ring az-loading__ring--arc az-loading__ring--arc-c"></span>
+        <span class="az-loading__core"></span>
+        <span class="az-loading__core-dot"></span>
+      </div>
+      <p class="az-loading__title">梦正在回应你</p>
+      <p class="az-loading__sub">那些还未说出的部分，正慢慢浮现</p>
+      <div class="az-loading__steps" aria-label="解析进度">
+        <div class="az-loading__step az-loading__step--active" id="loadingStep1">
+          <span class="az-loading__step-dot" aria-hidden="true"></span>
+          <span>收拢片段</span>
+        </div>
+        <div class="az-loading__step" id="loadingStep2">
+          <span class="az-loading__step-dot" aria-hidden="true"></span>
+          <span>辨认意象</span>
+        </div>
+        <div class="az-loading__step" id="loadingStep3">
+          <span class="az-loading__step-dot" aria-hidden="true"></span>
+          <span>靠近情绪</span>
+        </div>
+        <div class="az-loading__step" id="loadingStep4">
+          <span class="az-loading__step-dot" aria-hidden="true"></span>
+          <span>生成回应</span>
+        </div>
+      </div>
+      <div class="az-loading__phase-window" aria-live="polite">
+        <div class="az-loading__phase az-loading__phase--active" id="loadingPhase1">收拢梦里的片段</div>
+        <div class="az-loading__phase" id="loadingPhase2">辨认反复出现的意象</div>
+        <div class="az-loading__phase" id="loadingPhase3">靠近醒来后的情绪</div>
+        <div class="az-loading__phase" id="loadingPhase4">生成属于这场梦的回应</div>
+      </div>
     </div>
   </div>
 
@@ -194,168 +247,218 @@
        RESULT SECTION
   ═══════════════════════════ -->
   <div class="az-result" id="resultSection" style="display:none">
-
-    <!-- Result header -->
-    <div class="az-result__header ds-card">
-      <div class="az-result__header-glow"></div>
-      <span class="az-result__done-badge"><i class="fas fa-sparkles"></i> 解析完成</span>
-      <h2 class="az-result__title ds-gt" id="resultTitle">梦境解析报告</h2>
-      <div class="az-result__tags" id="resultTags"></div>
-    </div>
-
-    <!-- Summary -->
-    <div class="az-result__summary ds-card" id="resultSummary"></div>
-
-    <!-- Grid of analysis sections -->
-    <div class="az-sections-grid">
-
-      <!-- Symbols -->
-      <div class="az-section ds-card">
-        <div class="az-section__head">
-          <div class="ds-icon-bg ds-icon-bg--violet"><i class="fas fa-eye"></i></div>
-          <span class="az-section__title">核心象征解读</span>
+    <div class="az-reading-shell">
+      <section class="az-reading-section az-reading-section--clues">
+        <div class="az-reading-section__head">
+          <h3 class="az-reading-section__title">关键线索</h3>
         </div>
-        <ul class="az-symbol-list" id="symbolList"></ul>
-      </div>
 
-      <!-- Emotions -->
-      <div class="az-section ds-card">
-        <div class="az-section__head">
-          <div class="ds-icon-bg ds-icon-bg--pink"><i class="fas fa-heart-pulse"></i></div>
-          <span class="az-section__title">情绪能量分析</span>
+        <div class="az-reading-source-module">
+          <article class="az-reading-source-panel">
+            <div class="az-reading-source-panel__header">
+              <div class="az-reading-source-panel__copy">
+                <p class="az-reading-source-panel__eyebrow">你的梦境原文</p>
+              </div>
+            </div>
+            <div class="az-reading-source-panel__text" id="dreamSourceText"></div>
+
+            <div class="az-reading-clue-orbit">
+              <div class="az-reading-clue-orbit__meta">
+                <p class="az-reading-clue-orbit__eyebrow">浮现出的关键意象</p>
+                <p class="az-reading-clue-orbit__hint">点击任一意象，展开这段原文背后的解释。</p>
+              </div>
+              <div class="az-reading-clue-rail" id="dreamClueRail" aria-label="关键意象轨道"></div>
+            </div>
+          </article>
+
+          <article class="az-reading-clue-focus" id="dreamClueFocus" aria-hidden="true"></article>
         </div>
-        <div class="az-emotion-bars" id="emotionBars"></div>
-      </div>
+      </section>
 
-      <!-- Psychology -->
-      <div class="az-section ds-card">
-        <div class="az-section__head">
-          <div class="ds-icon-bg ds-icon-bg--teal"><i class="fas fa-brain"></i></div>
-          <span class="az-section__title">心理学深度解读</span>
+      <section class="az-reading-section az-reading-section--meaning-core">
+        <div class="az-reading-section__head">
+          <h3 class="az-reading-section__title">心理学深度解读</h3>
+          <p class="az-reading-section__note">从意象、情绪与潜意识线索里，进入这场梦更深一层的心理解释。</p>
         </div>
-        <div class="az-section__content" id="psychologyContent"></div>
-      </div>
+        <div class="az-reading-meaning-panel" id="dreamInterpretationPanel">
+          <section class="az-reading-meaning-panel__section az-reading-meaning-panel__section--lead">
+            <p class="az-reading-meaning-panel__label">统一解读</p>
+            <p class="az-reading-meaning-panel__lead" id="dreamInterpretationLead"></p>
+            <p class="az-reading-meaning-panel__support" id="dreamInterpretationOverview"></p>
+          </section>
 
-      <!-- Unconscious -->
-      <div class="az-section ds-card">
-        <div class="az-section__head">
-          <div class="ds-icon-bg ds-icon-bg--amber"><i class="fas fa-lightbulb"></i></div>
-          <span class="az-section__title">潜意识传达的信息</span>
+          <section class="az-reading-meaning-panel__section az-reading-meaning-panel__section--energy">
+            <p class="az-reading-meaning-panel__label">情绪能量分析</p>
+            <p class="az-reading-meaning-panel__text" id="dreamInterpretationEmotion"></p>
+            <div class="az-reading-energy-map" id="dreamInterpretationEmotionMix" aria-label="这场梦的情绪构成"></div>
+          </section>
+
+          <section class="az-reading-meaning-panel__section az-reading-meaning-panel__section--unconscious">
+            <p class="az-reading-meaning-panel__label">潜意识传达</p>
+            <p class="az-reading-meaning-panel__text" id="dreamInterpretationUnconscious"></p>
+          </section>
         </div>
-        <div class="az-section__content" id="unconsciousContent"></div>
-      </div>
+      </section>
 
-      <!-- Action advice — 现在完全开放，无锁定 -->
-      <div class="az-section az-section--full ds-card">
-        <div class="az-section__head">
-          <div class="ds-icon-bg ds-icon-bg--emerald"><i class="fas fa-compass"></i></div>
-          <span class="az-section__title">行动指导建议</span>
+      <section class="az-reading-section az-reading-section--response">
+        <div class="az-reading-section__head">
+          <h3 class="az-reading-section__title">行动建议</h3>
+          <p class="az-reading-section__note">把这场梦轻轻带回现实，不急着解释完，只先做一个可执行的靠近。</p>
         </div>
-        <div class="az-section__content" id="adviceContent"></div>
-      </div>
-
-    </div><!-- /sections grid -->
-
-    <!-- ══════════════════════════════
-         AI 梦境艺术生成区（核心功能）
-    ════════════════════════════════ -->
-    <div class="az-art ds-card" id="artSection">
-      <div class="az-art__header">
-        <div class="az-art__title-wrap">
-          <div class="az-art__title"><i class="fas fa-wand-magic-sparkles"></i> AI 梦境艺术</div>
-          <span class="az-art__subtitle">根据你的梦境描述，AI 将生成专属艺术画作</span>
+        <div class="az-reading-response">
+          <article class="az-reading-response__block az-reading-response__block--action">
+            <p class="az-reading-response__eyebrow">现在就能做</p>
+            <h4 class="az-reading-response__title">一个你现在可以做的小动作</h4>
+            <p class="az-reading-response__focus" id="resultActionCue"></p>
+            <p class="az-reading-response__text" id="resultActionBody"></p>
+          </article>
+          <div class="az-reading-response__divider"></div>
+          <article class="az-reading-response__block az-reading-response__block--direction">
+            <p class="az-reading-response__eyebrow">继续靠近</p>
+            <h4 class="az-reading-response__title">一个继续留意的方向</h4>
+            <p class="az-reading-response__focus" id="resultDirectionCue"></p>
+            <p class="az-reading-response__text" id="resultDirectionBody"></p>
+          </article>
         </div>
-      </div>
+      </section>
 
-      <!-- 生成状态：待生成 -->
-      <div class="az-art__idle" id="artIdle">
-        <div class="az-art__idle-icon">🎨</div>
-        <p class="az-art__idle-title">准备好了，点击生成你的梦境艺术</p>
-        <p class="az-art__idle-sub">AI 将把你的梦境描述转化为独一无二的视觉艺术作品</p>
-        <button class="ds-btn ds-btn-primary az-art__gen-btn" id="artGenBtn" onclick="generateDreamArt()">
-          <i class="fas fa-sparkles"></i> 生成梦境艺术画
-        </button>
-      </div>
-
-      <!-- 生成状态：加载中 -->
-      <div class="az-art__generating" id="artGenerating" style="display:none">
-        <div class="az-art__gen-anim">
-          <div class="az-art__gen-ring az-art__gen-ring--1"></div>
-          <div class="az-art__gen-ring az-art__gen-ring--2"></div>
-          <div class="az-art__gen-ring az-art__gen-ring--3"></div>
-          <span class="az-art__gen-icon">✨</span>
+      <section class="az-reading-section az-reading-section--extension">
+        <div class="az-reading-section__head">
+          <h3 class="az-reading-section__title">AI 梦境艺术</h3>
+          <p class="az-reading-section__note az-reading-extension-copy">把这场梦转化成一幅专属图像，让它以另一种方式继续显影。</p>
         </div>
-        <p class="az-art__gen-title">AI 正在创作你的梦境...</p>
-        <p class="az-art__gen-sub" id="artGenSubText">融合梦境意象与艺术风格中...</p>
-        <div class="az-art__gen-progress">
-          <div class="az-art__gen-bar" id="artGenBar"></div>
-        </div>
-        <p class="az-art__gen-tip" id="artGenTip">🌙 每幅作品都是世界上独一无二的</p>
-      </div>
 
-      <!-- 生成状态：完成展示 -->
-      <div class="az-art__result" id="artResult" style="display:none">
-        <div class="az-art__result-frame">
-          <img id="artResultImg" src="" alt="AI 生成的梦境艺术" class="az-art__result-img">
-          <div class="az-art__result-overlay">
-            <span class="az-art__result-badge">✨ AI 梦境艺术</span>
+        <div class="az-art ds-card" id="artSection">
+          <div class="az-art__ambient" aria-hidden="true">
+            <span class="az-art__ambient-halo az-art__ambient-halo--core"></span>
+            <span class="az-art__ambient-halo az-art__ambient-halo--left"></span>
+            <span class="az-art__ambient-halo az-art__ambient-halo--right"></span>
+            <span class="az-art__ambient-ring az-art__ambient-ring--outer"></span>
+            <span class="az-art__ambient-ring az-art__ambient-ring--inner"></span>
           </div>
-        </div>
-        <div class="az-art__result-info">
-          <div class="az-art__result-meta">
-            <span class="az-art__result-prompt-label">创作灵感提示词：</span>
-            <p class="az-art__result-prompt" id="artResultPrompt"></p>
-          </div>
-          <div class="az-art__result-actions">
-            <a id="artDownloadBtn" class="ds-btn ds-btn-primary ds-btn-sm" download="dreamlens-art.jpg">
-              <i class="fas fa-download"></i> 下载画作
-            </a>
-            <button class="ds-btn ds-btn-ghost ds-btn-sm" onclick="regenerateArt()">
-              <i class="fas fa-redo"></i> 重新生成
+
+          <div class="az-art__idle az-art__portal az-art__state" id="artIdle">
+            <div class="az-art__portal-controls" aria-label="生成参数">
+              <div class="az-art__param az-art__param--count" aria-label="生成数量">
+                <button type="button" class="az-art__param-step" id="artCountMinus" aria-label="减少生成数量" onclick="adjustArtImageCount(-1)">−</button>
+                <span class="az-art__param-value" id="artCountValue">1/4</span>
+                <button type="button" class="az-art__param-step" id="artCountPlus" aria-label="增加生成数量" onclick="adjustArtImageCount(1)">+</button>
+              </div>
+
+              <div class="az-art__param az-art__param--select" data-art-param="ratio">
+                <button
+                  type="button"
+                  class="az-art__param-trigger"
+                  id="artRatioTrigger"
+                  aria-haspopup="listbox"
+                  aria-expanded="false"
+                  aria-controls="artRatioMenu"
+                  onclick="toggleArtParamMenu('ratio')"
+                >
+                  <span class="az-art__param-icon az-art__param-icon--ratio" aria-hidden="true"></span>
+                  <span class="az-art__param-text" id="artRatioValue">16:9</span>
+                  <i class="fas fa-chevron-down az-art__param-chevron" aria-hidden="true"></i>
+                </button>
+                <div class="az-art__param-menu" id="artRatioMenu" role="listbox" aria-label="图片比例" hidden>
+                  <button type="button" class="az-art__param-option" data-art-ratio-option="1:1" role="option" onclick="selectArtRatio('1:1')">1:1</button>
+                  <button type="button" class="az-art__param-option" data-art-ratio-option="3:4" role="option" onclick="selectArtRatio('3:4')">3:4</button>
+                  <button type="button" class="az-art__param-option" data-art-ratio-option="4:3" role="option" onclick="selectArtRatio('4:3')">4:3</button>
+                  <button type="button" class="az-art__param-option" data-art-ratio-option="16:9" role="option" onclick="selectArtRatio('16:9')">16:9</button>
+                </div>
+              </div>
+
+              <div class="az-art__param az-art__param--select" data-art-param="quality">
+                <button
+                  type="button"
+                  class="az-art__param-trigger"
+                  id="artQualityTrigger"
+                  aria-haspopup="listbox"
+                  aria-expanded="false"
+                  aria-controls="artQualityMenu"
+                  onclick="toggleArtParamMenu('quality')"
+                >
+                  <i class="far fa-gem az-art__param-gem" aria-hidden="true"></i>
+                  <span class="az-art__param-text" id="artQualityValue">2K</span>
+                  <i class="fas fa-chevron-down az-art__param-chevron" aria-hidden="true"></i>
+                </button>
+                <div class="az-art__param-menu" id="artQualityMenu" role="listbox" aria-label="图片质量" hidden>
+                  <button type="button" class="az-art__param-option" data-art-quality-option="1080p" role="option" onclick="selectArtQuality('1080p')">1080p</button>
+                  <button type="button" class="az-art__param-option" data-art-quality-option="2K" role="option" onclick="selectArtQuality('2K')">2K</button>
+                  <button type="button" class="az-art__param-option" data-art-quality-option="4K" role="option" onclick="selectArtQuality('4K')">4K</button>
+                </div>
+              </div>
+            </div>
+            <div class="az-art__portal-symbol" aria-hidden="true">
+              <svg viewBox="0 0 20 20">
+                <path d="M10 4.1c1.5 2 3 3.8 3 5.8a3 3 0 1 1-6 0c0-2 1.5-3.8 3-5.8Z" />
+                <path d="M5.4 13.9c1 .9 2.5 1.4 4.6 1.4s3.6-.5 4.6-1.4" />
+                <path d="M7.2 8.2h.01M12.8 8.2h.01" />
+              </svg>
+            </div>
+            <div class="az-art__portal-copy">
+              <p class="az-art__portal-title">让这场梦第一次被真正看见</p>
+              <p class="az-art__portal-sub">把刚刚浮现出的意象、情绪与氛围，转化成一幅只属于这场梦的视觉作品。</p>
+            </div>
+            <button class="az-art__launch-btn ds-btn ds-btn-primary ds-btn-lg" id="artGenBtn" onclick="generateDreamArt()">
+              <span class="az-art__launch-btn-glow" aria-hidden="true"></span>
+              <span class="az-art__launch-btn-label">生成梦境艺术</span>
             </button>
-            <button class="ds-btn ds-btn-ghost ds-btn-sm" onclick="shareArt()">
-              <i class="fas fa-share-alt"></i> 分享
+          </div>
+
+          <div class="az-art__generating az-art__state" id="artGenerating" style="display:none">
+            <div class="az-art__gen-anim">
+              <div class="az-art__gen-ring az-art__gen-ring--1"></div>
+              <div class="az-art__gen-ring az-art__gen-ring--2"></div>
+              <div class="az-art__gen-ring az-art__gen-ring--3"></div>
+              <span class="az-art__gen-icon">✨</span>
+            </div>
+            <p class="az-art__gen-title">AI 正在把这场梦带向图像</p>
+            <p class="az-art__gen-sub" id="artGenSubText">把梦里的意象、光感与情绪慢慢显影中...</p>
+            <div class="az-art__gen-progress">
+              <div class="az-art__gen-bar" id="artGenBar"></div>
+            </div>
+            <p class="az-art__gen-tip" id="artGenTip">每一幅图像都会沿着这场梦的气息继续生长</p>
+          </div>
+
+          <div class="az-art__result az-art__state" id="artResult" style="display:none">
+            <div class="az-art__result-frame" id="artResultFrame">
+              <img id="artResultImg" src="" alt="AI 生成的梦境艺术" class="az-art__result-img">
+            </div>
+            <div class="az-art__result-bar">
+              <span class="az-art__result-badge">✨ AI 梦境艺术</span>
+              <span class="az-art__result-specs" id="artResultSpecs"></span>
+            </div>
+            <div class="az-art__result-strip" id="artResultStrip" hidden></div>
+            <div class="az-art__result-info">
+              <div class="az-art__result-meta">
+                <span class="az-art__result-prompt-label">这幅图像沿着你刚刚的梦继续显影</span>
+                <p class="az-art__result-prompt" id="artResultPrompt"></p>
+              </div>
+              <div class="az-art__result-actions">
+                <a id="artDownloadBtn" class="ds-btn ds-btn-primary ds-btn-sm" download="dreamlens-art.jpg">
+                  <i class="fas fa-download"></i> 下载画作
+                </a>
+                <button class="ds-btn ds-btn-ghost ds-btn-sm" onclick="regenerateArt()">
+                  <i class="fas fa-redo"></i> 重新生成
+                </button>
+                <button class="ds-btn ds-btn-ghost ds-btn-sm" onclick="shareArt()">
+                  <i class="fas fa-share-alt"></i> 分享
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="az-art__error az-art__state" id="artError" style="display:none">
+            <div class="az-art__error-icon">⚠️</div>
+            <p class="az-art__error-title">生成遇到问题</p>
+            <p class="az-art__error-sub" id="artErrorMsg">请稍后重试</p>
+            <button class="ds-btn ds-btn-ghost ds-btn-sm" onclick="retryArt()">
+              <i class="fas fa-redo"></i> 重试
             </button>
           </div>
+
         </div>
-      </div>
-
-      <!-- 生成状态：失败 -->
-      <div class="az-art__error" id="artError" style="display:none">
-        <div class="az-art__error-icon">⚠️</div>
-        <p class="az-art__error-title">生成遇到问题</p>
-        <p class="az-art__error-sub" id="artErrorMsg">请稍后重试</p>
-        <button class="ds-btn ds-btn-ghost ds-btn-sm" onclick="retryArt()">
-          <i class="fas fa-redo"></i> 重试
-        </button>
-      </div>
-
-    </div><!-- /az-art -->
-
-    <!-- Action buttons -->
-    <div class="az-actions">
-      <button class="ds-btn ds-btn-ghost" onclick="resetAnalysis()">
-        <i class="fas fa-redo"></i> 解析新梦境
-      </button>
-      <button class="ds-btn ds-btn-ghost" onclick="saveDream()">
-        <i class="fas fa-bookmark"></i> 保存到日记
-      </button>
-    </div>
-
-    <!-- Share -->
-    <div class="az-share">
-      <p class="az-share__title">✨ 分享你的梦境洞见</p>
-      <div class="az-share__btns">
-        <button class="az-share-btn az-share-btn--weibo"  onclick="shareResult('weibo')">
-          <i class="fab fa-weibo"></i> 微博分享
-        </button>
-        <button class="az-share-btn az-share-btn--wechat" onclick="shareResult('wechat')">
-          <i class="fab fa-weixin"></i> 分享朋友圈
-        </button>
-        <button class="az-share-btn az-share-btn--copy"   onclick="copyLink()">
-          <i class="fas fa-link"></i> 复制链接
-        </button>
-      </div>
+      </section>
     </div>
 
   </div><!-- /result -->
@@ -377,38 +480,54 @@
 
 <div class="ds-toast" id="toast"></div>
 
-<footer class="ds-footer ds-z1" style="margin-top:0;padding-top:0">
-  <div class="ds-footer__bottom" style="margin-top:0">
-    <p>© 2026 DreamLens · <a href="index.html" style="color:var(--ds-violet-l)">返回首页</a></p>
-    <p>本产品不替代专业心理咨询</p>
-  </div>
-</footer>
+</section>
 
 <script src="js/main.js"></script>
 <script src="js/analyze-init.js"></script>
 <script src="js/voice.js"></script>
 <script src="js/analyze.js"></script>
 <script>
-  window.DREAMLENS_IMAGE_API = 'https://dreamlens-site-chi.vercel.app/api/image';
+  const __dreamlensLocalImageApi = 'http://127.0.0.1:3010/api/image';
+  const __dreamlensIsHttp = ['http:', 'https:'].includes(window.location.protocol);
+  const __dreamlensIsLocalAnalyze =
+    __dreamlensIsHttp
+    && ['127.0.0.1', 'localhost'].includes(window.location.hostname)
+    && window.location.port === '3010';
+  const __dreamlensShouldUseSameOriginApi = __dreamlensIsHttp && !__dreamlensIsLocalAnalyze;
+
+  window.DREAMLENS_IMAGE_API = window.DREAMLENS_IMAGE_API || (
+    __dreamlensShouldUseSameOriginApi ? '/api/image' : __dreamlensLocalImageApi
+  );
+  window.DREAMLENS_IMAGE_API_FALLBACK = window.DREAMLENS_IMAGE_API_FALLBACK || (
+    __dreamlensShouldUseSameOriginApi ? __dreamlensLocalImageApi : ''
+  );
 </script>
 <script src="js/dream-art.js"></script>
 <script>
 // 从日记页跳转来时，自动填入待重新解析的梦境
 document.addEventListener('DOMContentLoaded', function() {
-  if (window.location.hash === '#reanalyze') {
-    const txt = sessionStorage.getItem('dreamlens_reanalyze');
-    if (txt) {
-      const ta = document.getElementById('dreamInput');
-      const cc = document.getElementById('charCount');
-      if (ta) {
-        ta.value = txt;
-        if (cc) cc.textContent = txt.length + ' / 2000';
-        ta.scrollIntoView({ behavior:'smooth', block:'center' });
-        showToast('📖 已填入日记中的梦境，点击解析即可');
-      }
-      sessionStorage.removeItem('dreamlens_reanalyze');
+  const url = new URL(window.location.href);
+  const isReanalyze = url.searchParams.get('source') === 'reanalyze' || window.location.hash === '#reanalyze';
+  if (!isReanalyze) return;
+
+  const txt = sessionStorage.getItem('dreamlens_reanalyze');
+  if (txt) {
+    const ta = document.getElementById('dreamInput');
+    if (typeof window.switchMode === 'function') {
+      window.switchMode('text');
     }
+    if (ta) {
+      ta.value = txt;
+      ta.dispatchEvent(new Event('input'));
+      ta.scrollIntoView({ behavior:'smooth', block:'center' });
+      showToast('📖 已填入日记中的梦境，点击解析即可');
+    }
+    sessionStorage.removeItem('dreamlens_reanalyze');
   }
+
+  url.searchParams.delete('source');
+  url.hash = '';
+  window.history.replaceState({}, '', `${url.pathname}${url.search}`);
 });
 </script>
 </body>

@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>梦境广场 · DreamLens</title>
+<link rel="stylesheet" href="css/dreamscape.css">
+<link rel="stylesheet" href="css/community.css">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@300;400;600;700;900&amp;family=Noto+Sans+SC:wght@300;400;500;600&amp;display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+</head>
+<body class="ds-page-enter ds-shell">
+<div class="ds-bg"></div>
+<div class="ds-stars" id="dsStars"></div>
+<div class="ds-mist" id="dsMist"></div>
+
+<nav class="ds-nav ds-nav--scrolled" id="dsNav">
+  <div class="ds-nav__inner">
+    <a href="index.html" class="ds-nav__logo">
+      <span class="ds-nav__logo-icon" aria-hidden="true"></span>
+      <span class="ds-nav__logo-text">DreamLens</span>
+      <span class="ds-nav__logo-sub">梦境广场</span>
+    </a>
+    <ul class="ds-nav__links" id="navLinks">
+      <li><a href="index.html" class="ds-nav__link">首页</a></li>
+      <li><a href="analyze.html" class="ds-nav__link">梦境解析</a></li>
+      <li><a href="diary.html" class="ds-nav__link">梦境日记</a></li>
+      <li><a href="community.html" class="ds-nav__link ds-nav__link--active">梦境广场</a></li>
+    </ul>
+    <button class="ds-nav__toggle" id="navToggle" aria-label="切换导航">
+      <i class="fas fa-bars"></i>
+    </button>
+  </div>
+</nav>
+
+<section class="ds-subpage-shell">
+  <div class="ds-subpage-shell__rings" aria-hidden="true">
+    <span class="ds-subpage-shell__ring ds-subpage-shell__ring--1"></span>
+    <span class="ds-subpage-shell__ring ds-subpage-shell__ring--2"></span>
+    <span class="ds-subpage-shell__ring ds-subpage-shell__ring--3"></span>
+  </div>
+
+  <main class="community-home">
+    <section class="community-hero ds-reveal">
+      <form class="community-search" id="communitySearchForm" role="search" aria-label="搜索梦境社区">
+        <label class="community-search__icon" for="communitySearchInput" aria-hidden="true">
+          <i class="fas fa-search"></i>
+        </label>
+
+        <div class="community-search__field">
+          <input id="communitySearchInput" class="community-search__input" type="search" autocomplete="off" aria-label="搜索梦境社区内容" placeholder="搜索梦境、图像、标签或共鸣内容">
+        </div>
+
+        <button type="submit" class="community-search__action ds-nav__link ds-nav__link--cta">搜索</button>
+      </form>
+    </section>
+
+    <section class="community-toolbar ds-reveal">
+      <div class="community-toolbar__head">
+        <div>
+          <span class="community-toolbar__eyebrow">内容流</span>
+          <h2>像内容社区一样浏览，但仍然保持 DreamLens 的夜晚气质</h2>
+        </div>
+        <p id="communityFeedStatus">推荐排序 · 全部标签</p>
+      </div>
+
+      <div class="community-toolbar__row">
+        <div class="community-sort" id="communitySortTabs" role="tablist" aria-label="内容排序">
+          <button type="button" class="community-sort__tab is-active" data-sort="recommend">推荐</button>
+          <button type="button" class="community-sort__tab" data-sort="latest">最新</button>
+          <button type="button" class="community-sort__tab" data-sort="withImage">带图梦境</button>
+        </div>
+
+        <button type="button" class="community-toolbar__publish ds-btn ds-btn-ghost ds-btn-sm" data-open-publish>
+          <i class="fas fa-plus"></i> 发布我的梦
+        </button>
+      </div>
+
+      <div class="community-tag-rail" id="communityTagRail" aria-label="热门标签"></div>
+    </section>
+
+    <section class="community-feed-shell ds-reveal" id="feed">
+      <div class="community-feed-shell__head">
+        <div>
+          <span class="community-feed-shell__eyebrow">正在更新</span>
+          <h2>大家刚刚发布的梦境内容</h2>
+        </div>
+        <p>点击卡片可以进入完整梦境与评论区，点赞、收藏和评论都会在广场里留下痕迹。</p>
+      </div>
+
+      <div class="community-feed" id="communityFeed"></div>
+    </section>
+
+    <section class="community-closing ds-reveal">
+      <div class="community-closing__mist" aria-hidden="true"></div>
+      <div class="community-closing__copy">
+        <span class="community-closing__eyebrow">DreamLens Community</span>
+        <h2>这里不只是看别人的梦，也是一处愿意让你把自己的梦留下来的地方</h2>
+        <p>你可以像内容社区一样浏览，也可以像在夜里写下一段私人记录那样发布。梦境、图像与标签会一起让这条内容被别人看见。</p>
+      </div>
+      <div class="community-closing__action">
+        <button type="button" class="community-closing__button" data-open-publish>发布我的梦</button>
+        <a href="analyze.html" class="community-closing__secondary">先去解析并生成梦境艺术</a>
+      </div>
+    </section>
+  </main>
+</section>
+
+<button type="button" class="community-floating-publish" data-open-publish>
+  <i class="fas fa-plus"></i>
+  <span>发布我的梦</span>
+</button>
+
+<div class="community-compose" id="communityCompose" hidden>
+  <div class="community-compose__backdrop" data-close-publish></div>
+  <div class="community-compose__panel">
+    <div class="community-compose__header">
+      <div>
+        <span class="community-compose__eyebrow">发布梦境</span>
+        <h3>分享一场梦</h3>
+      </div>
+      <button type="button" class="community-compose__close" data-close-publish aria-label="关闭发布窗口">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+
+    <form class="community-compose__form" id="communityComposeForm">
+      <div class="community-compose__grid">
+        <div class="community-field">
+          <label for="composeNickname">发布昵称 <span>选填</span></label>
+          <input id="composeNickname" name="nickname" type="text" maxlength="20" placeholder="匿名旅人">
+        </div>
+
+        <div class="community-field">
+          <label for="composeTitle">梦境标题</label>
+          <input id="composeTitle" name="title" type="text" maxlength="60" placeholder="例如：门后的海浪一直没有停">
+        </div>
+
+        <div class="community-field community-field--full">
+          <label for="composeBody">梦境描述</label>
+          <textarea id="composeBody" name="body" rows="7" maxlength="1200" placeholder="写下这场梦发生了什么。你看见了哪些画面、听见了什么声音、醒来时留下了什么感受？"></textarea>
+          <div class="community-field__hint">建议把场景、动作、气氛和醒后残留一起写下来，这样更像一条完整的梦境内容。</div>
+        </div>
+
+        <div class="community-field community-field--full">
+          <label>AI 生成图</label>
+          <div class="community-compose__art">
+            <div class="community-compose__preview" id="composeArtPreview"></div>
+            <div class="community-compose__art-actions">
+              <label class="community-upload-btn" for="composeImage">
+                <i class="fas fa-image"></i>
+                <span>上传 AI 图片</span>
+              </label>
+              <input id="composeImage" type="file" accept="image/*" hidden>
+              <span class="community-compose__or">或者选择一张梦境底图</span>
+              <div class="community-compose__presets" id="communityArtPresets"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="community-field community-field--full">
+          <label>梦境标签</label>
+          <div class="community-compose__tags" id="communityComposeTags"></div>
+        </div>
+      </div>
+
+      <div class="community-compose__footer">
+        <button type="button" class="ds-btn ds-btn-ghost" data-close-publish>取消</button>
+        <button type="submit" class="ds-btn ds-btn-primary">发布到梦境广场</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="community-detail" id="communityDetail" hidden>
+  <div class="community-detail__backdrop" data-close-detail></div>
+  <aside class="community-detail__panel" aria-label="梦境详情">
+    <button type="button" class="community-detail__close" data-close-detail aria-label="关闭详情">
+      <i class="fas fa-times"></i>
+    </button>
+    <div class="community-detail__body" id="communityDetailBody"></div>
+  </aside>
+</div>
+
+<script src="js/main.js"></script>
+<script src="js/content-init.js"></script>
+<script src="js/community.js"></script>
+</body>
+</html>

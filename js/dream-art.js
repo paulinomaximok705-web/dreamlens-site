@@ -7,15 +7,50 @@
    3. 梦境内容精准匹配词典 → 生成更聚焦的提示词
 ==================================================== */
 
-const IMAGE_API_ENDPOINT = window.DREAMLENS_IMAGE_API || 'https://YOUR-VERCEL-APP.vercel.app/api/image';
-const DAILY_IMAGE_LIMIT = 3;
+const IMAGE_API_ENDPOINT = window.DREAMLENS_IMAGE_API || '/api/image';
+const IMAGE_API_ENDPOINT_FALLBACK = window.DREAMLENS_IMAGE_API_FALLBACK || '';
 const CLIENT_ID_STORAGE_KEY = 'dreamlens_client_id';
-const USAGE_STORAGE_KEY = 'dreamlens_art_daily_usage';
+const ART_STATE_STORAGE_KEY = 'dreamlens_art_state_v2';
+const LEGACY_ART_STATE_KEYS = ['dreamlens_art_state_v1'];
 
 const DEFAULT_ART_STYLE = {
     label: '梦境艺术',
-    suffix: 'dreamlike surreal painting, ethereal atmosphere, cinematic lighting, painterly texture, highly detailed'
+    suffix: 'dreamlike surreal fine art, indigo and violet night palette, moonlit mist, soft luminous haze, painterly texture, cinematic depth, highly detailed'
 };
+
+const ART_GENERATION_SETTINGS = {
+    count: 1,
+    ratio: '16:9',
+    quality: '2K'
+};
+
+const ART_RATIO_OPTIONS = {
+    '1:1': { label: '1:1', size: '1024x1024' },
+    '3:4': { label: '3:4', size: '960x1280' },
+    '4:3': { label: '4:3', size: '1280x960' },
+    '16:9': { label: '16:9', size: '1365x768' }
+};
+
+const ART_QUALITY_OPTIONS = {
+    '1080p': { label: '1080p', requestQuality: 'low' },
+    '2K': { label: '2K', requestQuality: 'medium' },
+    '4K': { label: '4K', requestQuality: 'high' }
+};
+
+const DREAM_SCENE_MOTIFS = [
+    { test: /(发光).*(森林|树林)|(森林|树林).*(发光)/, en: 'a luminous forest at night' },
+    { test: /(树叶).*(玻璃)|(玻璃).*(树叶)/, en: 'glass-like leaves softly shimmering as if they could chime' },
+    { test: /(半开|微开).*(门)|(门).*(半开|微开)/, en: 'a distant half-open door acting like a threshold' },
+    { test: /(海浪|浪声|海声|水声)/, en: 'ocean waves echoing from beyond the doorway' },
+    { test: /(地面|脚下).*(下沉|沉下|塌陷|陷下)/, en: 'ground slowly sinking beneath the feet while approaching' },
+    { test: /(平静).*(迟疑)|(迟疑).*(平静)/, en: 'calm and hesitation coexisting in the same quiet moment' },
+    { test: /(雾|薄雾|雾气)/, en: 'thin drifting mist in the moonlit air' },
+    { test: /(门后).*(光)|(光).*(门)/, en: 'subtle light leaking from the doorway' },
+    { test: /(长廊|走廊)/, en: 'a long dim corridor leading inward' },
+    { test: /(镜子|倒影)/, en: 'reflective surfaces hinting at another self' },
+    { test: /(旧房间|旧房子|旧房屋|旧屋)/, en: 'a nostalgic abandoned room holding old memory' },
+    { test: /(飞|漂浮|悬浮)/, en: 'a weightless floating sensation' }
+];
 
 /* ──────────────────────────────────────────────────
    场景词典：中文关键词 → 精准英文视觉描述
@@ -71,9 +106,162 @@ let currentDreamText = '';
 let genProgressTimer = null;
 let genAborted       = false;
 let lastGeneratedUrl = '';
+let lastGeneratedImages = [];
+let openArtParamMenu = '';
+let artControlsInitialized = false;
+let artState = {
+    dreamText: '',
+    panel: 'idle',
+    images: [],
+    activeImageUrl: '',
+    promptText: '',
+    errorText: ''
+};
 
-function getTodayKey() {
-    return new Date().toISOString().slice(0, 10);
+function clampArtImageCount(value) {
+    return Math.min(4, Math.max(1, value));
+}
+
+function getCurrentArtRatioSetting() {
+    return ART_RATIO_OPTIONS[ART_GENERATION_SETTINGS.ratio] || ART_RATIO_OPTIONS['16:9'];
+}
+
+function getCurrentArtQualitySetting() {
+    return ART_QUALITY_OPTIONS[ART_GENERATION_SETTINGS.quality] || ART_QUALITY_OPTIONS['2K'];
+}
+
+function loadPersistedArtState() {
+    try {
+        LEGACY_ART_STATE_KEYS.forEach((key) => sessionStorage.removeItem(key));
+        const raw = sessionStorage.getItem(ART_STATE_STORAGE_KEY);
+        return raw ? JSON.parse(raw) : null;
+    } catch (_) {
+        return null;
+    }
+}
+
+function persistArtState(partial = {}) {
+    artState = {
+        ...artState,
+        ...partial,
+        settings: {
+            count: ART_GENERATION_SETTINGS.count,
+            ratio: ART_GENERATION_SETTINGS.ratio,
+            quality: ART_GENERATION_SETTINGS.quality
+        }
+    };
+
+    try {
+        sessionStorage.setItem(ART_STATE_STORAGE_KEY, JSON.stringify(artState));
+    } catch (_) {}
+}
+
+function clearPersistedArtState() {
+    artState = {
+        dreamText: '',
+        panel: 'idle',
+        images: [],
+        activeImageUrl: '',
+        promptText: '',
+        errorText: ''
+    };
+    try {
+        sessionStorage.removeItem(ART_STATE_STORAGE_KEY);
+    } catch (_) {}
+}
+
+function setArtResultFrameRatio(ratio) {
+    const frame = document.getElementById('artResultFrame');
+    if (!frame) return;
+    frame.style.aspectRatio = ratio || '16 / 9';
+}
+
+function renderArtControls() {
+    const countValueEl = document.getElementById('artCountValue');
+    const countMinusEl = document.getElementById('artCountMinus');
+    const countPlusEl = document.getElementById('artCountPlus');
+    const ratioValueEl = document.getElementById('artRatioValue');
+    const qualityValueEl = document.getElementById('artQualityValue');
+
+    if (countValueEl) countValueEl.textContent = `${ART_GENERATION_SETTINGS.count}/4`;
+    if (countMinusEl) countMinusEl.disabled = ART_GENERATION_SETTINGS.count <= 1;
+    if (countPlusEl) countPlusEl.disabled = ART_GENERATION_SETTINGS.count >= 4;
+    if (ratioValueEl) ratioValueEl.textContent = ART_GENERATION_SETTINGS.ratio;
+    if (qualityValueEl) qualityValueEl.textContent = ART_GENERATION_SETTINGS.quality;
+
+    document.querySelectorAll('[data-art-ratio-option]').forEach((option) => {
+        const active = option.dataset.artRatioOption === ART_GENERATION_SETTINGS.ratio;
+        option.classList.toggle('is-selected', active);
+        option.setAttribute('aria-selected', active ? 'true' : 'false');
+    });
+
+    document.querySelectorAll('[data-art-quality-option]').forEach((option) => {
+        const active = option.dataset.artQualityOption === ART_GENERATION_SETTINGS.quality;
+        option.classList.toggle('is-selected', active);
+        option.setAttribute('aria-selected', active ? 'true' : 'false');
+    });
+
+    persistArtState();
+}
+
+function closeArtParamMenus() {
+    openArtParamMenu = '';
+    document.querySelectorAll('.az-art__param--select').forEach((root) => root.classList.remove('is-open'));
+    document.querySelectorAll('.az-art__param-menu').forEach((menu) => { menu.hidden = true; });
+    document.querySelectorAll('.az-art__param-trigger').forEach((trigger) => trigger.setAttribute('aria-expanded', 'false'));
+}
+
+function toggleArtParamMenu(type) {
+    const root = document.querySelector(`.az-art__param--select[data-art-param="${type}"]`);
+    const trigger = document.getElementById(type === 'ratio' ? 'artRatioTrigger' : 'artQualityTrigger');
+    const menu = document.getElementById(type === 'ratio' ? 'artRatioMenu' : 'artQualityMenu');
+    if (!root || !trigger || !menu) return;
+
+    const willOpen = openArtParamMenu !== type;
+    closeArtParamMenus();
+
+    if (!willOpen) return;
+
+    openArtParamMenu = type;
+    root.classList.add('is-open');
+    trigger.setAttribute('aria-expanded', 'true');
+    menu.hidden = false;
+}
+
+function adjustArtImageCount(delta) {
+    ART_GENERATION_SETTINGS.count = clampArtImageCount(ART_GENERATION_SETTINGS.count + delta);
+    renderArtControls();
+}
+
+function selectArtRatio(value) {
+    if (!ART_RATIO_OPTIONS[value]) return;
+    ART_GENERATION_SETTINGS.ratio = value;
+    renderArtControls();
+    closeArtParamMenus();
+}
+
+function selectArtQuality(value) {
+    if (!ART_QUALITY_OPTIONS[value]) return;
+    ART_GENERATION_SETTINGS.quality = value;
+    renderArtControls();
+    closeArtParamMenus();
+}
+
+function initArtControlInteractions() {
+    if (artControlsInitialized) return;
+    artControlsInitialized = true;
+
+    renderArtControls();
+
+    document.addEventListener('pointerdown', (event) => {
+        if (!event.target.closest('.az-art__portal-controls')) {
+            closeArtParamMenus();
+        }
+    });
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') closeArtParamMenus();
+    });
 }
 
 function getOrCreateClientId() {
@@ -87,45 +275,6 @@ function getOrCreateClientId() {
     } catch (_) {
         return `dl_fallback_${Date.now()}`;
     }
-}
-
-function getLocalUsageState() {
-    const today = getTodayKey();
-
-    try {
-        const raw = localStorage.getItem(USAGE_STORAGE_KEY);
-        const parsed = raw ? JSON.parse(raw) : null;
-
-        if (parsed && parsed.date === today) {
-            return { date: today, count: Number(parsed.count) || 0 };
-        }
-    } catch (_) {}
-
-    return { date: today, count: 0 };
-}
-
-function saveLocalUsageCount(count) {
-    try {
-        localStorage.setItem(USAGE_STORAGE_KEY, JSON.stringify({
-            date: getTodayKey(),
-            count: Math.max(0, count)
-        }));
-    } catch (_) {}
-}
-
-function getRemainingLocalQuota() {
-    const state = getLocalUsageState();
-    return Math.max(0, DAILY_IMAGE_LIMIT - state.count);
-}
-
-function syncLocalQuotaFromResponse(data) {
-    if (typeof data?.remaining === 'number') {
-        saveLocalUsageCount(DAILY_IMAGE_LIMIT - data.remaining);
-        return;
-    }
-
-    const state = getLocalUsageState();
-    saveLocalUsageCount(state.count + 1);
 }
 
 /* ──────────────────────────────────────────────────
@@ -162,17 +311,15 @@ function extractVisualFromDream(text) {
 }
 
 function buildLiteralDreamPrompt(text) {
-    const cleaned = String(text || '')
-        .replace(/[，。！？、；：]/g, ', ')
-        .replace(/\s+/g, ' ')
-        .trim()
-        .slice(0, 220);
+    const motifDetails = DREAM_SCENE_MOTIFS
+        .filter((entry) => entry.test.test(text))
+        .map((entry) => entry.en);
 
-    if (!cleaned) {
-        return 'dream scene based on the user description';
+    if (motifDetails.length) {
+        return motifDetails.join(', ');
     }
 
-    return `faithful visual depiction of this dream: ${cleaned}`;
+    return 'an oneiric scene shaped by memory, intuition and subconscious atmosphere';
 }
 
 function buildRelationHints(text) {
@@ -193,7 +340,8 @@ function buildRelationHints(text) {
         hints.push('a whale must be clearly visible in the main scene');
     }
 
-    hints.push('preserve the main objects and their spatial relationships from the dream');
+    hints.push('preserve the emotional atmosphere and the spatial relationships of the dream');
+    hints.push('single immersive scene, not a poster, not a layout, not a showcase card');
     return hints.join(', ');
 }
 
@@ -202,12 +350,14 @@ function buildPromptAndSeed(dreamText, variant = 0) {
     const { visualCore, motifs } = extractVisualFromDream(dreamText);
     const literalScene = buildLiteralDreamPrompt(dreamText);
     const relationHints = buildRelationHints(dreamText);
-    const motifLine = motifs.length ? `key motifs: ${motifs.join(', ')}` : '';
-    const coherence = 'coherent single scene, consistent subject, cinematic lighting, avoid unrelated elements, no extra subjects dominating the frame';
-    const promptBase = `${literalScene}, ${visualCore}, ${relationHints}, ${styleInfo.suffix}, ${coherence}`;
+    const motifLine = motifs.length ? motifs.join(', ') : '';
+    const palette = 'deep indigo, muted violet, moonlit silver haze, soft nocturnal glow, restrained dreamlike palette';
+    const coherence = 'coherent single scene, atmospheric depth, cinematic composition, painterly texture, mysterious yet gentle';
+    const exclusions = 'no text, no letters, no typography, no title, no logo, no poster, no packaging, no editorial cover, no UI, no interface, no labels, no watermark, no border';
+    const promptBase = `${literalScene}, ${visualCore}, ${motifLine}, ${relationHints}, ${palette}, ${styleInfo.suffix}, ${coherence}, ${exclusions}`;
     const prompt = variant === 0
-        ? `${promptBase}, ${motifLine}, highly detailed, faithful to the described dream, no text, no watermark`
-        : `${relationHints}, ${literalScene}, ${promptBase}, ${motifLine}, dreamy atmosphere, highly detailed, faithful to the described dream, no text, no watermark`;
+        ? `${promptBase}, luminous dream art, subtle narrative tension, highly detailed`
+        : `${promptBase}, moody surreal atmosphere, poetic and immersive, fine art dream visualization`;
     const seed       = Math.floor(Math.random() * 999999);
     return { prompt, seed, styleInfo };
 }
@@ -273,47 +423,188 @@ function stopGenProgress(ok = true) {
 /* ──────────────────────────────────────────────────
    面板切换
 ────────────────────────────────────────────────── */
-function showArtPanel(id) {
+function showArtPanel(id, options = {}) {
+    const { persistState = true } = options;
     ['artIdle', 'artGenerating', 'artResult', 'artError'].forEach(pid => {
         const el = document.getElementById(pid);
         if (el) el.style.display = pid === id ? 'flex' : 'none';
     });
+
+    if (!persistState) return;
+
+    const panel = id.replace(/^art/, '').toLowerCase() || 'idle';
+    if (panel === 'result' || panel === 'idle') {
+        persistArtState({ panel });
+    }
+}
+
+function setActiveArtResultImage(url) {
+    if (!url) return;
+
+    const imgEl = document.getElementById('artResultImg');
+    if (imgEl) {
+        imgEl.src = url;
+        imgEl.alt = `AI 梦境艺术 - ${DEFAULT_ART_STYLE.label}`;
+    }
+
+    const dlBtn = document.getElementById('artDownloadBtn');
+    if (dlBtn) {
+        dlBtn.href = url;
+        dlBtn.target = '_blank';
+        dlBtn.download = `dreamlens-art-${Date.now()}.png`;
+    }
+
+    _updateOpenTabBtn(url);
+
+    document.querySelectorAll('.az-art__result-thumb').forEach((button) => {
+        button.classList.toggle('is-active', button.dataset.artImageUrl === url);
+    });
+
+    persistArtState({ activeImageUrl: url });
+}
+
+function renderArtResultGallery(imageUrls = []) {
+    const strip = document.getElementById('artResultStrip');
+    if (!strip) return;
+
+    strip.innerHTML = '';
+    if (!Array.isArray(imageUrls) || imageUrls.length <= 1) {
+        strip.hidden = true;
+        persistArtState({ images: imageUrls.slice() });
+        return;
+    }
+
+    imageUrls.forEach((url, index) => {
+        if (!url) return;
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'az-art__result-thumb';
+        button.dataset.artImageUrl = url;
+        button.setAttribute('aria-label', `查看第 ${index + 1} 幅梦境艺术`);
+        if (index === 0) button.classList.add('is-active');
+
+        const img = document.createElement('img');
+        img.src = url;
+        img.alt = `第 ${index + 1} 幅 AI 梦境艺术`;
+        button.appendChild(img);
+
+        button.addEventListener('click', () => {
+            setActiveArtResultImage(url);
+        });
+
+        strip.appendChild(button);
+    });
+
+    strip.hidden = strip.childElementCount <= 1;
+    persistArtState({ images: imageUrls.slice() });
 }
 
 /* ──────────────────────────────────────────────────
    图片生成请求
 ────────────────────────────────────────────────── */
-async function requestImage(prompt) {
+async function requestImage(prompt, options = {}) {
     if (!IMAGE_API_ENDPOINT || IMAGE_API_ENDPOINT.includes('YOUR-VERCEL-APP')) {
         throw new Error('NO_API_ENDPOINT');
     }
 
-    if (getRemainingLocalQuota() <= 0) {
-        throw new Error('DAILY_LIMIT_REACHED');
+    const payload = {
+        prompt,
+        size: options.size || '1024x1024',
+        quality: options.quality || 'medium',
+        count: clampArtImageCount(options.count || 1)
+    };
+
+    const requestJson = async (endpoint) => {
+        const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Dreamlens-Client-Id': getOrCreateClientId()
+            },
+            body: JSON.stringify(payload)
+        });
+
+        const raw = await res.text();
+        const trimmed = raw.trim();
+        const contentType = (res.headers.get('content-type') || '').toLowerCase();
+        const looksJson = contentType.includes('application/json') || trimmed.startsWith('{') || trimmed.startsWith('[');
+
+        if (!looksJson) {
+            const err = new Error('NON_JSON_RESPONSE');
+            err.endpoint = endpoint;
+            err.status = res.status;
+            err.responseSnippet = trimmed.slice(0, 120);
+            throw err;
+        }
+
+        let data = {};
+        try {
+            data = trimmed ? JSON.parse(trimmed) : {};
+        } catch (_) {
+            const err = new Error('INVALID_JSON_RESPONSE');
+            err.endpoint = endpoint;
+            err.status = res.status;
+            err.responseSnippet = trimmed.slice(0, 120);
+            throw err;
+        }
+
+        if (!res.ok) {
+            const msg = data?.error?.message || data?.error || `HTTP_${res.status}`;
+            throw new Error(String(msg));
+        }
+
+        return data;
+    };
+
+    let data;
+    try {
+        data = await requestJson(IMAGE_API_ENDPOINT);
+    } catch (err) {
+        const canFallback = !!IMAGE_API_ENDPOINT_FALLBACK
+            && IMAGE_API_ENDPOINT_FALLBACK !== IMAGE_API_ENDPOINT
+            && (
+                err?.message === 'NON_JSON_RESPONSE'
+                || err?.message === 'INVALID_JSON_RESPONSE'
+                || /failed to fetch|networkerror|load failed|network request failed/i.test(err?.message || '')
+            );
+
+        if (!canFallback) throw err;
+
+        data = await requestJson(IMAGE_API_ENDPOINT_FALLBACK);
     }
 
-    const res = await fetch(IMAGE_API_ENDPOINT, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-Dreamlens-Client-Id': getOrCreateClientId()
-        },
-        body: JSON.stringify({ prompt, size: '1024x1024', quality: 'low' })
-    });
+    const imageUrls = Array.isArray(data?.imageUrls)
+        ? data.imageUrls.filter(Boolean)
+        : [];
+    const fallbackImage = data?.imageUrl || (data?.b64 ? `data:image/png;base64,${data.b64}` : '');
+    const resolvedImages = imageUrls.length ? imageUrls : (fallbackImage ? [fallbackImage] : []);
 
-    const data = await res.json();
-    if (!res.ok) {
-        const msg = data?.error?.message || data?.error || `HTTP_${res.status}`;
-        throw new Error(String(msg));
-    }
-
-    const imageSrc = data?.imageUrl || (data?.b64 ? `data:image/png;base64,${data.b64}` : '');
-    if (!imageSrc) {
+    if (!resolvedImages.length) {
         throw new Error('NO_IMAGE');
     }
 
-    syncLocalQuotaFromResponse(data);
-    return imageSrc;
+    return resolvedImages;
+}
+
+async function requestImageBatch(prompt, options = {}) {
+    const requestedCount = clampArtImageCount(options.count || 1);
+    const primaryBatch = await requestImage(prompt, {
+        ...options,
+        count: requestedCount
+    });
+
+    let images = primaryBatch.slice(0, requestedCount);
+
+    while (images.length < requestedCount) {
+        const extraBatch = await requestImage(prompt, {
+            ...options,
+            count: 1
+        });
+        if (!extraBatch.length) break;
+        images = images.concat(extraBatch);
+    }
+
+    return images.slice(0, requestedCount);
 }
 
 function _formatImageErrorMessage(err) {
@@ -323,15 +614,15 @@ function _formatImageErrorMessage(err) {
     const lower = raw.toLowerCase();
 
     if (raw === 'NO_API_ENDPOINT') {
-        return '未配置图片生成服务——请先部署后端并填写接口地址';
+        return '未配置真实图片生成服务——请先部署 /api/image，或显式配置 DREAMLENS_IMAGE_API';
     }
 
     if (raw === 'NO_IMAGE') {
         return '图片服务未返回图片数据——请稍后重试';
     }
 
-    if (raw === 'DAILY_LIMIT_REACHED') {
-        return `你今天的梦境艺术生成次数已达上限（${DAILY_IMAGE_LIMIT} 次）——请明天再试`;
+    if (raw === 'NON_JSON_RESPONSE' || raw === 'INVALID_JSON_RESPONSE') {
+        return '当前页面没有连到可用的图片服务。请确认当前域名下的 /api/image 已部署；如果你是在本地静态预览，再使用 http://127.0.0.1:3010/analyze.html 打开。';
     }
 
     if (raw.startsWith('HTTP')) {
@@ -354,6 +645,14 @@ function _formatImageErrorMessage(err) {
         return '图片服务配置错误：API Key 无效，请检查部署环境变量';
     }
 
+    if (raw === 'Missing FAL_KEY' || lower.includes('missing fal_key')) {
+        return '当前服务还没有配置 FAL_KEY，所以现在无法走真实 fal 生图';
+    }
+
+    if (raw === 'REAL_IMAGE_REQUIRED') {
+        return '当前环境未连接真实 fal 生图服务，所以不会继续使用本地预览图';
+    }
+
     return `生成出错（${raw}）——请重试`;
 }
 
@@ -371,11 +670,19 @@ async function generateDreamArt() {
     }
 
     genAborted = false;
-    showArtPanel('artGenerating');
+    showArtPanel('artGenerating', { persistState: false });
+    persistArtState({
+        dreamText: currentDreamText,
+        promptText: '',
+        errorText: '',
+        panel: 'idle'
+    });
+    const styleInfo = DEFAULT_ART_STYLE;
     startGenProgress();
 
     const prompts   = buildImagePrompts(currentDreamText);
-    const styleInfo = DEFAULT_ART_STYLE;
+    const ratioSetting = getCurrentArtRatioSetting();
+    const qualitySetting = getCurrentArtQualitySetting();
 
     let lastErr = null;
 
@@ -387,31 +694,35 @@ async function generateDreamArt() {
         console.log(`[DreamArt] 尝试 #${i+1} (fal image)`);
 
         try {
-            const imgSrc = await requestImage(src.prompt);
+            const imageSources = await requestImageBatch(src.prompt, {
+                size: ratioSetting.size,
+                quality: qualitySetting.requestQuality,
+                count: ART_GENERATION_SETTINGS.count
+            });
             if (genAborted) return;
 
             // ── 成功 ──
             stopGenProgress(true);
-
-            const imgEl = document.getElementById('artResultImg');
-            if (imgEl) {
-                imgEl.src = imgSrc;
-                imgEl.alt = `AI 梦境艺术 - ${styleInfo.label}`;
-            }
-
-            const dlBtn = document.getElementById('artDownloadBtn');
-            if (dlBtn) {
-                dlBtn.href     = imgSrc;
-                dlBtn.target   = '_blank';
-                dlBtn.download = `dreamlens-art-${Date.now()}.png`;
-            }
-
-            _updateOpenTabBtn(imgSrc);
+            lastGeneratedImages = imageSources;
+            setArtResultFrameRatio(ART_GENERATION_SETTINGS.ratio);
+            renderArtResultGallery(imageSources);
+            setActiveArtResultImage(imageSources[0]);
 
             const promptEl = document.getElementById('artResultPrompt');
+            const specsEl = document.getElementById('artResultSpecs');
             if (promptEl) {
                 const snippet = currentDreamText.slice(0, 40).replace(/\n/g, ' ');
-                promptEl.textContent = `以「${snippet}${currentDreamText.length > 40 ? '…' : ''}」为灵感生成的梦境艺术画。`;
+                const countLabel = imageSources.length > 1 ? `${imageSources.length} 幅` : '一幅';
+                const promptText = `以「${snippet}${currentDreamText.length > 40 ? '…' : ''}」为灵感生成的 ${countLabel} ${ART_GENERATION_SETTINGS.ratio} / ${ART_GENERATION_SETTINGS.quality} 梦境艺术图像。`;
+                promptEl.textContent = promptText;
+                if (specsEl) specsEl.textContent = `${countLabel} · ${ART_GENERATION_SETTINGS.ratio} · ${ART_GENERATION_SETTINGS.quality}`;
+                persistArtState({
+                    dreamText: currentDreamText,
+                    promptText,
+                    images: imageSources.slice(),
+                    activeImageUrl: imageSources[0] || '',
+                    errorText: ''
+                });
             }
 
             showArtPanel('artResult');
@@ -443,7 +754,15 @@ function _showError(err) {
     if (errMsgEl) errMsgEl.textContent = msg;
 
     _ensureOpenTabBtn();
-    showArtPanel('artError');
+    persistArtState({
+        dreamText: currentDreamText,
+        errorText: msg,
+        promptText: '',
+        images: [],
+        activeImageUrl: '',
+        panel: 'idle'
+    });
+    showArtPanel('artError', { persistState: false });
 }
 
 function _ensureOpenTabBtn() {
@@ -512,14 +831,71 @@ function shareArt() {
 function artOnAnalysisComplete(dreamText) {
     currentDreamText = dreamText || '';
     genAborted       = false;
+    const persisted = loadPersistedArtState();
+
+    if (
+        persisted
+        && persisted.dreamText
+        && persisted.dreamText === currentDreamText
+        && persisted.settings
+    ) {
+        ART_GENERATION_SETTINGS.count = clampArtImageCount(persisted.settings.count || 1);
+        ART_GENERATION_SETTINGS.ratio = ART_RATIO_OPTIONS[persisted.settings.ratio] ? persisted.settings.ratio : '16:9';
+        ART_GENERATION_SETTINGS.quality = ART_QUALITY_OPTIONS[persisted.settings.quality] ? persisted.settings.quality : '2K';
+        renderArtControls();
+        setArtResultFrameRatio(ART_GENERATION_SETTINGS.ratio);
+
+        if (persisted.panel === 'result' && Array.isArray(persisted.images) && persisted.images.length) {
+            lastGeneratedImages = persisted.images.slice();
+            renderArtResultGallery(lastGeneratedImages);
+            const promptEl = document.getElementById('artResultPrompt');
+            if (promptEl) promptEl.textContent = persisted.promptText || '';
+            const specsEl = document.getElementById('artResultSpecs');
+            if (specsEl) {
+                const countLabel = lastGeneratedImages.length > 1 ? `${lastGeneratedImages.length} 幅` : '一幅';
+                specsEl.textContent = `${countLabel} · ${ART_GENERATION_SETTINGS.ratio} · ${ART_GENERATION_SETTINGS.quality}`;
+            }
+            setActiveArtResultImage(persisted.activeImageUrl || lastGeneratedImages[0]);
+            showArtPanel('artResult');
+            return;
+        }
+
+        if (persisted.panel === 'error') {
+            // 旧版会把错误态也持久化，用户回到结果页时看起来像“自己刷新回错误页”。
+            // v2 只恢复结果态和参数，错误态统一回到 idle。
+            showArtPanel('artIdle');
+            return;
+        }
+
+        showArtPanel('artIdle');
+        return;
+    }
+
+    clearPersistedArtState();
+    persistArtState({ dreamText: currentDreamText });
+    lastGeneratedImages = [];
+    lastGeneratedUrl = '';
+    renderArtResultGallery([]);
+    renderArtControls();
+    setArtResultFrameRatio(ART_GENERATION_SETTINGS.ratio);
     showArtPanel('artIdle');
 }
 
 /* ──────────────────────────────────────────────────
    暴露全局
 ────────────────────────────────────────────────── */
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initArtControlInteractions);
+} else {
+    initArtControlInteractions();
+}
+
 window.generateDreamArt      = generateDreamArt;
 window.regenerateArt         = regenerateArt;
 window.retryArt              = retryArt;
 window.shareArt              = shareArt;
 window.artOnAnalysisComplete = artOnAnalysisComplete;
+window.adjustArtImageCount   = adjustArtImageCount;
+window.toggleArtParamMenu    = toggleArtParamMenu;
+window.selectArtRatio        = selectArtRatio;
+window.selectArtQuality      = selectArtQuality;

@@ -4,14 +4,9 @@
 ==================================================== */
 
 /* ============================================================
-   示例梦境（仅用于示例按钮填入）
+   示例梦境（仅用于插入示例）
 ============================================================ */
-const EXAMPLE_DREAMS = [
-    `我梦见自己站在深邃的海洋边缘，海水是深蓝色的，几乎是黑色的。我慢慢走入水中，奇怪的是我可以在水下自由呼吸。一条巨大的金色鱼从深处游来，在我周围盘旋，我感到一种神秘的宁静与被守护的感觉……`,
-    `梦里有什么在追我，我拼命跑，但腿像灌了铅。周围的街道是扭曲的，建筑物好像在靠近。追我的东西我没有看清楚，只感受到一种强烈的危机感。最后我跑到一堵墙前无路可走，然后我醒了……`,
-    `我梦见自己从一栋超高的大楼顶端坠落，但整个过程非常缓慢，像是在水中坠落。坠落时我看见城市的灯光，感到一种奇怪的解脱感而不是恐惧。在即将落地的瞬间，我飞了起来……`,
-    `我在一片陌生又熟悉的森林里独自行走，树木高耸，遮住了所有阳光。我知道我在找某个地方或某个人，但我不知道是什么。走了很久后，我发现了一扇古老的木门立在林间空地，没有墙，只有这扇门……`
-];
+const INLINE_EXAMPLE_DREAM = `我梦见自己走进一片发光的森林，树叶像玻璃一样轻轻作响。远处有一扇半开的门，门后不断传来海浪声。我想靠近，却总感觉脚下的地面在缓慢下沉。醒来时我没有特别害怕，反而有一种奇怪的平静和迟疑。`;
 
 /* ============================================================
    象征词库：从梦境文本中识别意象并生成解读
@@ -116,7 +111,7 @@ function analyzeUserDream(rawText) {
     const uncon    = buildUnconscious(text, theme, symbols);
     const advice   = buildAdvice(text, theme, symbols);
 
-    return { title, tags, summary, symbols, emotions, psychology: psych, unconscious: uncon, advice };
+    return { title, theme, tags, summary, symbols, emotions, psychology: psych, unconscious: uncon, advice };
 }
 
 /* ── 主题检测 ── */
@@ -307,28 +302,1241 @@ function buildAdvice(text, theme, symbols) {
 ============================================================ */
 let selectedEmotion = '';
 let analysisResult  = null;
+let isExampleExpanded = false;
+let analysisTransitionTimer = null;
+let loadingPhaseInterval = null;
+let loadingPhaseFinishTimer = null;
+let loadingPhasePulseTimer = null;
+const dreamClueModuleState = {
+    rawText: '',
+    clues: [],
+    selectedId: '',
+    previewId: ''
+};
+const LOADING_PHASE_IDS = ['loadingPhase1', 'loadingPhase2', 'loadingPhase3', 'loadingPhase4'];
+const LOADING_STEP_IDS = ['loadingStep1', 'loadingStep2', 'loadingStep3', 'loadingStep4'];
+const ANALYZE_DRAFT_STORAGE_KEY = 'dreamlens_analyze_draft_v1';
+const ANALYZE_RESULT_STORAGE_KEY = 'dreamlens_analyze_result_v1';
 
 function getTextarea()  { return document.getElementById('dreamInput'); }
 function getCharCount() { return document.getElementById('charCount'); }
+function getExampleToggleBtn() { return document.getElementById('exampleToggleBtn'); }
+function getAnalyzeButton() { return document.getElementById('analyzeBtn'); }
+function formatDreamLength(len) { return `${len} 字`; }
+
+function getVoiceInputArea() {
+    return document.getElementById('voiceInputArea');
+}
+
+function isVoiceModeVisible() {
+    const voiceArea = getVoiceInputArea();
+    return !!(voiceArea && getComputedStyle(voiceArea).display !== 'none');
+}
+
+function getUnifiedDreamInput() {
+    const ta = getTextarea();
+    const voiceDraft = typeof window.getVoiceDraftText === 'function'
+        ? window.getVoiceDraftText()
+        : '';
+
+    if (isVoiceModeVisible() && voiceDraft) {
+        if (ta && ta.value !== voiceDraft) {
+            ta.value = voiceDraft;
+            ta.dispatchEvent(new Event('input'));
+        }
+        return voiceDraft;
+    }
+
+    return ta ? ta.value.trim() : '';
+}
+
+function syncCharCount(len) {
+    const cc = getCharCount();
+    if (!cc) return;
+    cc.textContent = formatDreamLength(len);
+    cc.style.color = len > 1800 ? '#f59e0b' : '';
+}
+
+function syncExampleToggleUI() {
+    const btn = getExampleToggleBtn();
+    if (!btn) return;
+    btn.textContent = isExampleExpanded ? '收起示例' : '插入示例';
+}
+
+function setAnalyzeButtonLoading(isLoading) {
+    const btn = getAnalyzeButton();
+    if (!btn) return;
+    btn.classList.toggle('is-loading', !!isLoading);
+    btn.disabled = !!isLoading;
+    btn.setAttribute('aria-busy', isLoading ? 'true' : 'false');
+}
+
+function normalizeAnalyzeView(view) {
+    return ['input', 'loading', 'result'].includes(view) ? view : 'input';
+}
+
+function normalizeAnalyzeMode(mode) {
+    return mode === 'voice' ? 'voice' : 'text';
+}
+
+function readAnalyzeRouteState() {
+    const url = new URL(window.location.href);
+    return {
+        view: normalizeAnalyzeView(url.searchParams.get('view') || 'input'),
+        mode: normalizeAnalyzeMode(url.searchParams.get('mode') || 'text'),
+        source: url.searchParams.get('source') || '',
+        hash: window.location.hash || ''
+    };
+}
+
+function updateAnalyzeRouteState(nextState = {}, options = {}) {
+    const { replace = true } = options;
+    const url = new URL(window.location.href);
+    const current = readAnalyzeRouteState();
+    const merged = {
+        view: normalizeAnalyzeView(nextState.view || current.view),
+        mode: normalizeAnalyzeMode(nextState.mode || current.mode),
+        source: typeof nextState.source === 'string' ? nextState.source : current.source
+    };
+
+    if (merged.view === 'input') url.searchParams.delete('view');
+    else url.searchParams.set('view', merged.view);
+
+    if (merged.mode === 'text') url.searchParams.delete('mode');
+    else url.searchParams.set('mode', merged.mode);
+
+    if (merged.source) url.searchParams.set('source', merged.source);
+    else url.searchParams.delete('source');
+
+    const method = replace ? 'replaceState' : 'pushState';
+    window.history[method]({}, '', `${url.pathname}${url.search}${url.hash}`);
+}
+
+function persistAnalyzeDraft(text) {
+    try {
+        const draft = (text || '').trim();
+        if (draft) sessionStorage.setItem(ANALYZE_DRAFT_STORAGE_KEY, draft);
+        else sessionStorage.removeItem(ANALYZE_DRAFT_STORAGE_KEY);
+    } catch (_) {}
+}
+
+function loadAnalyzeDraft() {
+    try {
+        return sessionStorage.getItem(ANALYZE_DRAFT_STORAGE_KEY) || '';
+    } catch (_) {
+        return '';
+    }
+}
+
+function persistAnalyzeResultSnapshot(input, result) {
+    try {
+        sessionStorage.setItem(ANALYZE_RESULT_STORAGE_KEY, JSON.stringify({
+            input,
+            result,
+            selectedEmotion,
+            savedAt: Date.now()
+        }));
+    } catch (_) {}
+}
+
+function loadAnalyzeResultSnapshot() {
+    try {
+        const raw = sessionStorage.getItem(ANALYZE_RESULT_STORAGE_KEY);
+        return raw ? JSON.parse(raw) : null;
+    } catch (_) {
+        return null;
+    }
+}
+
+function setAnalyzeViewState(view) {
+    const normalized = normalizeAnalyzeView(view);
+    document.body.dataset.analyzeView = normalized;
+    const wrap = document.getElementById('analyzeWrap');
+    if (wrap) wrap.dataset.view = normalized;
+}
+
+function resetAnalyzeViewport() {
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+}
+
+function showAnalyzeInputView({ scroll = false, resetTop = false } = {}) {
+    const inputSection   = document.getElementById('inputSection');
+    const loadingSection = document.getElementById('loadingSection');
+    const resultSection  = document.getElementById('resultSection');
+
+    if (analysisTransitionTimer) {
+        clearTimeout(analysisTransitionTimer);
+        analysisTransitionTimer = null;
+    }
+    clearLoadingPhaseTimers();
+
+    if (inputSection)   inputSection.style.display  = 'block';
+    if (loadingSection) loadingSection.style.display = 'none';
+    if (resultSection)  resultSection.style.display  = 'none';
+    if (inputSection)   inputSection.classList.remove('az-input-card--transitioning');
+    setAnalyzeViewState('input');
+    setAnalyzeButtonLoading(false);
+    resetLoadingPhases();
+
+    if (resetTop) {
+        requestAnimationFrame(() => {
+            resetAnalyzeViewport();
+        });
+        return;
+    }
+
+    if (scroll && inputSection) {
+        inputSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+}
+
+function showAnalyzeLoadingView() {
+    const inputSection   = document.getElementById('inputSection');
+    const loadingSection = document.getElementById('loadingSection');
+    const resultSection  = document.getElementById('resultSection');
+
+    if (inputSection)   inputSection.style.display  = 'none';
+    if (loadingSection) loadingSection.style.display = 'flex';
+    if (resultSection)  resultSection.style.display  = 'none';
+    if (inputSection)   inputSection.classList.remove('az-input-card--transitioning');
+    setAnalyzeViewState('loading');
+    setAnalyzeButtonLoading(true);
+    resetLoadingPhases();
+}
+
+function syncLoadingPhase(index) {
+    LOADING_PHASE_IDS.forEach((id, i) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.classList.toggle('az-loading__phase--active', i === index);
+    });
+
+    LOADING_STEP_IDS.forEach((id, i) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.classList.toggle('az-loading__step--done', i < index);
+        el.classList.toggle('az-loading__step--active', i === index);
+    });
+
+    const loadingSection = document.getElementById('loadingSection');
+    if (loadingSection) {
+        loadingSection.dataset.phase = String(index);
+        loadingSection.classList.remove('az-loading--pulse');
+        void loadingSection.offsetWidth;
+        loadingSection.classList.add('az-loading--pulse');
+    }
+
+    if (loadingPhasePulseTimer) {
+        clearTimeout(loadingPhasePulseTimer);
+    }
+
+    loadingPhasePulseTimer = setTimeout(() => {
+        const loadingSection = document.getElementById('loadingSection');
+        if (loadingSection) loadingSection.classList.remove('az-loading--pulse');
+        loadingPhasePulseTimer = null;
+    }, 900);
+}
+
+function clearLoadingPhaseTimers() {
+    if (loadingPhaseInterval) {
+        clearInterval(loadingPhaseInterval);
+        loadingPhaseInterval = null;
+    }
+    if (loadingPhaseFinishTimer) {
+        clearTimeout(loadingPhaseFinishTimer);
+        loadingPhaseFinishTimer = null;
+    }
+    if (loadingPhasePulseTimer) {
+        clearTimeout(loadingPhasePulseTimer);
+        loadingPhasePulseTimer = null;
+    }
+}
+
+function resetLoadingPhases() {
+    clearLoadingPhaseTimers();
+    syncLoadingPhase(0);
+
+    const loadingSection = document.getElementById('loadingSection');
+    if (loadingSection) loadingSection.classList.remove('az-loading--pulse');
+}
+
+function startLoadingPhaseSequence(onComplete) {
+    clearLoadingPhaseTimers();
+
+    let current = 0;
+    syncLoadingPhase(current);
+
+    loadingPhaseInterval = setInterval(() => {
+        current += 1;
+
+        if (current < LOADING_PHASE_IDS.length) {
+            syncLoadingPhase(current);
+            return;
+        }
+
+        clearInterval(loadingPhaseInterval);
+        loadingPhaseInterval = null;
+        loadingPhaseFinishTimer = setTimeout(() => {
+            loadingPhaseFinishTimer = null;
+            onComplete();
+        }, 900);
+        }, 1650);
+}
+
+function splitReadableSentences(text) {
+    return ((text || '').replace(/\s+/g, ' ').match(/[^。！？]+[。！？]?/g) || [])
+        .map(part => part.trim())
+        .filter(Boolean);
+}
+
+function stripOrdinalPrefix(text) {
+    return (text || '').replace(/^[①②③④⑤⑥⑦⑧⑨⑩]\s*/, '').trim();
+}
+
+function buildDreamQuote(text) {
+    const clean = (text || '').replace(/\s+/g, ' ').trim();
+    if (!clean) return '';
+    return clean.length > 118 ? `${clean.slice(0, 118).trim()}…` : clean;
+}
+
+function normalizeReadingSentence(sentence) {
+    return (sentence || '')
+        .replace(/^你描述了「.*?」这段梦境。?/, '')
+        .replace(/^你描述了.*?(这段梦境。|——)/, '')
+        .replace(/^其中.*?，/, '')
+        .replace(/^在.*?中，/, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function deriveReadingCore(summary, psychology) {
+    const summarySentences = splitReadableSentences(summary)
+        .map(normalizeReadingSentence)
+        .filter(Boolean);
+
+    const primary = summarySentences.find(sentence => sentence.length >= 16)
+        || splitReadableSentences(psychology)[0]
+        || summarySentences[0]
+        || '这场梦像一次内在回应，把你带回那些尚未被完整说出的感受。';
+
+    const supportCandidates = [
+        ...summarySentences.filter(sentence => sentence !== primary),
+        ...splitReadableSentences(psychology).filter(sentence => sentence !== primary)
+    ];
+
+    const support = supportCandidates.find(sentence => sentence.length >= 12)
+        || '它没有急着给出结论，而是在提醒你：真正重要的线索，常常藏在反复出现的意象与情绪里。';
+
+    return { primary, support };
+}
+
+function deriveMeaningCopy(summary, psychology, unconscious) {
+    const summarySentences = splitReadableSentences(summary).map(normalizeReadingSentence).filter(Boolean);
+    const psychologySentences = splitReadableSentences(psychology).map(normalizeReadingSentence).filter(Boolean);
+    const unconsciousSentences = splitReadableSentences(unconscious).map(normalizeReadingSentence).filter(Boolean);
+
+    const lead = summarySentences.find(sentence => sentence.length >= 18)
+        || psychologySentences.find(sentence => sentence.length >= 18)
+        || unconsciousSentences.find(sentence => sentence.length >= 18)
+        || '这场梦没有直接给出答案，而是在把你带回那些还没有被完整说出来的感受。';
+
+    const detailPool = [
+        ...psychologySentences,
+        ...unconsciousSentences,
+        ...summarySentences.filter(sentence => sentence !== lead)
+    ].filter(Boolean);
+
+    const detailSentences = [];
+    for (const sentence of detailPool) {
+        if (!sentence || sentence === lead || detailSentences.includes(sentence)) continue;
+        detailSentences.push(sentence);
+        if (detailSentences.length >= 2) break;
+    }
+
+    const detail = detailSentences.join(' ')
+        || '它更像一次温和的提醒：那些反复出现的意象与情绪，正在替你整理最近经历过的内在波动。';
+
+    return { lead, detail };
+}
+
+function ensureThreeClues(symbols) {
+    const base = Array.isArray(symbols) ? symbols.slice(0, 3) : [];
+    const fallbacks = [
+        { name: '情绪氛围', meaning: '醒来后停留下来的感受，往往比情节本身更接近这场梦真正想说的话。' },
+        { name: '内在移动', meaning: '梦里不断变化的方向、靠近或停下，常常映照你现实里正在经历的心理移动。' },
+        { name: '未说出的部分', meaning: '那些没有被解释清楚的空白，并不是缺失，而是潜意识刻意留下的线索。' }
+    ];
+
+    while (base.length < 3) {
+        base.push(fallbacks[base.length]);
+    }
+
+    return base.slice(0, 3);
+}
+
+function buildClueMarkup(symbol, primary = false) {
+    return `<span class="az-reading-clue__glyph">${getClueGlyph(symbol.name)}</span>
+      <div class="az-reading-clue__copy">
+        ${primary ? '<span class="az-reading-clue__label">最先被点亮的线索</span>' : ''}
+        <h4 class="az-reading-clue__title">${symbol.name}</h4>
+        <p class="az-reading-clue__text">${symbol.meaning}</p>
+      </div>`;
+}
+
+function getClueGlyph(name) {
+    const map = [
+        {
+            match: ['海', '水', '鱼', '深'],
+            svg: '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3.5 8.6c1.8-1.4 3.5 1.4 5.3 0 1.9-1.5 3.4-1.5 5.3 0 1.9 1.5 3.4 1.4 5.1 0"/><path d="M2.8 12.4c1.7-1.2 3.3 1.2 5 0 1.8-1.3 3.3-1.3 5 0 1.8 1.3 3.3 1.2 4.4 0"/></svg>'
+        },
+        {
+            match: ['森', '树'],
+            svg: '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3.8v12.4"/><path d="M10 4.8c-2.7 1.9-4 4.3-4 7.2"/><path d="M10 4.8c2.7 1.9 4 4.3 4 7.2"/><path d="M6.6 13.7c1 .9 2.1 1.3 3.4 1.3 1.3 0 2.4-.4 3.4-1.3"/></svg>'
+        },
+        {
+            match: ['门', '钥匙', '房', '家', '建筑'],
+            svg: '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5.8 16V6.4c0-.8.6-1.4 1.4-1.4h5.6c.8 0 1.4.6 1.4 1.4V16"/><path d="M8.8 16v-4.2c0-.7.5-1.2 1.2-1.2s1.2.5 1.2 1.2V16"/></svg>'
+        },
+        {
+            match: ['光', '星'],
+            svg: '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3.8 11.3 8.7 16.2 10 11.3 11.3 10 16.2 8.7 11.3 3.8 10 8.7 8.7Z"/></svg>'
+        },
+        {
+            match: ['追', '跑', '迷'],
+            svg: '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 13.8c2.5-4.8 5-4.8 7.5 0 1.5 2.8 3 2.8 4.5 0"/><path d="M4.6 7.4h3.6"/><path d="M11.8 7.4h3.6"/></svg>'
+        },
+        {
+            match: ['平静', '迟疑', '情绪'],
+            svg: '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4.2 12.6c1.4-1.6 3-2.4 4.8-2.4s3.4.8 4.8 2.4"/><path d="M5.6 7.9c1.1-.9 2.5-1.4 4.4-1.4s3.3.5 4.4 1.4"/></svg>'
+        },
+        {
+            match: ['黑', '死'],
+            svg: '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M12.8 4.8a5.6 5.6 0 1 0 0 10.4A6.6 6.6 0 0 1 12.8 4.8Z"/></svg>'
+        }
+    ];
+
+    const found = map.find(item => item.match.some(token => (name || '').includes(token)));
+    return found
+        ? found.svg
+        : '<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="4.2"/><path d="M10 3.6v1.8M10 14.6v1.8M3.6 10h1.8M14.6 10h1.8"/></svg>';
+}
+
+function escapeReadingHtml(value) {
+    return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function uniqueStrings(list) {
+    return [...new Set((list || []).filter(Boolean))];
+}
+
+function findMatchedPatterns(text, patterns = [], extraTokens = []) {
+    const primary = patterns.find(pattern => pattern && text.includes(pattern)) || '';
+    if (primary) {
+        return {
+            matchedText: primary,
+            tokens: [primary]
+        };
+    }
+
+    const hits = uniqueStrings(extraTokens.filter(token => token && text.includes(token)));
+    if (!hits.length) return null;
+
+    return {
+        matchedText: hits.join(' · '),
+        tokens: hits
+    };
+}
+
+function getSourceTextFallback(text) {
+    const firstSentence = splitReadableSentences(text)[0] || '';
+    const clean = (firstSentence || text || '').replace(/\s+/g, ' ').trim();
+    return clean.length > 12 ? clean.slice(0, 12) : clean;
+}
+
+function getSymbolKeywordsByName(name) {
+    return (SYMBOL_LIBRARY.find(item => item.name === name)?.keywords || []).slice();
+}
+
+function buildDreamClueCollection(result, rawText, emotionLabel = '') {
+    const text = rawText || '';
+    const clues = [];
+    const usedTitles = new Set();
+    const blueprints = [
+        {
+            id: 'forest',
+            title: '森林',
+            patterns: ['发光的森林', '森林', '树林', '丛林'],
+            explanation: '森林在这场梦里不是普通背景，而是一片还没有被理性完全照亮的内在区域。它让梦从一开始就带着探索感，也说明你正在靠近某块还没被说清的自己。'
+        },
+        {
+            id: 'door',
+            title: '半开的门',
+            patterns: ['半开的门', '门半开着', '门总是半开着', '半开着的门', '门'],
+            explanation: '这道门更像一道阈限，而不是障碍。它没有彻底关上，说明变化其实已经向你开放了，真正让你停住脚步的，是你还在确认自己是否准备好走进去。'
+        },
+        {
+            id: 'waves',
+            title: '海浪声',
+            patterns: ['门后不断传来海浪声', '海浪声', '海浪', '水声', '海水'],
+            explanation: '声音比画面更早抵达，说明更深的情绪已经先一步靠近你。海浪声持续存在，让这场梦一直维持着一种被召唤、被牵引的气氛。'
+        },
+        {
+            id: 'sinking',
+            title: '地面下沉',
+            patterns: ['地面在缓慢下沉', '地面下沉', '缓慢下沉', '下沉感', '下沉', '坠落'],
+            explanation: '地面变软或下沉，通常意味着旧的支撑感正在松动。它不是简单的危险感，而是在提醒你：继续靠旧方法往前走，已经不再那么稳了。'
+        },
+        {
+            id: 'emotion',
+            title: '平静与迟疑',
+            patterns: ['奇怪的平静和迟疑', '平静和迟疑', '平静与迟疑'],
+            extraTokens: ['平静', '迟疑', '犹豫'],
+            explanation: '这组情绪让整场梦的气质定了下来。你不是被惊吓推着走，而是在一种安静却真实的犹豫里，慢慢意识到自己已经站在转变边缘。'
+        }
+    ];
+
+    blueprints.forEach((blueprint) => {
+        const match = findMatchedPatterns(text, blueprint.patterns, blueprint.extraTokens);
+        if (!match) return;
+        clues.push({
+            id: blueprint.id,
+            title: blueprint.title,
+            matchedText: match.matchedText,
+            tokens: match.tokens,
+            explanation: blueprint.explanation
+        });
+        usedTitles.add(blueprint.title);
+    });
+
+    const fallbackSymbols = Array.isArray(result?.symbols) ? result.symbols : [];
+    fallbackSymbols.forEach((symbol, index) => {
+        if (clues.length >= 5 || usedTitles.has(symbol.name)) return;
+        const keywords = getSymbolKeywordsByName(symbol.name);
+        const match = findMatchedPatterns(text, keywords, keywords);
+        if (!match) return;
+        clues.push({
+            id: `symbol-${index}`,
+            title: symbol.name,
+            matchedText: match.matchedText,
+            tokens: match.tokens,
+            explanation: symbol.meaning
+        });
+        usedTitles.add(symbol.name);
+    });
+
+    if (!clues.length) {
+        const fallback = getSourceTextFallback(text) || emotionLabel || '这场梦';
+        clues.push({
+            id: 'overall',
+            title: '梦境整体氛围',
+            matchedText: fallback,
+            tokens: [fallback],
+            explanation: '当梦里没有特别集中的单一意象时，最先写下来的那段原文本身，就是进入这场梦的第一条线索。'
+        });
+    }
+
+    return clues.slice(0, 5);
+}
+
+function collectClueRanges(text, clues) {
+    const ranges = [];
+    (clues || []).forEach((clue) => {
+        const tokens = uniqueStrings(clue.tokens).sort((a, b) => b.length - a.length);
+        tokens.forEach((token) => {
+            let cursor = 0;
+            while (cursor < text.length) {
+                const index = text.indexOf(token, cursor);
+                if (index === -1) break;
+                const end = index + token.length;
+                const overlaps = ranges.some((range) => !(end <= range.start || index >= range.end));
+                if (!overlaps) {
+                    ranges.push({ start: index, end, clueId: clue.id });
+                }
+                cursor = index + token.length;
+            }
+        });
+    });
+
+    return ranges.sort((a, b) => a.start - b.start);
+}
+
+function buildDreamSourceMarkup(text, clues, previewId, selectedId) {
+    const source = String(text || '').trim();
+    const paragraphs = source.split(/\n+/).filter(Boolean);
+    const blocks = paragraphs.length ? paragraphs : [source];
+
+    return blocks.map((paragraph) => {
+        const ranges = collectClueRanges(paragraph, clues);
+        if (!ranges.length) {
+            return `<p>${escapeReadingHtml(paragraph)}</p>`;
+        }
+
+        let cursor = 0;
+        let html = '';
+        ranges.forEach((range) => {
+            html += escapeReadingHtml(paragraph.slice(cursor, range.start));
+            const matched = paragraph.slice(range.start, range.end);
+            const isPreview = range.clueId === previewId;
+            const isSelected = !isPreview && range.clueId === selectedId;
+            const activeClass = isPreview ? ' is-preview' : (isSelected ? ' is-selected' : '');
+            const mutedClass = (previewId || selectedId) && !isPreview && !isSelected ? ' is-muted' : '';
+            html += `<span class="az-reading-source__mark${activeClass}${mutedClass}" data-clue-ref="${escapeReadingHtml(range.clueId)}">${escapeReadingHtml(matched)}</span>`;
+            cursor = range.end;
+        });
+        html += escapeReadingHtml(paragraph.slice(cursor));
+        return `<p>${html}</p>`;
+    }).join('');
+}
+
+function getDisplayedDreamClueId() {
+    return dreamClueModuleState.previewId || dreamClueModuleState.selectedId || '';
+}
+
+function renderDreamClueRail() {
+    const rail = document.getElementById('dreamClueRail');
+    if (!rail) return;
+    const activeId = getDisplayedDreamClueId();
+
+    rail.innerHTML = dreamClueModuleState.clues.map((clue) => {
+        const isActive = clue.id === activeId;
+        const isSelected = clue.id === dreamClueModuleState.selectedId;
+        return `
+            <button
+                type="button"
+                class="az-reading-clue-node${isActive ? ' is-active' : ''}${isSelected ? ' is-selected' : ''}"
+                data-clue-id="${escapeReadingHtml(clue.id)}"
+                aria-pressed="${isSelected ? 'true' : 'false'}">
+                <span class="az-reading-clue-node__orb">${getClueGlyph(clue.title)}</span>
+                <span class="az-reading-clue-node__label">${escapeReadingHtml(clue.title)}</span>
+            </button>
+        `;
+    }).join('');
+}
+
+function renderDreamClueFocus() {
+    const panel = document.getElementById('dreamClueFocus');
+    if (!panel) return;
+
+    const clue = dreamClueModuleState.clues.find(item => item.id === dreamClueModuleState.selectedId);
+    if (!clue) {
+        panel.classList.add('is-hidden');
+        panel.classList.remove('is-visible');
+        panel.setAttribute('aria-hidden', 'true');
+        panel.innerHTML = '';
+        return;
+    }
+
+    panel.classList.remove('is-hidden');
+    panel.classList.add('is-visible');
+    panel.setAttribute('aria-hidden', 'false');
+    panel.innerHTML = `
+        <div class="az-reading-clue-focus__head">
+          <span class="az-reading-clue-focus__glyph">${getClueGlyph(clue.title)}</span>
+          <h4 class="az-reading-clue-focus__title">${escapeReadingHtml(clue.title)}</h4>
+        </div>
+        <p class="az-reading-clue-focus__text">${escapeReadingHtml(clue.explanation)}</p>
+    `;
+}
+
+function renderDreamClueModule() {
+    const sourceEl = document.getElementById('dreamSourceText');
+    if (!sourceEl) return;
+    sourceEl.classList.toggle('has-preview-focus', Boolean(dreamClueModuleState.previewId));
+    sourceEl.classList.toggle('has-selected-focus', !dreamClueModuleState.previewId && Boolean(dreamClueModuleState.selectedId));
+    sourceEl.classList.toggle('has-active-focus', Boolean(dreamClueModuleState.previewId || dreamClueModuleState.selectedId));
+    sourceEl.innerHTML = buildDreamSourceMarkup(
+        dreamClueModuleState.rawText,
+        dreamClueModuleState.clues,
+        dreamClueModuleState.previewId,
+        dreamClueModuleState.selectedId
+    );
+    renderDreamClueRail();
+    renderDreamClueFocus();
+}
+
+function setDreamClueSelection(id) {
+    if (!id) return;
+    dreamClueModuleState.selectedId = dreamClueModuleState.selectedId === id ? '' : id;
+    dreamClueModuleState.previewId = '';
+    renderDreamClueModule();
+}
+
+function setDreamCluePreview(id) {
+    if (!id || dreamClueModuleState.previewId === id) return;
+    dreamClueModuleState.previewId = id;
+    renderDreamClueModule();
+}
+
+function clearDreamCluePreview() {
+    if (!dreamClueModuleState.previewId) return;
+    dreamClueModuleState.previewId = '';
+    renderDreamClueModule();
+}
+
+function updateDreamClueModule(rawText, result, emotionLabel) {
+    const clues = buildDreamClueCollection(result, rawText, emotionLabel);
+
+    dreamClueModuleState.rawText = rawText || '';
+    dreamClueModuleState.clues = clues;
+    dreamClueModuleState.previewId = '';
+    dreamClueModuleState.selectedId = '';
+
+    renderDreamClueModule();
+}
+
+function initDreamClueModuleInteractions() {
+    const rail = document.getElementById('dreamClueRail');
+    const source = document.getElementById('dreamSourceText');
+    if (!rail || !source) return;
+
+    rail.addEventListener('click', (event) => {
+        const button = event.target.closest('[data-clue-id]');
+        if (!button) return;
+        setDreamClueSelection(button.getAttribute('data-clue-id'));
+    });
+
+    rail.addEventListener('mouseover', (event) => {
+        const button = event.target.closest('[data-clue-id]');
+        if (!button) return;
+        setDreamCluePreview(button.getAttribute('data-clue-id'));
+    });
+
+    rail.addEventListener('mouseleave', () => {
+        clearDreamCluePreview();
+    });
+
+    rail.addEventListener('focusin', (event) => {
+        const button = event.target.closest('[data-clue-id]');
+        if (!button) return;
+        setDreamCluePreview(button.getAttribute('data-clue-id'));
+    });
+
+    rail.addEventListener('focusout', (event) => {
+        if (rail.contains(event.relatedTarget)) return;
+        clearDreamCluePreview();
+    });
+
+    source.addEventListener('mouseover', (event) => {
+        const mark = event.target.closest('[data-clue-ref]');
+        if (!mark) return;
+        setDreamCluePreview(mark.getAttribute('data-clue-ref'));
+    });
+
+    source.addEventListener('mouseleave', () => {
+        clearDreamCluePreview();
+    });
+
+    source.addEventListener('click', (event) => {
+        const mark = event.target.closest('[data-clue-ref]');
+        if (!mark) return;
+        setDreamClueSelection(mark.getAttribute('data-clue-ref'));
+    });
+}
+
+function getEmotionCenter(emotions) {
+    if (Array.isArray(emotions) && emotions.length > 0) return emotions[0];
+    return { label: '平静', pct: 54 };
+}
+
+function containsCue(text, cues) {
+    return cues.some(cue => (text || '').includes(cue));
+}
+
+function pickCue(text, cues, fallback = '') {
+    return cues.find(cue => (text || '').includes(cue)) || fallback;
+}
+
+function getInterpretationOpening(theme, signals) {
+    if (signals.forest && signals.door && signals.water) {
+        return '这场梦在说，你已经感觉到一个新的方向在召唤你，但你还没有真正跨进去。';
+    }
+
+    const openings = {
+        water: '这场梦在说，一股更深的感受已经开始推着你往前走，只是你还停在门口听它的声音。',
+        chase: '这场梦在说，你并不是单纯在害怕什么，而是有一部分压力已经大到不能再被绕开。',
+        fall: '这场梦在说，旧的支撑正在松动，你正在进入一个必须重新找平衡的过渡阶段。',
+        fly: '这场梦在说，你已经在靠近一种更自由的自己，只是现实里的步子还没有完全跟上。',
+        forest: '这场梦在说，你正走进一段旧地图已经失效、新方向却还没完全显形的时期。',
+        house: '这场梦在说，你内心有一个区域正在重新被打开，它需要被认真进入，而不是继续绕开。',
+        death: '这场梦在说，有个旧阶段已经走到尽头了，你正在为新的理解腾出位置。',
+        light: '这场梦在说，你其实已经感觉到某个方向在浮现，只是还没完全把它说出口。',
+        general: '这场梦在说，你的内心正在借这些画面，把一个白天还没说清的信号重新递到你面前。'
+    };
+
+    return openings[theme] || openings.general;
+}
+
+function getInterpretationEmotionLine(label, signals) {
+    if (signals.calm && signals.hesitation) {
+        return '所以你醒来后留下的不是单纯的害怕，而是一种平静与迟疑并存的感觉。';
+    }
+
+    const lines = {
+        '宁静': '这也是为什么它没有用惊吓的方式出现，而是用一种安静却很坚定的方式停留在你心里。',
+        '焦虑': '梦里那种拉扯感说明，这件事已经不只是念头，它正在真实地消耗你的注意力和力气。',
+        '神秘': '那种说不清的感觉不是装饰，它是在提醒你：真正重要的部分还藏在更深一点的位置。',
+        '自由': '轻盈感说明你并没有彻底被困住，内心其实已经开始寻找更宽的呼吸和更大的空间。',
+        '迷惘': '迷惘感并不表示你走错了，更多时候，它说明你已经走到旧答案不再够用的地方。',
+        '恐惧': '恐惧感让这场梦更像一次逼近，它在提醒你：变化已经靠得很近了。',
+        '好奇': '好奇说明你没有关闭自己，这场梦不是在吓你，而是在邀请你继续往里走。',
+        '压迫': '那份沉重感让这场梦显得更真实，也说明有个部分已经承受太久，不能再被忽略。'
+    };
+
+    return lines[label] || '醒来后残留下来的感觉，是这场梦最直接的线索之一。';
+}
+
+function getInterpretationClosing(theme, signals) {
+    if (signals.door && signals.water) {
+        return '它真正想传达的不是危险，而是过渡。门后的声音已经出现了，接下来真正重要的，不是继续观望，而是承认自己确实想靠近。';
+    }
+
+    const closings = {
+        water: '它真正想传达的不是危险，而是更深的情绪与直觉已经开始推动你。不要再假装自己没有听见。',
+        chase: '它真正想传达的不是逃，而是面对。你越早停下来辨认那股压力，它越不会继续在夜里追你。',
+        fall: '它真正想传达的不是坠落本身，而是旧的支撑已经完成使命，你需要为新的平衡腾出空间。',
+        fly: '它真正想传达的不是幻想，而是你已经准备好把某种限制放松一点了。',
+        forest: '它真正想传达的不是迷路，而是转向。你已经走到该重新辨认方向的地方了。',
+        house: '它真正想传达的不是回忆本身，而是内心某个房间已经到了该被重新整理的时候。',
+        death: '它真正想传达的不是失去，而是旧阶段正在退场，新理解正在腾出位置。',
+        light: '它真正想传达的不是远方的答案，而是你已经感到那束光落在自己身上了。',
+        general: '它真正想传达的不是一个抽象结论，而是一个很具体的提醒：有些感受已经不能再被轻轻带过。'
+    };
+
+    return closings[theme] || closings.general;
+}
+
+function buildInterpretationOverviewBody(parts, detail) {
+    if (parts.length > 0) {
+        return `${parts.join('，')}。`;
+    }
+
+    return detail
+        ? detail.replace(/^从.*?视角来审视你的梦境「.*?…」，?/, '').replace(/^值得注意的是：/, '').trim()
+        : '这场梦把多个意象连在一起，不是在制造悬念，而是在把一个还没有被说清的内在主题重新带回你面前。';
+}
+
+function buildEmotionEnergyAnalysis(emotionLabel, signals) {
+    if (signals.calm && signals.hesitation) {
+        return '这场梦的情绪能量并不是单向的害怕，而是被吸引与迟疑同时拉住。你没有真正被惊吓推开，所以醒来后仍然保留着平静；但你也没有立刻靠近，所以那份迟疑一直留在心里。真正推动这场梦的，是一种已经开始向前，却还没有完全允许自己跨进去的心理张力。';
+    }
+
+    if (signals.water && signals.sinking) {
+        return '梦里的情绪不是突然爆发，而是缓慢累积的。水声在远处持续推动，下沉感在脚下慢慢发生，这说明内在压力或变化早已开始渗入，只是白天还没有被完整承认。它带来的不是一个单点情绪，而是一种持续推进、却暂时没有出口的心理牵引。';
+    }
+
+    const lines = {
+        '宁静': '这场梦的情绪流动并不尖锐，它更像一种安静却持续的靠近。表面上你没有被激烈情绪卷走，但更深处其实已经有一股力量在推你重新看待眼前的变化。',
+        '焦虑': '这场梦的情绪能量更接近持续拉扯。它不是单纯的紧张，而是一部分内在已经意识到问题正在逼近，另一部分却还在试图维持旧有秩序。',
+        '神秘': '这场梦的情绪不是明确的答案，而是一种说不清却挥之不去的吸引力。它说明你的心理正在靠近某个还未完全成形的感受或认知。',
+        '自由': '这场梦里的情绪能量带着向外展开的倾向。它说明你内在并没有彻底封闭自己，某种更轻、更宽的状态已经开始浮现。',
+        '迷惘': '这场梦的情绪流动更像站在旧地图边缘的停顿。它不是混乱本身，而是当旧判断失效时，心理暂时进入重新校准的阶段。',
+        '恐惧': '这场梦里的情绪张力更强，说明内在已经把某件事推到了不能继续绕开的程度。恐惧不是终点，而是一种逼近现实的信号。',
+        '好奇': '这场梦并没有把你完全推开，反而保留了一种向前看的冲动。好奇说明你虽然还在犹豫，但心理并没有拒绝继续靠近。',
+        '压迫': '这场梦的能量更像长期积压后的显影。它提醒你，有些心理负担已经不只是背景噪音，而是在持续占据你的内部空间。'
+    };
+
+    return lines[emotionLabel] || '这场梦的情绪流动本身就是重要线索。它说明真正推动这场梦的，不只是符号本身，而是那些在白天尚未被完整表达的内在张力。';
+}
+
+function normalizeEmotionComposition(items) {
+    const safeItems = Array.isArray(items)
+        ? items.filter(Boolean).slice(0, 4).map(item => ({
+            ...item,
+            pct: Number(item.pct) || 0
+        }))
+        : [];
+
+    const total = safeItems.reduce((sum, item) => sum + item.pct, 0);
+    if (!safeItems.length || total <= 0) return [];
+
+    let running = 0;
+    const normalized = safeItems.map((item, index) => {
+        if (index === safeItems.length - 1) {
+            return {
+                ...item,
+                pct: Math.max(1, 100 - running)
+            };
+        }
+
+        const pct = Math.max(1, Math.round((item.pct / total) * 100));
+        running += pct;
+        return { ...item, pct };
+    });
+
+    const diff = 100 - normalized.reduce((sum, item) => sum + item.pct, 0);
+    if (diff && normalized[0]) {
+        normalized[0].pct = Math.max(1, normalized[0].pct + diff);
+    }
+
+    return normalized;
+}
+
+function mapDetectedEmotionToComposition(item) {
+    const mapping = {
+        '宁静': { key: 'calm', label: '平静', tone: 'moon' },
+        '焦虑': { key: 'unease', label: '轻微不安', tone: 'ember' },
+        '神秘': { key: 'attraction', label: '被吸引', tone: 'violet' },
+        '自由': { key: 'release', label: '舒展', tone: 'pearl' },
+        '迷惘': { key: 'hesitation', label: '迟疑', tone: 'slate' },
+        '恐惧': { key: 'vigilance', label: '防御', tone: 'ember' },
+        '好奇': { key: 'curiosity', label: '好奇', tone: 'cyan' },
+        '压迫': { key: 'pressure', label: '压力', tone: 'ember' }
+    };
+
+    const mapped = mapping[item?.label];
+    if (!mapped) return null;
+
+    return {
+        ...mapped,
+        pct: item.pct
+    };
+}
+
+function buildEmotionComposition(resultEmotions, emotionLabel, signals) {
+    if (signals.calm && signals.hesitation) {
+        return [
+            { key: 'attraction', label: '被吸引', pct: 34, tone: 'violet' },
+            { key: 'hesitation', label: '迟疑', pct: 28, tone: 'slate' },
+            { key: 'calm', label: '平静', pct: 22, tone: 'moon' },
+            { key: 'unease', label: '轻微不安', pct: 16, tone: 'ember' }
+        ];
+    }
+
+    if (signals.water && signals.sinking) {
+        return [
+            { key: 'attraction', label: '被牵引', pct: 31, tone: 'violet' },
+            { key: 'hesitation', label: '迟疑', pct: 27, tone: 'slate' },
+            { key: 'calm', label: '平静', pct: 24, tone: 'moon' },
+            { key: 'unease', label: '轻微不安', pct: 18, tone: 'ember' }
+        ];
+    }
+
+    const presets = {
+        '宁静': [
+            { key: 'calm', label: '平静', pct: 36, tone: 'moon' },
+            { key: 'attraction', label: '被吸引', pct: 28, tone: 'violet' },
+            { key: 'hesitation', label: '迟疑', pct: 20, tone: 'slate' },
+            { key: 'release', label: '舒展', pct: 16, tone: 'pearl' }
+        ],
+        '焦虑': [
+            { key: 'unease', label: '轻微不安', pct: 32, tone: 'ember' },
+            { key: 'hesitation', label: '迟疑', pct: 28, tone: 'slate' },
+            { key: 'pressure', label: '压力', pct: 22, tone: 'ember' },
+            { key: 'attraction', label: '被吸引', pct: 18, tone: 'violet' }
+        ],
+        '神秘': [
+            { key: 'attraction', label: '被吸引', pct: 38, tone: 'violet' },
+            { key: 'hesitation', label: '迟疑', pct: 26, tone: 'slate' },
+            { key: 'calm', label: '平静', pct: 20, tone: 'moon' },
+            { key: 'curiosity', label: '好奇', pct: 16, tone: 'cyan' }
+        ],
+        '自由': [
+            { key: 'release', label: '舒展', pct: 34, tone: 'pearl' },
+            { key: 'calm', label: '平静', pct: 28, tone: 'moon' },
+            { key: 'attraction', label: '被吸引', pct: 22, tone: 'violet' },
+            { key: 'curiosity', label: '好奇', pct: 16, tone: 'cyan' }
+        ],
+        '迷惘': [
+            { key: 'hesitation', label: '迟疑', pct: 34, tone: 'slate' },
+            { key: 'attraction', label: '被吸引', pct: 24, tone: 'violet' },
+            { key: 'unease', label: '轻微不安', pct: 24, tone: 'ember' },
+            { key: 'calm', label: '平静', pct: 18, tone: 'moon' }
+        ],
+        '恐惧': [
+            { key: 'vigilance', label: '防御', pct: 34, tone: 'ember' },
+            { key: 'unease', label: '轻微不安', pct: 28, tone: 'ember' },
+            { key: 'pressure', label: '压力', pct: 22, tone: 'slate' },
+            { key: 'hesitation', label: '迟疑', pct: 16, tone: 'slate' }
+        ],
+        '好奇': [
+            { key: 'curiosity', label: '好奇', pct: 32, tone: 'cyan' },
+            { key: 'attraction', label: '被吸引', pct: 30, tone: 'violet' },
+            { key: 'hesitation', label: '迟疑', pct: 20, tone: 'slate' },
+            { key: 'calm', label: '平静', pct: 18, tone: 'moon' }
+        ],
+        '压迫': [
+            { key: 'pressure', label: '压力', pct: 34, tone: 'ember' },
+            { key: 'unease', label: '轻微不安', pct: 26, tone: 'ember' },
+            { key: 'hesitation', label: '迟疑', pct: 22, tone: 'slate' },
+            { key: 'vigilance', label: '防御', pct: 18, tone: 'slate' }
+        ]
+    };
+
+    if (presets[emotionLabel]) {
+        return presets[emotionLabel];
+    }
+
+    const derived = normalizeEmotionComposition(
+        (Array.isArray(resultEmotions) ? resultEmotions : [])
+            .map(mapDetectedEmotionToComposition)
+            .filter(Boolean)
+    );
+
+    if (derived.length >= 3) {
+        return derived;
+    }
+
+    return [
+        { key: 'attraction', label: '被吸引', pct: 30, tone: 'violet' },
+        { key: 'hesitation', label: '迟疑', pct: 27, tone: 'slate' },
+        { key: 'calm', label: '平静', pct: 23, tone: 'moon' },
+        { key: 'unease', label: '轻微不安', pct: 20, tone: 'ember' }
+    ];
+}
+
+function getEmotionCompositionIcon(key) {
+    const icons = {
+        attraction: '<path d="M10 3.8 11.3 8.7 16.2 10 11.3 11.3 10 16.2 8.7 11.3 3.8 10 8.7 8.7Z"/>',
+        hesitation: '<path d="M10.1 4.8c2.7 0 4.5 1.5 4.5 3.8 0 2.2-1.6 3.7-3.9 3.7-1.8 0-3.1-1-3.1-2.3 0-1.1.8-1.9 2-1.9 1 0 1.8.5 2.2 1.3"/><path d="M10 14.6v.2"/>',
+        calm: '<path d="M13.8 4.8a5.8 5.8 0 1 0 0 10.4A6.7 6.7 0 0 1 13.8 4.8Z"/>',
+        unease: '<path d="M2.8 11.4c1.7-3.3 3.3 3.3 5 0 1.8-3.4 3.3-3.4 5 0 1.8 3.4 3.3 3.3 4.4 0"/>',
+        pressure: '<path d="M5 7.2h10"/><path d="M5.6 12.8c1-.9 2.4-1.4 4.4-1.4s3.4.5 4.4 1.4"/>',
+        vigilance: '<path d="M4.5 5.2c2.6 1.5 2.6 8.1 0 9.6"/><path d="M15.5 5.2c-2.6 1.5-2.6 8.1 0 9.6"/><path d="M8 10h4"/>',
+        release: '<path d="M4.8 11.2c1.2 2 3 3 5.2 3s4-1 5.2-3"/><path d="M6.2 7.2c.9 1.3 2.2 2 3.8 2s2.9-.7 3.8-2"/>',
+        curiosity: '<circle cx="10" cy="10" r="3.2"/><path d="M10 3.8v2.1M10 14.1v2.1M16.2 10h-2.1M5.9 10H3.8"/>'
+    };
+
+    return `<svg viewBox="0 0 20 20" aria-hidden="true">${icons[key] || icons.attraction}</svg>`;
+}
+
+function renderEmotionComposition(items) {
+    if (!Array.isArray(items) || items.length === 0) return '';
+
+    const summary = items.map(item => `${item.label} ${item.pct}%`).join('，');
+    const band = items.map((item, index) => `
+        <span class="az-reading-energy-map__segment is-${item.tone || 'violet'}" style="--az-share:${item.pct}; --az-index:${index}" aria-hidden="true"></span>
+    `).join('');
+
+    const list = items.map((item, index) => `
+        <article class="az-reading-energy-map__item is-${item.tone || 'violet'}" style="--az-index:${index}">
+            <span class="az-reading-energy-map__glyph">${getEmotionCompositionIcon(item.key)}</span>
+            <span class="az-reading-energy-map__name">${item.label}</span>
+            <span class="az-reading-energy-map__value">${item.pct}%</span>
+        </article>
+    `).join('');
+
+    return `
+        <div class="az-reading-energy-map__head">
+            <p class="az-reading-energy-map__eyebrow">主要情绪构成</p>
+        </div>
+        <div class="az-reading-energy-map__band" role="img" aria-label="这场梦的情绪构成：${summary}">
+            ${band}
+        </div>
+        <div class="az-reading-energy-map__list">
+            ${list}
+        </div>
+    `;
+}
+
+function buildUnconsciousTransmission(theme, signals) {
+    if (signals.door && signals.water) {
+        return '潜意识真正想传达的，不是危险，而是过渡已经开始。门后的声音反复出现，是因为你内在更深处已经知道：真正的问题不是要不要改变，而是你愿不愿意承认自己已经想靠近。';
+    }
+
+    const messages = {
+        water: '潜意识真正想传达的，是一股更深的感受已经在推动你。它不是要你被情绪吞没，而是提醒你停止假装自己没有听见那道更真实的内在回声。',
+        chase: '潜意识真正想传达的，不是让你继续逃，而是让你停下来辨认一直在追赶你的压力。只有当它被看见，这场梦才会真正松开。',
+        fall: '潜意识真正想传达的，不是坠落本身，而是旧的支撑已经不再足够。它在提醒你：新的平衡不会自动出现，你需要主动调整自己与现实的关系。',
+        fly: '潜意识真正想传达的，不是幻想，而是你已经开始靠近一种更自由的可能。它要你看见，那部分更轻的自己并没有消失，只是还没有被完全允许。',
+        forest: '潜意识真正想传达的，不是迷路，而是转向。它在提醒你，旧地图已经不够用了，你需要给新的感受和判断方式留出进入的位置。',
+        house: '潜意识真正想传达的，是内心某个房间已经到了需要重新打开的时候。你不能再只从门外判断它，而要真正走进去看看里面还留着什么。',
+        death: '潜意识真正想传达的，不是失去，而是旧阶段正在退场。它在替你完成一种心理上的告别，好让新的理解有空间长出来。',
+        light: '潜意识真正想传达的，不是远处的答案，而是你其实已经感觉到那束光落在自己身上了。接下来重要的，是不要再把那份感觉轻轻带过。',
+        general: '潜意识真正想传达的，是那些白天被你暂时压住的感受，已经到了需要认真回应的时候。这场梦不是抽象提示，而是一种内在要求你停下来听见自己的方式。'
+    };
+
+    return messages[theme] || messages.general;
+}
+
+function collectDreamSignalContext(result, rawText = '') {
+    const text = rawText || '';
+    const symbols = Array.isArray(result?.symbols) ? result.symbols : [];
+    const { detail } = deriveMeaningCopy(result?.summary, result?.psychology, result?.unconscious);
+    const signals = {
+        forest: containsCue(text, ['发光的森林', '森林', '树林', '丛林']) || symbols.some(item => (item.name || '').includes('森林') || (item.name || '').includes('树')),
+        door: containsCue(text, ['半开的门', '门', '大门', '木门']) || symbols.some(item => (item.name || '').includes('门')),
+        water: containsCue(text, ['海浪声', '海浪', '水声', '海水', '大海', '海']) || symbols.some(item => ['海洋', '水', '深处'].includes(item.name)),
+        sinking: containsCue(text, ['缓慢下沉', '下沉感', '下沉', '坠落', '落下']) || result?.theme === 'fall',
+        light: containsCue(text, ['发光', '光', '亮光', '光线']) || symbols.some(item => (item.name || '').includes('光')),
+        house: containsCue(text, ['房间', '房子', '屋', '家']) || symbols.some(item => (item.name || '').includes('家') || (item.name || '').includes('房')),
+        mirror: containsCue(text, ['镜子', '镜', '倒影']) || symbols.some(item => (item.name || '').includes('镜')),
+        calm: containsCue(text, ['平静', '安静', '宁静']),
+        hesitation: containsCue(text, ['迟疑', '犹豫', '靠近却停下', '想靠近'])
+    };
+
+    const forestWord = pickCue(text, ['发光的森林', '森林', '树林'], signals.forest ? '森林' : '');
+    const doorWord = pickCue(text, ['半开的门', '门'], signals.door ? '门' : '');
+    const waterWord = pickCue(text, ['海浪声', '海浪', '水声', '海水', '大海', '海'], signals.water ? '水意象' : '');
+    const sinkingWord = pickCue(text, ['缓慢下沉', '下沉感', '下沉', '坠落'], signals.sinking ? '下沉感' : '');
+    const lightWord = pickCue(text, ['发光', '光线', '亮光', '光'], signals.light ? '光' : '');
+    const houseWord = pickCue(text, ['旧房间', '房间', '房子', '家'], signals.house ? '房间' : '');
+    const mirrorWord = pickCue(text, ['镜子', '镜', '倒影'], signals.mirror ? '镜子' : '');
+
+    return {
+        text,
+        symbols,
+        detail,
+        signals,
+        cueWords: {
+            forestWord,
+            doorWord,
+            waterWord,
+            sinkingWord,
+            lightWord,
+            houseWord,
+            mirrorWord
+        }
+    };
+}
+
+function buildDreamInterpretation(result, emotionLabel, rawText = '') {
+    const context = collectDreamSignalContext(result, rawText);
+    const { detail, signals, cueWords } = context;
+    const {
+        forestWord,
+        doorWord,
+        waterWord,
+        sinkingWord,
+        lightWord,
+        houseWord,
+        mirrorWord
+    } = cueWords;
+
+    const opening = getInterpretationOpening(result?.theme || 'general', signals);
+    const parts = [];
+
+    if (forestWord) parts.push(`${forestWord}把你带进一片还没有完全看清的内在地带`);
+    if (doorWord) parts.push(`${doorWord}像一道边界，也像一个已经在等你靠近的入口`);
+    if (waterWord) parts.push(`${waterWord}让更深处的感受一直在里面推动你`);
+    if (sinkingWord) parts.push(`${sinkingWord}说明熟悉的支撑正在变软，你不能再只靠旧的判断往前走`);
+    if (lightWord && !forestWord) parts.push(`${lightWord}说明你其实已经感觉到某个方向在出现`);
+    if (houseWord && !doorWord) parts.push(`${houseWord}让梦把视线带回你内心真正需要被整理的区域`);
+    if (mirrorWord) parts.push(`${mirrorWord}让这场梦更像一次对自己的正面相遇`);
+
+    const overview = buildInterpretationOverviewBody(parts, detail);
+    const emotion = buildEmotionEnergyAnalysis(emotionLabel, signals);
+    const emotionComposition = buildEmotionComposition(result?.emotions, emotionLabel, signals);
+    const unconscious = buildUnconsciousTransmission(result?.theme || 'general', signals);
+
+    return {
+        lead: opening,
+        overview,
+        emotion,
+        emotionComposition,
+        unconscious
+    };
+}
+
+function buildActionGuidance(result, rawText = '', emotionLabel = '') {
+    const context = collectDreamSignalContext(result, rawText);
+    const { signals, cueWords } = context;
+    const doorWord = cueWords.doorWord || '那扇半开的门';
+    const waterWord = cueWords.waterWord || '那道一直没停下的声音';
+    const forestWord = cueWords.forestWord || '那片发光的森林';
+    const sinkingWord = cueWords.sinkingWord || '脚下慢慢变软的感觉';
+
+    if (signals.door && signals.water && signals.hesitation) {
+        return {
+            actionCue: '先写下一句：如果我真的靠近它，我最担心会发生什么？',
+            actionBody: `今晚不用急着跨进去。给自己留十分钟安静时间，把 ${doorWord}、${waterWord} 和你停住脚步的那一刻写成一句完整的话。只写一句也够，它会让这份迟疑从模糊感觉，变成可以被看见的线索。`,
+            directionCue: '接下来，继续留意那些你明明已经听见，却还停在门外的事。',
+            directionBody: `这场梦更像在提醒你：变化并不是突然降临，而是早就以细小的方式靠近了。接下来不需要逼自己马上决定，只要留意现实里哪些事像门后的声音一样反复出现，哪些靠近会让你同时感到平静和迟疑。`
+        };
+    }
+
+    if (signals.forest && signals.door) {
+        return {
+            actionCue: `把 ${forestWord} 里最清晰的一幕重新写下来，停在你最想再靠近一步的地方。`,
+            actionBody: '不要急着把它解释成结论。只把那一幕留下来，并写下自己为什么会停在这里。这个动作会帮助你分辨，真正让你犹豫的究竟是未知本身，还是跨进去之后可能发生的变化。',
+            directionCue: '接下来，留意你最近在现实里对哪些新方向既有吸引，也有保留。',
+            directionBody: '这场梦提示你继续观察的，不是答案，而是边界。哪些地方你已经开始想走近，却还在反复确认自己是否准备好了，那通常就是这场梦在现实里的对应。'
+        };
+    }
+
+    if (signals.water || signals.sinking) {
+        return {
+            actionCue: `把 ${waterWord} 或 ${sinkingWord} 对应到现实里最近反复出现的一件事。`,
+            actionBody: '今晚可以只做一个很小的动作：记下它出现的场景、你当时的身体感觉，以及你本来想避开的那部分。这个记录不需要完整，只要足够真实，就能让梦里的张力开始落地。',
+            directionCue: '接下来，继续留意那些不是突然爆发，而是一直在缓慢推进的变化。',
+            directionBody: '这场梦更像在提醒你，真正重要的往往不是最响亮的情绪，而是那些持续存在、但你还没有正式承认的内在牵引。'
+        };
+    }
+
+    if (emotionLabel === '宁静' || emotionLabel === '神秘' || emotionLabel === '好奇') {
+        return {
+            actionCue: '给这场梦留一句标题，写下它最想把你带去的方向。',
+            actionBody: '不需要把整场梦重新复述，只写一句最贴近它的标题或问题。这个很轻的动作，会帮你把夜里的感受留到白天，而不是让它在醒来之后立刻散掉。',
+            directionCue: '接下来，继续留意那些让你安静下来、却又忍不住回头看的画面。',
+            directionBody: '这些画面通常不是无意义的装饰，而是潜意识在用更柔和的方式提醒你：某个方向已经开始对你发出召唤。'
+        };
+    }
+
+    return {
+        actionCue: '先记下一句此刻最不想轻轻带过的话。',
+        actionBody: '不用急着把梦解释完整。只要把醒来后最残留的那一句感觉写下来，它就已经是在把梦里的信息慢慢带回现实。',
+        directionCue: '接下来，继续留意那些反复出现、却还没被你认真回应的感受。',
+        directionBody: '这场梦真正给出的不是任务，而是方向。只要你开始留意它在现实里对应的场景，这场梦就会继续告诉你下一步该靠近哪里。'
+    };
+}
 
 /* ============================================================
    DOMContentLoaded 初始化
 ============================================================ */
 document.addEventListener('DOMContentLoaded', function () {
+    if ('scrollRestoration' in window.history) {
+        window.history.scrollRestoration = 'manual';
+    }
+
     // 字数统计
     const ta = getTextarea();
-    const cc = getCharCount();
-    if (ta && cc) {
+    if (ta) {
+        const savedDraft = loadAnalyzeDraft();
+        if (!ta.value && savedDraft) {
+            ta.value = savedDraft;
+        }
+        syncCharCount(ta.value.length);
         ta.addEventListener('input', () => {
-            const len = ta.value.length;
-            cc.textContent = `${len} / 2000`;
-            cc.style.color = len > 1800 ? '#ef4444' : 'var(--ds-t4)';
+            syncCharCount(ta.value.length);
+            persistAnalyzeDraft(ta.value);
+            if (!ta.value.trim() && isExampleExpanded) {
+                isExampleExpanded = false;
+                syncExampleToggleUI();
+            }
         });
     }
 
-    // 解析按钮双重绑定保险
-    const btn = document.getElementById('analyzeBtn');
-    if (btn) btn.addEventListener('click', startAnalysis);
+    syncExampleToggleUI();
+    resetLoadingPhases();
+    initDreamClueModuleInteractions();
+
+    const bootRoute = readAnalyzeRouteState();
+    if (typeof window.switchMode === 'function') {
+        window.__dreamlensRouteHydrating = true;
+        window.switchMode(bootRoute.mode);
+        window.__dreamlensRouteHydrating = false;
+    }
+
+    restoreAnalyzeStateFromRoute({
+        scroll: false,
+        allowLoadingSequence: true,
+        forceTop: bootRoute.view !== 'input'
+    });
+
+    window.addEventListener('popstate', () => {
+        const route = readAnalyzeRouteState();
+        restoreAnalyzeStateFromRoute({
+            scroll: false,
+            allowLoadingSequence: false,
+            forceTop: route.view !== 'input'
+        });
+    });
 });
 
 /* ============================================================
@@ -346,25 +1554,39 @@ function selectEmotion(el) {
 }
 
 /* ============================================================
-   填入示例
+   插入示例
 ============================================================ */
-function fillExample(index) {
+function insertExampleDream() {
     const ta = getTextarea();
-    const cc = getCharCount();
-    if (ta) {
-        ta.value = EXAMPLE_DREAMS[index];
-        if (cc) cc.textContent = `${ta.value.length} / 2000`;
+    if (!ta) return;
+
+    if (typeof window.switchMode === 'function') window.switchMode('text');
+
+    if (isExampleExpanded) {
+        ta.value = '';
+        isExampleExpanded = false;
+        syncCharCount(0);
+        persistAnalyzeDraft('');
+        syncExampleToggleUI();
         ta.focus();
-        ta.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return;
     }
+
+    ta.value = INLINE_EXAMPLE_DREAM;
+    isExampleExpanded = true;
+    syncCharCount(ta.value.length);
+    persistAnalyzeDraft(ta.value);
+    syncExampleToggleUI();
+    ta.focus();
+    ta.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 /* ============================================================
    开始解析
 ============================================================ */
 function startAnalysis() {
-    const ta    = getTextarea();
-    const input = ta ? ta.value.trim() : '';
+    const input = getUnifiedDreamInput();
+    const btn   = getAnalyzeButton();
 
     if (input.length < 20) {
         typeof showToast === 'function'
@@ -373,147 +1595,120 @@ function startAnalysis() {
         return;
     }
 
+    if (btn && btn.disabled) return;
+
     const inputSection   = document.getElementById('inputSection');
     const loadingSection = document.getElementById('loadingSection');
     const resultSection  = document.getElementById('resultSection');
 
-    if (inputSection)   inputSection.style.display  = 'none';
-    if (loadingSection) loadingSection.style.display = 'flex';
-    if (resultSection)  resultSection.style.display  = 'none';
+    setAnalyzeButtonLoading(true);
+    if (inputSection) inputSection.classList.add('az-input-card--transitioning');
+    resetLoadingPhases();
+    persistAnalyzeDraft(input);
+    updateAnalyzeRouteState({ view: 'loading' }, { replace: true });
 
-    // 重置步骤
-    ['step1','step2','step3','step4'].forEach((id, i) => {
-        const el = document.getElementById(id);
-        if (!el) return;
-        el.classList.remove('az-loading__step--active', 'az-loading__step--done');
-        if (i === 0) el.classList.add('az-loading__step--active');
-    });
-    const progressEl = document.getElementById('loadingProgress');
-    if (progressEl) progressEl.style.width = '0%';
+    if (analysisTransitionTimer) clearTimeout(analysisTransitionTimer);
 
-    // 逐步激活步骤
-    const steps   = ['step1','step2','step3','step4'];
-    let   current = 0;
-
-    const stepInterval = setInterval(() => {
-        if (current < steps.length) {
-            if (current > 0) {
-                const prev = document.getElementById(steps[current - 1]);
-                if (prev) { prev.classList.remove('az-loading__step--active'); prev.classList.add('az-loading__step--done'); }
-            }
-            const cur = document.getElementById(steps[current]);
-            if (cur) cur.classList.add('az-loading__step--active');
-            if (progressEl) progressEl.style.width = ((current + 1) / steps.length * 100) + '%';
-            current++;
-        } else {
-            clearInterval(stepInterval);
-            setTimeout(showResult, 800);
-        }
-    }, 900);
+    analysisTransitionTimer = setTimeout(() => {
+        analysisTransitionTimer = null;
+        if (inputSection)   inputSection.style.display  = 'none';
+        if (loadingSection) loadingSection.style.display = 'flex';
+        if (resultSection)  resultSection.style.display  = 'none';
+        if (inputSection)   inputSection.classList.remove('az-input-card--transitioning');
+        startLoadingPhaseSequence(showResult);
+    }, 680);
 }
 
 /* ============================================================
    显示解析结果（完全基于用户输入动态生成）
 ============================================================ */
 function showResult() {
-    const ta    = getTextarea();
-    const input = ta ? ta.value.trim() : '';
+    const input = getUnifiedDreamInput();
 
     // 使用动态解析引擎，严格基于用户输入
     const result = analyzeUserDream(input);
+    renderAnalysisResult(input, result);
+}
+
+function renderAnalysisResult(input, result, options = {}) {
+    const { scroll = true, persist = true, refreshArt = persist } = options;
     analysisResult = result;
 
-    // 切换视图
+    const inputSection   = document.getElementById('inputSection');
     const loadingSection = document.getElementById('loadingSection');
     const resultSection  = document.getElementById('resultSection');
+    if (inputSection)   inputSection.style.display  = 'none';
     if (loadingSection) loadingSection.style.display = 'none';
-    if (resultSection)  resultSection.style.display  = 'flex';
+    if (resultSection)  resultSection.style.display  = 'block';
+    if (inputSection)   inputSection.classList.remove('az-input-card--transitioning');
+    setAnalyzeViewState('result');
+    clearLoadingPhaseTimers();
+    setAnalyzeButtonLoading(false);
 
-    // 标题
+    const emotion = getEmotionCenter(result.emotions);
+    const interpretation = buildDreamInterpretation(result, emotion.label, input);
+    const actionGuidance = buildActionGuidance(result, input, emotion.label);
+
+    // Hero
     const titleEl = document.getElementById('resultTitle');
-    if (titleEl) titleEl.textContent = `「${result.title}」— 梦境解析报告`;
+    if (titleEl) titleEl.textContent = result.title;
 
-    // 标签
-    const tagClsMap = {
-        'tag-purple':'ds-badge ds-badge--violet', 'tag-blue':'ds-badge ds-badge--teal',
-        'tag-teal':  'ds-badge ds-badge--teal',   'tag-orange':'ds-badge ds-badge--gold',
-        'tag-pink':  'ds-badge ds-badge--pink'
-    };
-    const tagsEl = document.getElementById('resultTags');
-    if (tagsEl) {
-        tagsEl.innerHTML = result.tags.map(t =>
-            `<span class="${tagClsMap[t.cls] || 'ds-badge ds-badge--violet'}">${t.text}</span>`
-        ).join('');
+    updateDreamClueModule(input, result, emotion.label);
+
+    const dreamInterpretationLeadEl = document.getElementById('dreamInterpretationLead');
+    if (dreamInterpretationLeadEl) dreamInterpretationLeadEl.textContent = interpretation.lead;
+
+    const dreamInterpretationOverviewEl = document.getElementById('dreamInterpretationOverview');
+    if (dreamInterpretationOverviewEl) dreamInterpretationOverviewEl.textContent = interpretation.overview;
+
+    const dreamInterpretationEmotionEl = document.getElementById('dreamInterpretationEmotion');
+    if (dreamInterpretationEmotionEl) dreamInterpretationEmotionEl.textContent = interpretation.emotion;
+
+    const dreamInterpretationEmotionMixEl = document.getElementById('dreamInterpretationEmotionMix');
+    if (dreamInterpretationEmotionMixEl) {
+        dreamInterpretationEmotionMixEl.innerHTML = renderEmotionComposition(interpretation.emotionComposition);
     }
 
-    // 摘要
-    const summaryEl = document.getElementById('resultSummary');
-    if (summaryEl) summaryEl.textContent = result.summary;
+    const dreamInterpretationUnconsciousEl = document.getElementById('dreamInterpretationUnconscious');
+    if (dreamInterpretationUnconsciousEl) dreamInterpretationUnconsciousEl.textContent = interpretation.unconscious;
 
-    // 象征列表
-    const symbolEmojis = ['✦','🌊','🦋','🌸','⭐','🔮','🌿','💫'];
-    const symbolListEl = document.getElementById('symbolList');
-    if (symbolListEl) {
-        symbolListEl.innerHTML = result.symbols.map((s, i) =>
-            `<li class="az-symbol-item">
-              <span class="az-symbol-icon">${symbolEmojis[i % symbolEmojis.length]}</span>
-              <div>
-                <div class="az-symbol-name">${s.name}</div>
-                <div class="az-symbol-desc">${s.meaning}</div>
-              </div>
-            </li>`
-        ).join('');
-    }
-
-    // 情绪能量条
-    const emotionBarsEl = document.getElementById('emotionBars');
-    if (emotionBarsEl) {
-        emotionBarsEl.innerHTML = result.emotions.map(e => `
-            <div class="az-emotion-bar-item">
-              <div class="az-emotion-bar-label">
-                <span>${e.label}</span><span>${e.pct}%</span>
-              </div>
-              <div class="az-emotion-bar-track">
-                <div class="az-emotion-bar-fill" style="width:0%;background:${e.color}" data-target="${e.pct}%"></div>
-              </div>
-            </div>`
-        ).join('');
-    }
-
-    // 心理学解读
-    const psychEl = document.getElementById('psychologyContent');
-    if (psychEl) {
-        psychEl.innerHTML = result.psychology.split('\n\n').map(p => `<p style="margin-bottom:10px">${p}</p>`).join('');
-    }
-
-    // 潜意识信息
-    const unconsciousEl = document.getElementById('unconsciousContent');
-    if (unconsciousEl) {
-        unconsciousEl.innerHTML = result.unconscious.split('\n\n').map(p => `<p style="margin-bottom:10px">${p}</p>`).join('');
+    const dreamInterpretationPanelEl = document.getElementById('dreamInterpretationPanel');
+    if (dreamInterpretationPanelEl) {
+        dreamInterpretationPanelEl.classList.remove('is-refreshed');
+        void dreamInterpretationPanelEl.offsetWidth;
+        dreamInterpretationPanelEl.classList.add('is-refreshed');
     }
 
     // 行动建议
-    const adviceEl = document.getElementById('adviceContent');
-    if (adviceEl) {
-        adviceEl.innerHTML = result.advice.split('\n\n').map(p => `<p style="margin-bottom:10px">${p}</p>`).join('');
+    const actionCueEl = document.getElementById('resultActionCue');
+    if (actionCueEl) actionCueEl.textContent = actionGuidance.actionCue;
+
+    const actionBodyEl = document.getElementById('resultActionBody');
+    if (actionBodyEl) actionBodyEl.textContent = actionGuidance.actionBody;
+
+    const directionCueEl = document.getElementById('resultDirectionCue');
+    if (directionCueEl) directionCueEl.textContent = actionGuidance.directionCue;
+
+    const directionBodyEl = document.getElementById('resultDirectionBody');
+    if (directionBodyEl) directionBodyEl.textContent = actionGuidance.directionBody;
+
+    // 结果页需要从页面顶部进入，避免 fixed 导航压住首个结果卡片
+    if (scroll) {
+        window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
     }
 
-    // 滚动到结果
-    if (resultSection) resultSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    persistAnalyzeDraft(input);
+    if (persist) persistAnalyzeResultSnapshot(input, result);
+    updateAnalyzeRouteState({ view: 'result' }, { replace: true });
 
-    // 情绪条动画
-    setTimeout(() => {
-        document.querySelectorAll('.az-emotion-bar-fill').forEach((bar, i) => {
-            setTimeout(() => { bar.style.width = bar.getAttribute('data-target') || (result.emotions[i]?.pct + '%'); }, i * 120);
-        });
-    }, 300);
-
-    // 保存到本地
-    if (ta) saveDreamToLocalStorage(ta.value.trim(), result);
+    // 保存到本地：只在真实解析完成时写入，避免刷新结果页重复落库
+    if (persist) {
+        saveDreamToLocalStorage(input, result);
+    }
 
     // 通知 AI 艺术模块
-    if (typeof artOnAnalysisComplete === 'function') {
-        artOnAnalysisComplete(ta ? ta.value.trim() : '');
+    if (refreshArt && typeof artOnAnalysisComplete === 'function') {
+        artOnAnalysisComplete(input);
     }
 }
 
@@ -521,28 +1716,8 @@ function showResult() {
    重置解析
 ============================================================ */
 function resetAnalysis() {
-    const inputSection   = document.getElementById('inputSection');
-    const loadingSection = document.getElementById('loadingSection');
-    const resultSection  = document.getElementById('resultSection');
-
-    if (inputSection)   inputSection.style.display  = 'block';
-    if (loadingSection) loadingSection.style.display = 'none';
-    if (resultSection)  resultSection.style.display  = 'none';
-
-    const labels = ['解读梦境符号','情绪模式分析','生成解析报告','创作梦境艺术'];
-    ['step1','step2','step3','step4'].forEach((id, i) => {
-        const el = document.getElementById(id);
-        if (el) {
-            el.innerHTML = `<i class="fas fa-circle-dot"></i> ${labels[i]}`;
-            el.classList.remove('az-loading__step--active','az-loading__step--done');
-            if (i === 0) el.classList.add('az-loading__step--active');
-        }
-    });
-
-    const progressEl = document.getElementById('loadingProgress');
-    if (progressEl) progressEl.style.width = '0%';
-
-    if (inputSection) inputSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    showAnalyzeInputView({ resetTop: true });
+    updateAnalyzeRouteState({ view: 'input' }, { replace: true });
 }
 
 /* ============================================================
@@ -606,6 +1781,58 @@ function saveDream() {
     setTimeout(() => { window.location.href = 'diary.html'; }, 1200);
 }
 
+function restoreAnalyzeStateFromRoute(options = {}) {
+    const { scroll = false, allowLoadingSequence = false, forceTop = false } = options;
+    const route = readAnalyzeRouteState();
+    const ta = getTextarea();
+    const snapshot = loadAnalyzeResultSnapshot();
+    const storedDraft = loadAnalyzeDraft();
+
+    if (forceTop && route.view !== 'input') {
+        resetAnalyzeViewport();
+    }
+
+    if (ta && !ta.value && storedDraft) {
+        ta.value = storedDraft;
+        syncCharCount(ta.value.length);
+    }
+
+    if (typeof window.switchMode === 'function') {
+        window.__dreamlensRouteHydrating = true;
+        window.switchMode(route.mode);
+        window.__dreamlensRouteHydrating = false;
+    }
+
+    const currentInput = getUnifiedDreamInput() || storedDraft || snapshot?.input || '';
+
+    if (route.view === 'result') {
+        const restored = snapshot?.result
+            ? { input: snapshot.input || currentInput, result: snapshot.result }
+            : (currentInput.length >= 20 ? { input: currentInput, result: analyzeUserDream(currentInput) } : null);
+
+        if (restored) {
+            if (snapshot?.selectedEmotion) selectedEmotion = snapshot.selectedEmotion;
+            renderAnalysisResult(restored.input, restored.result, { scroll, persist: false });
+            return;
+        }
+    }
+
+    if (route.view === 'loading' && currentInput.length >= 20) {
+        showAnalyzeLoadingView();
+        if (allowLoadingSequence) {
+            startLoadingPhaseSequence(showResult);
+        } else {
+            renderAnalysisResult(currentInput, snapshot?.result || analyzeUserDream(currentInput), { scroll, persist: false });
+        }
+        return;
+    }
+
+    showAnalyzeInputView({ scroll });
+    if (route.view !== 'input') {
+        updateAnalyzeRouteState({ view: 'input' }, { replace: true });
+    }
+}
+
 function shareResult(platform) {
     const title = analysisResult ? `「${analysisResult.title}」` : '我的梦境';
     const url   = window.location.href;
@@ -629,14 +1856,19 @@ function copyLink() {
     }
 }
 
+function updateAnalyzeModeRoute(mode, options = {}) {
+    updateAnalyzeRouteState({ mode }, { replace: options.replace !== false });
+}
+
 /* ============================================================
    暴露全局接口
 ============================================================ */
 window.toggleChip    = toggleChip;
 window.selectEmotion = selectEmotion;
-window.fillExample   = fillExample;
+window.insertExampleDream = insertExampleDream;
 window.startAnalysis = startAnalysis;
 window.resetAnalysis = resetAnalysis;
 window.saveDream     = saveDream;
 window.shareResult   = shareResult;
 window.copyLink      = copyLink;
+window.updateAnalyzeModeRoute = updateAnalyzeModeRoute;

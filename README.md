@@ -112,7 +112,67 @@ js/
 默认使用后端接口 `/api/image`（需部署）。在 `analyze.html` 里设置：
 `window.DREAMLENS_IMAGE_API = 'https://YOUR-VERCEL-APP.vercel.app/api/image';`
 
-后端函数在 `api/image.js`，需要环境变量 `FAL_KEY`。
+后端函数在 `api/image.js`。配置了 `FAL_KEY` 时会走真实的 fal 生图；未配置 `FAL_KEY` 时不会生成图片，而会明确报错。
+
+### 内测真网址（推荐 Vercel）
+这个项目现在已经补好了最省事的部署配置：
+- 静态页面直接从项目根目录发布
+- `api/image.js` 和 `api/feedback.js` 作为同域 API
+- [vercel.json](/Users/apple/Desktop/dream%20lens/vercel.json) 已加入
+
+最简单的内测方式：
+
+1. 把仓库推到 GitHub
+2. 在 Vercel 导入这个仓库
+3. 在 Vercel 项目环境变量里添加：
+
+```bash
+FAL_KEY=你的真实_fal_key
+```
+
+4. 重新部署
+
+部署完成后，内测同学直接访问：
+
+```bash
+https://你的项目域名/analyze.html
+```
+
+这时页面会优先走同域 `/api/image`，不再依赖本地 `3010`。
+
+### 本地启动
+如果要在本地完整联调“梦境解析 + AI 生图”，不要直接双击 `html` 文件或只开静态服务器。
+
+推荐先在项目根目录创建 `.env.local`：
+
+```bash
+cp .env.example .env.local
+```
+
+然后把其中的 `FAL_KEY` 改成你的真实 fal key，再运行：
+
+```bash
+npm run start
+```
+
+如果你不想写文件，也可以直接临时带环境变量启动：
+
+```bash
+FAL_KEY=你的密钥 npm run start
+```
+
+启动后访问：
+
+```bash
+http://127.0.0.1:3010/analyze.html
+```
+
+这个本地服务会同时提供：
+- 静态页面
+- `/api/image`
+- `/api/feedback`
+
+这样解析页里的 AI 梦境艺术模块才能真正走同源接口，不会再退回静态页面或旧限额接口。
 | Chart.js 4.4 CDN | 日记情绪趋势图 | 免费 |
 | Google Fonts | Noto Serif/Sans SC | 免费 |
 | Font Awesome 6 | 图标库 | 免费 |
