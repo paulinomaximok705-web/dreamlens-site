@@ -655,9 +655,6 @@
 .ds-nav--centered .ds-nav__inner {
   justify-content: space-between;
 }
-.ds-nav__logo-icon {
-  font-size: 1.2rem;
-}
 .ds-nav__links--center {
   display: grid;
   grid-template-columns: repeat(4, minmax(78px, 1fr));
