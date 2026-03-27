@@ -66,18 +66,23 @@
   </main>
 </section>
 
-<button type="button" class="community-floating-publish" data-open-publish>
+<button type="button" class="community-side-publish" data-open-publish aria-label="发布梦境">
+  <span class="community-side-publish__halo" aria-hidden="true"></span>
+  <span class="community-side-publish__plus" aria-hidden="true">+</span>
+</button>
+
+<button type="button" class="community-floating-publish" data-open-publish aria-label="发布梦境">
   <i class="fas fa-plus"></i>
   <span>发布我的梦</span>
 </button>
 
 <div class="community-compose" id="communityCompose" hidden>
   <div class="community-compose__backdrop" data-close-publish></div>
-  <div class="community-compose__panel">
+  <div class="community-compose__panel" role="dialog" aria-modal="true" aria-labelledby="communityComposeTitle">
     <div class="community-compose__header">
       <div>
         <span class="community-compose__eyebrow">发布梦境</span>
-        <h3>分享一场梦</h3>
+        <h3 id="communityComposeTitle">分享一场梦</h3>
       </div>
       <button type="button" class="community-compose__close" data-close-publish aria-label="关闭发布窗口">
         <i class="fas fa-times"></i>
@@ -126,7 +131,7 @@
 
       <div class="community-compose__footer">
         <button type="button" class="ds-btn ds-btn-ghost" data-close-publish>取消</button>
-        <button type="submit" class="ds-btn ds-btn-primary">发布到梦境广场</button>
+        <button type="submit" class="ds-btn ds-btn-primary community-compose__submit" id="communityComposeSubmit">发布梦境</button>
       </div>
     </form>
   </div>

@@ -162,7 +162,14 @@
     composeTheme: 'forest',
     composeImage: '',
     composeTags: new Set(),
-    detailPostId: null
+    composeDraft: {
+      nickname: '',
+      title: '',
+      body: ''
+    },
+    detailPostId: null,
+    isComposeOpen: false,
+    isSubmitting: false
   };
 
   function offsetTime(minutesAgo) {
@@ -543,20 +550,49 @@
     preview.innerHTML = '';
   }
 
+  function renderComposeSubmitState() {
+    const button = document.getElementById('communityComposeSubmit');
+    if (!button) return;
+
+    button.disabled = state.isSubmitting;
+    button.classList.toggle('is-loading', state.isSubmitting);
+    button.textContent = state.isSubmitting ? '发布中...' : '发布梦境';
+  }
+
   function openCompose() {
     const shell = document.getElementById('communityCompose');
     if (!shell) return;
+    state.isComposeOpen = true;
     shell.hidden = false;
+    shell.classList.remove('is-closing');
+    requestAnimationFrame(() => {
+      shell.classList.add('is-open');
+    });
     document.body.classList.add('community-ui-open');
+    renderComposeSubmitState();
+    window.setTimeout(() => {
+      document.getElementById('composeTitle')?.focus({ preventScroll: true });
+    }, 120);
   }
 
-  function closeCompose() {
+  function closeCompose(force = false) {
     const shell = document.getElementById('communityCompose');
     if (!shell) return;
-    shell.hidden = true;
-    if (document.getElementById('communityDetail')?.hidden !== false) {
-      document.body.classList.remove('community-ui-open');
-    }
+    if (shell.hidden) return;
+    if (state.isSubmitting && !force) return;
+
+    state.isComposeOpen = false;
+    shell.classList.remove('is-open');
+    shell.classList.add('is-closing');
+
+    window.setTimeout(() => {
+      if (state.isComposeOpen) return;
+      shell.hidden = true;
+      shell.classList.remove('is-closing');
+      if (document.getElementById('communityDetail')?.hidden !== false) {
+        document.body.classList.remove('community-ui-open');
+      }
+    }, 260);
   }
 
   function openDetail(postId, focusComments) {
@@ -737,49 +773,68 @@
     state.composeTheme = 'forest';
     state.composeImage = '';
     state.composeTags = new Set();
+    state.composeDraft = {
+      nickname: '',
+      title: '',
+      body: ''
+    };
     renderComposePresets();
     renderComposeTags();
     renderComposePreview();
+    renderComposeSubmitState();
   }
 
-  function publishPost(form) {
+  async function publishPost(form) {
     const title = form.title.value.trim();
     const body = form.body.value.trim();
     const nickname = form.nickname.value.trim() || DEFAULT_NICKNAME;
 
-    if (title.length < 2) {
-      window.showToast?.('梦境标题至少写 2 个字。');
-      return;
-    }
-    if (body.length < 12) {
-      window.showToast?.('梦境描述至少写 12 个字。');
+    if (!title && !body) {
+      window.showToast?.('至少写下一个标题或一段梦境描述。');
       return;
     }
 
-    const selectedTags = [...state.composeTags];
-    const tags = selectedTags.length ? selectedTags : suggestTagsFromText(`${title} ${body}`);
-    const arts = state.composeImage
-      ? [{ kind: 'image', src: state.composeImage }]
-      : [{ kind: 'theme', theme: state.composeTheme }];
+    if (state.isSubmitting) return;
 
-    const post = normalizePost({
-      authorName: nickname,
-      title,
-      body,
-      tags: tags.length ? tags : ['梦境记录', '这一夜'],
-      arts,
-      likes: 0,
-      bookmarks: 0,
-      comments: [],
-      size: body.length > 180 ? 'tall' : arts.length > 1 ? 'wide' : 'compact'
-    });
+    state.isSubmitting = true;
+    renderComposeSubmitState();
 
-    state.posts.unshift(post);
-    savePosts();
-    updateAll();
-    closeCompose();
-    resetComposeForm();
-    window.showToast?.('这场梦已经发布到梦境广场');
+    try {
+      await new Promise((resolve) => window.setTimeout(resolve, 420));
+
+      const selectedTags = [...state.composeTags];
+      const derivedTitle = title || `${body.slice(0, 20)}${body.length > 20 ? '…' : ''}`;
+      const derivedBody = body || '这场梦还没有写完整，只先留下了一个被醒来时记住的名字。';
+      const tags = selectedTags.length ? selectedTags : suggestTagsFromText(`${derivedTitle} ${derivedBody}`);
+      const arts = state.composeImage
+        ? [{ kind: 'image', src: state.composeImage }]
+        : [{ kind: 'theme', theme: state.composeTheme }];
+
+      const post = normalizePost({
+        authorName: nickname,
+        title: derivedTitle,
+        body: derivedBody,
+        tags: tags.length ? tags : ['梦境记录', '这一夜'],
+        arts,
+        likes: 0,
+        bookmarks: 0,
+        comments: [],
+        size: derivedBody.length > 180 ? 'tall' : arts.length > 1 ? 'wide' : 'compact'
+      });
+
+      state.posts.unshift(post);
+      savePosts();
+      updateAll();
+      resetComposeForm();
+      state.isSubmitting = false;
+      renderComposeSubmitState();
+      closeCompose(true);
+      window.showToast?.('这场梦已经发布到梦境广场');
+    } catch (_) {
+      state.isSubmitting = false;
+      renderComposeSubmitState();
+      window.showToast?.('发布没有成功，请稍后再试。');
+    }
   }
 
   function addComment(postId, authorName, text) {
@@ -912,6 +967,19 @@
     const imageInput = document.getElementById('composeImage');
     if (!form || !imageInput) return;
 
+    const syncDraft = () => {
+      state.composeDraft = {
+        nickname: form.nickname.value,
+        title: form.title.value,
+        body: form.body.value
+      };
+    };
+
+    ['nickname', 'title', 'body'].forEach((fieldName) => {
+      const field = form.elements[fieldName];
+      field?.addEventListener('input', syncDraft);
+    });
+
     form.addEventListener('submit', (event) => {
       event.preventDefault();
       publishPost(form);
@@ -920,6 +988,12 @@
     imageInput.addEventListener('change', () => {
       const file = imageInput.files && imageInput.files[0];
       if (!file) return;
+
+      if (!file.type.startsWith('image/')) {
+        window.showToast?.('请选择一张图片文件。');
+        imageInput.value = '';
+        return;
+      }
 
       const reader = new FileReader();
       reader.onload = () => {
@@ -974,6 +1048,7 @@
     renderComposePresets();
     renderComposeTags();
     renderComposePreview();
+    renderComposeSubmitState();
     updateAll();
 
     initHeroSearch();
