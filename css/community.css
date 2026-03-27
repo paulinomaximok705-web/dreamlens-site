@@ -834,7 +834,7 @@ body.community-ui-open {
 .community-side-publish {
   position: fixed;
   left: max(18px, calc((100vw - min(1220px, calc(100vw - 48px))) / 2 - 82px));
-  top: 45vh;
+  top: 50vh;
   z-index: 1120;
   width: 50px;
   height: 50px;
