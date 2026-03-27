@@ -300,19 +300,17 @@
 }
 .idx-hero__dock-bar {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 14px 16px;
-  border-radius: 18px;
-  border: 1px solid rgba(255,255,255,0.05);
-  background: rgba(12,10,28,0.4);
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  padding: 4px 2px 2px;
+  border-radius: 0;
+  border: none;
+  background: transparent;
 }
 .idx-hero__dock-bar--journey {
-  border-color: rgba(167,139,250,0.1);
-  background:
-    radial-gradient(120% 180% at 14% 0%, rgba(164,136,255,0.12) 0%, transparent 54%),
-    linear-gradient(180deg, rgba(24,18,54,0.68) 0%, rgba(12,10,28,0.54) 100%);
+  border-color: transparent;
+  background: transparent;
 }
 .idx-hero__dock-kicker {
   display: inline-flex;
@@ -325,44 +323,17 @@
 }
 .idx-hero__dock-kicker-icon {
   color: var(--ds-violet-l);
-  font-size: var(--idx-fs-body);
-  text-shadow: 0 0 12px rgba(167,139,250,0.35);
+  font-size: 0.76rem;
+  text-shadow: 0 0 10px rgba(167,139,250,0.22);
 }
 .idx-hero__dock-kicker--journey {
-  align-items: flex-start;
-  gap: 12px;
-  max-width: 760px;
-}
-.idx-hero__journey-head {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  text-align: left;
-}
-.idx-hero__journey-title {
-  margin: 0;
-  font-family: var(--ds-font-serif);
-  font-size: clamp(1.06rem, 1.5vw, 1.34rem);
-  line-height: 1.2;
-  letter-spacing: -0.02em;
-  font-weight: 550;
-  color: var(--idx-text-strong);
-}
-.idx-hero__journey-note {
-  margin: 0;
-  max-width: 620px;
-  font-size: 0.84rem;
-  line-height: 1.68;
-  color: rgba(216,211,234,0.68);
-}
-.idx-hero__dock-chip {
-  font-size: 0.66rem;
-  padding: 6px 11px;
-  border-radius: var(--ds-radius-pill);
-  border: 1px solid rgba(170,154,238,0.12);
-  color: rgba(216,211,234,0.76);
-  background: rgba(120,95,255,0.08);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+  align-items: center;
+  gap: 10px;
+  max-width: none;
+  font-size: 0.76rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(216,211,234,0.7);
 }
 .idx-hero__journey-grid {
   position: relative;
@@ -823,19 +794,8 @@
     margin-top: max(34px, calc(50vh - 238px));
   }
   .idx-hero__dock-bar {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
-    padding: 14px;
-  }
-  .idx-hero__dock-chip {
-    align-self: flex-start;
-  }
-  .idx-hero__journey-title {
-    font-size: 1rem;
-  }
-  .idx-hero__journey-note {
-    font-size: 0.8rem;
+    gap: 8px;
+    padding: 2px 0 0;
   }
   .idx-hero__journey-grid {
     grid-template-columns: 1fr;
