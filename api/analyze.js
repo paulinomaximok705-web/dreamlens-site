@@ -237,6 +237,7 @@ function buildMessages(dreamText, scaffold = {}) {
         '尽量少谈宽泛的人生成长、疗愈、自我觉察，除非它能被梦里的具体细节明确支撑。',
         '每一段最好都能落回梦里的具体线索，例如门、森林、水声、楼梯、追逐、停下、回头、醒来后的残留感。',
         '强调梦境感、夜色感、潜意识线索，但表达必须清楚、克制、具体。',
+        '宁可短一些，也不要拖成长段套话；能用更少的话说清楚，就不要写长。',
         '不要把任何参数、UI、按钮、模型信息写进输出。'
       ].join('\n')
     },
@@ -266,6 +267,97 @@ function buildMessages(dreamText, scaffold = {}) {
       ].join('\n')
     }
   ];
+}
+
+function buildRecoveryMessages(dreamText, scaffold = {}) {
+  const scaffoldSummary = JSON.stringify({
+    title: scaffold.title || '',
+    theme: scaffold.theme || 'general',
+    tags: Array.isArray(scaffold.tags) ? scaffold.tags : [],
+    symbols: Array.isArray(scaffold.symbols) ? scaffold.symbols : [],
+    emotions: Array.isArray(scaffold.emotions) ? scaffold.emotions : []
+  }, null, 2);
+
+  const compactSchema = {
+    title: '梦境标题，2到10字',
+    theme: 'water/chase/fall/fly/forest/house/death/light/general 之一',
+    tags: ['3个简短中文标签'],
+    summary: '1段总结，60到100字',
+    symbols: [{ name: '意象名', meaning: '心理含义，16到36字' }],
+    emotions: [{ label: '宁静/焦虑/神秘/自由/迷惘/恐惧/好奇/压迫 之一', pct: 30 }],
+    psychology: '2段，整体120到200字，用\\n\\n分段',
+    unconscious: '3小段，用①②③开头，总体90到150字',
+    advice: '3小段，用①②③开头，总体90到150字',
+    interpretation: {
+      lead: '统一解读核心判断，18到36字',
+      overview: '统一解读补充正文，40到80字',
+      emotion: '情绪能量分析，45到90字',
+      emotionComposition: [
+        { key: 'attraction/hesitation/calm/unease/pressure/vigilance/release/curiosity', label: '中文情绪名', pct: 30, tone: 'violet/slate/moon/ember/pearl/cyan' }
+      ],
+      unconscious: '潜意识传达，45到90字'
+    },
+    actionGuidance: {
+      actionCue: '现在就能做的一句提示，16到28字',
+      actionBody: '具体的小动作，35到75字',
+      directionCue: '继续留意的一句提示，16到28字',
+      directionBody: '继续观察的方向，35到75字'
+    }
+  };
+
+  return [
+    {
+      role: 'system',
+      content: [
+        '你是 DreamLens 的梦境解析助手。',
+        '上一次输出没有成功解析，这一次请只返回合法 JSON，不要输出任何解释、Markdown、代码块或多余文字。',
+        '所有字段都可以写得更短、更直接，但必须完整。',
+        '优先根据梦里最明确的画面、动作、声音、空间关系和醒来后的感受来写，不要套话。',
+        '如果某个字段拿不准，就写得克制、简短，也不要离开梦本身。'
+      ].join('\n')
+    },
+    {
+      role: 'user',
+      content: [
+        '请重新分析这段梦境原文，并严格返回合法 JSON：',
+        '',
+        '梦境原文：',
+        dreamText,
+        '',
+        '本地识别出的结构线索（仅供参考，不要机械复述）：',
+        scaffoldSummary,
+        '',
+        '输出 JSON 的字段结构：',
+        JSON.stringify(compactSchema, null, 2),
+        '',
+        '只返回 JSON。'
+      ].join('\n')
+    }
+  ];
+}
+
+async function requestDeepSeek(apiKey, messages, options = {}) {
+  const response = await fetch(`${DEEPSEEK_BASE_URL}/chat/completions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${apiKey}`
+    },
+    body: JSON.stringify({
+      model: DEEPSEEK_MODEL,
+      temperature: options.temperature ?? 0.35,
+      max_tokens: options.maxTokens ?? 1050,
+      response_format: { type: 'json_object' },
+      messages
+    })
+  });
+
+  const data = await response.json();
+  return {
+    response,
+    data,
+    content: data?.choices?.[0]?.message?.content || ''
+  };
 }
 
 function normalizeAnalysisPayload(payload = {}, scaffold = {}) {
@@ -339,31 +431,29 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const response = await fetch(`${DEEPSEEK_BASE_URL}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`
-      },
-      body: JSON.stringify({
-        model: DEEPSEEK_MODEL,
-        temperature: 0.45,
-        max_tokens: 1200,
-        response_format: { type: 'json_object' },
-        messages: buildMessages(normalizedDreamText, scaffold)
-      })
+    const primary = await requestDeepSeek(apiKey, buildMessages(normalizedDreamText, scaffold), {
+      temperature: 0.35,
+      maxTokens: 1050
     });
 
-    const data = await response.json();
-
-    if (!response.ok) {
-      const errorText = data?.error?.message || data?.error || 'DeepSeek analyze request failed';
-      res.status(response.status).json({ error: errorText });
+    if (!primary.response.ok) {
+      const errorText = primary.data?.error?.message || primary.data?.error || 'DeepSeek analyze request failed';
+      res.status(primary.response.status).json({ error: errorText });
       return;
     }
 
-    const content = data?.choices?.[0]?.message?.content || '';
-    const payload = parseJsonContent(content);
+    let payload = parseJsonContent(primary.content);
+
+    if (!payload) {
+      const recovery = await requestDeepSeek(apiKey, buildRecoveryMessages(normalizedDreamText, scaffold), {
+        temperature: 0.2,
+        maxTokens: 900
+      });
+
+      if (recovery.response.ok) {
+        payload = parseJsonContent(recovery.content);
+      }
+    }
 
     if (!payload) {
       res.status(502).json({ error: 'DeepSeek returned invalid JSON content' });
