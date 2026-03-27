@@ -51,7 +51,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  padding: calc(var(--ds-nav-h) + 72px) 28px 112px;
+  padding: calc(var(--ds-nav-h) + 72px) 28px 72px;
   max-width: 100%;
   margin: 0 auto;
   gap: 24px;
@@ -467,13 +467,13 @@
   --idx-footer-nav-letter-spacing: 0;
   width: 100%;
   padding: 142px 28px 0;
-  margin-top: 0;
+  margin-top: auto;
   background: transparent;
   text-align: left;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  flex: 1 1 auto;
+  flex: 0 0 auto;
 }
 .idx-footerband__inner {
   width: var(--idx-footer-frame);
@@ -803,7 +803,7 @@
 
 @media (max-width: 720px) {
   .idx-hero {
-    padding: calc(var(--ds-nav-h) + 40px) 20px 72px;
+    padding: calc(var(--ds-nav-h) + 40px) 20px 56px;
   }
   .idx-hero__glow {
     top: 180px;
@@ -828,7 +828,7 @@
     min-height: auto;
   }
   .idx-footerband {
-    padding: 86px 20px 0;
+    padding: 72px 20px 0;
   }
   .idx-footerband__logo-text {
     font-size: 1.7rem;
