@@ -1,5 +1,10 @@
 /* DreamLens — Dream Community */
 
+html,
+body {
+  scrollbar-gutter: stable;
+}
+
 body.community-ui-open {
   overflow: hidden;
 }
@@ -829,10 +834,10 @@ body.community-ui-open {
 .community-side-publish {
   position: fixed;
   left: max(18px, calc((100vw - min(1220px, calc(100vw - 48px))) / 2 - 82px));
-  top: 38vh;
+  top: 45vh;
   z-index: 1120;
-  width: 58px;
-  height: 58px;
+  width: 50px;
+  height: 50px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -842,9 +847,9 @@ body.community-ui-open {
     radial-gradient(circle at 50% 30%, rgba(255, 255, 255, 0.08) 0%, transparent 32%),
     linear-gradient(180deg, rgba(22, 20, 46, 0.82) 0%, rgba(13, 12, 30, 0.74) 100%);
   box-shadow:
-    0 16px 38px rgba(6, 6, 18, 0.26),
+    0 14px 32px rgba(6, 6, 18, 0.24),
     inset 0 1px 0 rgba(255,255,255,0.06),
-    0 0 18px rgba(121, 97, 226, 0.08);
+    0 0 16px rgba(121, 97, 226, 0.075);
   backdrop-filter: blur(16px) saturate(112%);
   -webkit-backdrop-filter: blur(16px) saturate(112%);
   color: rgba(245, 241, 255, 0.94);
@@ -871,7 +876,7 @@ body.community-ui-open {
 
 .community-side-publish__halo {
   position: absolute;
-  inset: -16px;
+  inset: -14px;
   border-radius: inherit;
   background: radial-gradient(circle, rgba(136, 115, 234, 0.16) 0%, rgba(136, 115, 234, 0.04) 46%, transparent 74%);
   filter: blur(16px);
@@ -882,7 +887,7 @@ body.community-ui-open {
 }
 
 .community-side-publish__plus {
-  font-size: 1.7rem;
+  font-size: 1.5rem;
   line-height: 1;
   font-weight: 300;
   transform: translateY(-1px);
@@ -893,9 +898,9 @@ body.community-ui-open {
   transform: translateY(-2px) scale(1.02);
   border-color: rgba(225, 216, 255, 0.14);
   box-shadow:
-    0 18px 42px rgba(6, 6, 18, 0.3),
+    0 16px 36px rgba(6, 6, 18, 0.28),
     inset 0 1px 0 rgba(255,255,255,0.08),
-    0 0 24px rgba(140, 118, 244, 0.11);
+    0 0 20px rgba(140, 118, 244, 0.1);
 }
 
 .community-floating-publish {
