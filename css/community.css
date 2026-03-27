@@ -69,7 +69,6 @@ body.community-ui-open {
   z-index: -1;
 }
 
-.community-feed-shell,
 .community-post,
 .community-detail__panel,
 .community-compose__panel {
@@ -384,9 +383,7 @@ body.community-ui-open {
 .community-feed-shell {
   margin-top: 24px;
   padding: 26px 28px 30px;
-  border-radius: 30px;
-  background:
-    linear-gradient(180deg, rgba(12, 11, 29, 0.92) 0%, rgba(9, 8, 23, 0.82) 100%);
+  background: transparent;
 }
 
 .community-feed {
