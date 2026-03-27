@@ -388,8 +388,20 @@ async function requestDreamAnalysis(rawText, scaffold) {
 
 async function analyzeUserDream(rawText) {
     const scaffold = analyzeUserDreamLocal(rawText);
-    const remoteResult = await requestDreamAnalysis(rawText, scaffold);
-    return mergeAnalyzeResult(scaffold, remoteResult);
+
+    try {
+        const remoteResult = await requestDreamAnalysis(rawText, scaffold);
+        return mergeAnalyzeResult(scaffold, remoteResult);
+    } catch (error) {
+        console.warn('[DreamLens analyze] remote analysis unavailable, using local fallback', error);
+        return {
+            ...scaffold,
+            source: 'local-fallback',
+            provider: 'local',
+            _usedFallback: true,
+            _fallbackMessage: normalizeAnalyzeErrorMessage(error)
+        };
+    }
 }
 
 function normalizeAnalyzeErrorMessage(error) {
@@ -1749,6 +1761,9 @@ async function showResult() {
 
     const result = await analyzeUserDream(input);
     renderAnalysisResult(input, result);
+    if (result?._usedFallback && typeof showToast === 'function') {
+        showToast('云端深度解析暂时不可用，已先为你展示基础解析结果。');
+    }
 }
 
 function renderAnalysisResult(input, result, options = {}) {
