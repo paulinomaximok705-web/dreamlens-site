@@ -485,9 +485,9 @@ if ('scrollRestoration' in history) {
 <script src="js/main.js"></script>
 <script src="js/analyze-init.js"></script>
 <script src="js/voice.js"></script>
-<script src="js/analyze.js"></script>
 <script>
   const __dreamlensLocalImageApi = 'http://127.0.0.1:3010/api/image';
+  const __dreamlensLocalAnalyzeApi = 'http://127.0.0.1:3010/api/analyze';
   const __dreamlensIsHttp = ['http:', 'https:'].includes(window.location.protocol);
   const __dreamlensIsLocalAnalyze =
     __dreamlensIsHttp
@@ -501,7 +501,14 @@ if ('scrollRestoration' in history) {
   window.DREAMLENS_IMAGE_API_FALLBACK = window.DREAMLENS_IMAGE_API_FALLBACK || (
     __dreamlensShouldUseSameOriginApi ? __dreamlensLocalImageApi : ''
   );
+  window.DREAMLENS_ANALYZE_API = window.DREAMLENS_ANALYZE_API || (
+    __dreamlensShouldUseSameOriginApi ? '/api/analyze' : __dreamlensLocalAnalyzeApi
+  );
+  window.DREAMLENS_ANALYZE_API_FALLBACK = window.DREAMLENS_ANALYZE_API_FALLBACK || (
+    __dreamlensShouldUseSameOriginApi ? __dreamlensLocalAnalyzeApi : ''
+  );
 </script>
+<script src="js/analyze.js"></script>
 <script src="js/dream-art.js"></script>
 <script>
 // 从日记页跳转来时，自动填入待重新解析的梦境

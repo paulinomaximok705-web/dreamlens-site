@@ -33,6 +33,7 @@ loadEnvFile(path.join(ROOT, '.env'));
 
 const imageHandler = require('./api/image');
 const feedbackHandler = require('./api/feedback');
+const analyzeHandler = require('./api/analyze');
 
 const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -171,6 +172,11 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    if (pathname === '/api/analyze') {
+      await handleApi(req, res, analyzeHandler);
+      return;
+    }
+
     await serveStatic(req, res, pathname);
   } catch (error) {
     res.statusCode = 500;
@@ -184,4 +190,7 @@ server.listen(PORT, () => {
   console.log(process.env.FAL_KEY
     ? 'DreamLens image mode: real fal image generation enabled'
     : 'DreamLens image mode: real fal image generation unavailable (missing FAL_KEY)');
+  console.log(process.env.DEEPSEEK_API_KEY
+    ? 'DreamLens analyze mode: real DeepSeek analysis enabled'
+    : 'DreamLens analyze mode: real DeepSeek analysis unavailable (missing DEEPSEEK_API_KEY)');
 });

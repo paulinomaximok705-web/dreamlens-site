@@ -7,6 +7,8 @@
    示例梦境（仅用于插入示例）
 ============================================================ */
 const INLINE_EXAMPLE_DREAM = `我梦见自己走进一片发光的森林，树叶像玻璃一样轻轻作响。远处有一扇半开的门，门后不断传来海浪声。我想靠近，却总感觉脚下的地面在缓慢下沉。醒来时我没有特别害怕，反而有一种奇怪的平静和迟疑。`;
+const ANALYZE_API_ENDPOINT = window.DREAMLENS_ANALYZE_API || '/api/analyze';
+const ANALYZE_API_ENDPOINT_FALLBACK = window.DREAMLENS_ANALYZE_API_FALLBACK || '';
 
 /* ============================================================
    象征词库：从梦境文本中识别意象并生成解读
@@ -86,7 +88,7 @@ const TAG_LIBRARY = {
 /* ============================================================
    核心：从用户输入动态生成解析内容
 ============================================================ */
-function analyzeUserDream(rawText) {
+function analyzeUserDreamLocal(rawText) {
     const text = rawText.trim();
 
     /* 1. 识别梦境主题 */
@@ -295,6 +297,126 @@ function buildAdvice(text, theme, symbols) {
     };
 
     return (adviceMap[theme] || adviceMap.general).join('\n\n');
+}
+
+async function parseAnalyzeApiResponse(response) {
+    const raw = await response.text();
+    let data = null;
+
+    if (raw) {
+        try {
+            data = JSON.parse(raw);
+        } catch (_) {
+            data = null;
+        }
+    }
+
+    if (!response.ok) {
+        throw new Error(data?.error || data?.message || 'DeepSeek 梦境解析暂时不可用');
+    }
+
+    if (!data || typeof data !== 'object') {
+        throw new Error('DeepSeek 返回了无效的解析结果');
+    }
+
+    return data;
+}
+
+function mergeAnalyzeResult(localResult, remoteResult) {
+    const remoteInterpretation = remoteResult?.interpretation && typeof remoteResult.interpretation === 'object'
+        ? remoteResult.interpretation
+        : null;
+    const remoteActionGuidance = remoteResult?.actionGuidance && typeof remoteResult.actionGuidance === 'object'
+        ? remoteResult.actionGuidance
+        : null;
+
+    return {
+        ...localResult,
+        ...remoteResult,
+        title: remoteResult?.title || localResult.title,
+        theme: remoteResult?.theme || localResult.theme,
+        tags: Array.isArray(remoteResult?.tags) && remoteResult.tags.length ? remoteResult.tags : localResult.tags,
+        summary: remoteResult?.summary || localResult.summary,
+        symbols: Array.isArray(remoteResult?.symbols) && remoteResult.symbols.length ? remoteResult.symbols : localResult.symbols,
+        emotions: Array.isArray(remoteResult?.emotions) && remoteResult.emotions.length ? remoteResult.emotions : localResult.emotions,
+        psychology: remoteResult?.psychology || localResult.psychology,
+        unconscious: remoteResult?.unconscious || localResult.unconscious,
+        advice: remoteResult?.advice || localResult.advice,
+        interpretation: remoteInterpretation || null,
+        actionGuidance: remoteActionGuidance || null
+    };
+}
+
+async function requestDreamAnalysisFromEndpoint(endpoint, rawText, scaffold) {
+    const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            dreamText: rawText,
+            scaffold: {
+                title: scaffold.title,
+                theme: scaffold.theme,
+                tags: scaffold.tags,
+                symbols: scaffold.symbols,
+                emotions: scaffold.emotions
+            }
+        })
+    });
+
+    return parseAnalyzeApiResponse(response);
+}
+
+async function requestDreamAnalysis(rawText, scaffold) {
+    const endpoints = [ANALYZE_API_ENDPOINT, ANALYZE_API_ENDPOINT_FALLBACK]
+        .filter(Boolean)
+        .filter((endpoint, index, list) => list.indexOf(endpoint) === index);
+
+    let lastError = null;
+
+    for (const endpoint of endpoints) {
+        try {
+            return await requestDreamAnalysisFromEndpoint(endpoint, rawText, scaffold);
+        } catch (error) {
+            lastError = error;
+        }
+    }
+
+    throw lastError || new Error('DeepSeek 梦境解析暂时不可用');
+}
+
+async function analyzeUserDream(rawText) {
+    const scaffold = analyzeUserDreamLocal(rawText);
+    const remoteResult = await requestDreamAnalysis(rawText, scaffold);
+    return mergeAnalyzeResult(scaffold, remoteResult);
+}
+
+function normalizeAnalyzeErrorMessage(error) {
+    const message = String(error?.message || error || '');
+
+    if (message.includes('Missing DEEPSEEK_API_KEY')) {
+        return '当前梦境解析服务还没有配置 DeepSeek Key，请先补上 DEEPSEEK_API_KEY。';
+    }
+
+    if (message.includes('Failed to fetch') || message.includes('NetworkError')) {
+        return '当前无法连接到梦境解析服务，请稍后再试。';
+    }
+
+    if (message.includes('invalid') || message.includes('JSON')) {
+        return '这次解析结果没有成功生成，请再试一次。';
+    }
+
+    return '这次 DeepSeek 解析暂时没有完成，请稍后再试。';
+}
+
+function handleAnalyzeFailure(error) {
+    console.error('[DreamLens analyze] analysis failed', error);
+    showAnalyzeInputView({ resetTop: true });
+    updateAnalyzeRouteState({ view: 'input' }, { replace: true });
+    if (typeof showToast === 'function') {
+        showToast(normalizeAnalyzeErrorMessage(error));
+    }
 }
 
 /* ============================================================
@@ -580,7 +702,7 @@ function startLoadingPhaseSequence(onComplete) {
         loadingPhaseInterval = null;
         loadingPhaseFinishTimer = setTimeout(() => {
             loadingPhaseFinishTimer = null;
-            onComplete();
+            Promise.resolve(onComplete()).catch(handleAnalyzeFailure);
         }, 900);
         }, 1650);
 }
@@ -1622,11 +1744,10 @@ function startAnalysis() {
 /* ============================================================
    显示解析结果（完全基于用户输入动态生成）
 ============================================================ */
-function showResult() {
+async function showResult() {
     const input = getUnifiedDreamInput();
 
-    // 使用动态解析引擎，严格基于用户输入
-    const result = analyzeUserDream(input);
+    const result = await analyzeUserDream(input);
     renderAnalysisResult(input, result);
 }
 
@@ -1646,8 +1767,8 @@ function renderAnalysisResult(input, result, options = {}) {
     setAnalyzeButtonLoading(false);
 
     const emotion = getEmotionCenter(result.emotions);
-    const interpretation = buildDreamInterpretation(result, emotion.label, input);
-    const actionGuidance = buildActionGuidance(result, input, emotion.label);
+    const interpretation = result?.interpretation || buildDreamInterpretation(result, emotion.label, input);
+    const actionGuidance = result?.actionGuidance || buildActionGuidance(result, input, emotion.label);
 
     // Hero
     const titleEl = document.getElementById('resultTitle');
@@ -1808,7 +1929,7 @@ function restoreAnalyzeStateFromRoute(options = {}) {
     if (route.view === 'result') {
         const restored = snapshot?.result
             ? { input: snapshot.input || currentInput, result: snapshot.result }
-            : (currentInput.length >= 20 ? { input: currentInput, result: analyzeUserDream(currentInput) } : null);
+            : (currentInput.length >= 20 ? { input: currentInput, result: analyzeUserDreamLocal(currentInput) } : null);
 
         if (restored) {
             if (snapshot?.selectedEmotion) selectedEmotion = snapshot.selectedEmotion;
@@ -1822,7 +1943,7 @@ function restoreAnalyzeStateFromRoute(options = {}) {
         if (allowLoadingSequence) {
             startLoadingPhaseSequence(showResult);
         } else {
-            renderAnalysisResult(currentInput, snapshot?.result || analyzeUserDream(currentInput), { scroll, persist: false });
+            renderAnalysisResult(currentInput, snapshot?.result || analyzeUserDreamLocal(currentInput), { scroll, persist: false });
         }
         return;
     }

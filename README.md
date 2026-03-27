@@ -107,12 +107,34 @@ js/
 | 服务 | 用途 | 费用 |
 |------|------|------|
 | fal FLUX.1 schnell | AI 图片生成（多提示词尝试）| 低成本 |
+| DeepSeek Chat | 梦境解析结果页结构化解读 | 按量计费 |
 
 ### Image API 配置
 默认使用后端接口 `/api/image`（需部署）。在 `analyze.html` 里设置：
 `window.DREAMLENS_IMAGE_API = 'https://YOUR-VERCEL-APP.vercel.app/api/image';`
 
 后端函数在 `api/image.js`。配置了 `FAL_KEY` 时会走真实的 fal 生图；未配置 `FAL_KEY` 时不会生成图片，而会明确报错。
+
+### Analyze API 配置
+梦境解析结果页现在默认通过后端接口 `/api/analyze` 调用真实 DeepSeek：
+
+- 本地：`http://127.0.0.1:3010/api/analyze`
+- 线上：同域 `/api/analyze`
+
+后端函数在 `api/analyze.js`。需要配置：
+
+```bash
+DEEPSEEK_API_KEY=你的真实_deepseek_api_key
+```
+
+可选：
+
+```bash
+DEEPSEEK_MODEL=deepseek-chat
+DEEPSEEK_BASE_URL=https://api.deepseek.com
+```
+
+未配置 `DEEPSEEK_API_KEY` 时，结果页不会走真实 DeepSeek 解析，并会给出明确提示。
 
 ### 内测真网址（推荐 Vercel）
 这个项目现在已经补好了最省事的部署配置：
@@ -128,6 +150,7 @@ js/
 
 ```bash
 FAL_KEY=你的真实_fal_key
+DEEPSEEK_API_KEY=你的真实_deepseek_api_key
 ```
 
 4. 重新部署
@@ -161,6 +184,12 @@ npm run start
 FAL_KEY=你的密钥 npm run start
 ```
 
+如果你也要本地联调真实梦境解析，再一起配置：
+
+```bash
+DEEPSEEK_API_KEY=你的密钥 npm run start
+```
+
 启动后访问：
 
 ```bash
@@ -171,6 +200,7 @@ http://127.0.0.1:3010/analyze.html
 - 静态页面
 - `/api/image`
 - `/api/feedback`
+- `/api/analyze`
 
 这样解析页里的 AI 梦境艺术模块才能真正走同源接口，不会再退回静态页面或旧限额接口。
 | Chart.js 4.4 CDN | 日记情绪趋势图 | 免费 |
