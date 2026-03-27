@@ -231,8 +231,12 @@ function buildMessages(dreamText, scaffold = {}) {
         '你是 DreamLens 的梦境解析助手，需要基于用户原文输出结果页直接可用的结构化 JSON。',
         '只允许输出合法 JSON，不要输出 Markdown、解释、标题、代码块。',
         '语言必须是简体中文，语气细腻、安静、直接、有洞察力，但不要玄学化、不要广告化、不要空泛鸡汤。',
-        '不要杜撰原文没有出现的具体情节，只能沿着原文里的画面、声音、情绪和动作做心理层面的延展。',
-        '强调梦境感、夜色感、潜意识线索，但表达必须清楚。',
+        '解读必须尽量贴着梦本身来写：优先抓原文中的画面、声音、动作、空间关系和醒来后的感受，不要先讲大而空的道理。',
+        '不要杜撰原文没有出现的具体情节，只能沿着原文里的意象和动作做心理层面的延展。',
+        '少用套话，避免反复出现“这场梦在说”“潜意识在提醒你”“某个方向正在浮现”“你需要学会”这类空泛句式。',
+        '尽量少谈宽泛的人生成长、疗愈、自我觉察，除非它能被梦里的具体细节明确支撑。',
+        '每一段最好都能落回梦里的具体线索，例如门、森林、水声、楼梯、追逐、停下、回头、醒来后的残留感。',
+        '强调梦境感、夜色感、潜意识线索，但表达必须清楚、克制、具体。',
         '不要把任何参数、UI、按钮、模型信息写进输出。'
       ].join('\n')
     },
@@ -256,7 +260,9 @@ function buildMessages(dreamText, scaffold = {}) {
         '3. emotions 输出 4 项左右，百分比总和约为 100。',
         '4. interpretation.emotionComposition 需要输出 4 项左右，总和约为 100。',
         '5. 如果原文明显包含森林、门、海浪、下沉、平静与迟疑这些线索，请优先准确反映。',
-        '6. 输出必须是纯 JSON，不要有任何额外文本。'
+        '6. summary / psychology / unconscious / interpretation.* 要尽量少套话，多落回梦里的具体意象和动作。',
+        '7. actionGuidance 也要具体，不要写成空泛建议；优先给出能立即执行的小动作。',
+        '8. 输出必须是纯 JSON，不要有任何额外文本。'
       ].join('\n')
     }
   ];
@@ -283,21 +289,21 @@ function normalizeAnalysisPayload(payload = {}, scaffold = {}) {
     summary: normalizeParagraph(payload.summary, '这场梦把一些白天还没说清的感受重新带回了你面前。'),
     symbols: normalizeSymbols(payload.symbols, fallbackSymbols),
     emotions,
-    psychology: normalizeParagraph(payload.psychology, '从心理学角度看，这场梦正在把你最近反复出现的感受与意象重新组织成一个更完整的线索。'),
-    unconscious: normalizeParagraph(payload.unconscious, '① 梦里反复出现的画面并不是随机的。\n\n② 它们正在替你保留那些白天还没被完整承认的感受。\n\n③ 真正重要的不是立刻得到答案，而是先把这份感觉留下来。'),
-    advice: normalizeParagraph(payload.advice, '① 先写下最清晰的一幕。\n\n② 再写醒来后残留最久的感受。\n\n③ 明天回来看一遍，你会更容易看见它真正指向什么。'),
+    psychology: normalizeParagraph(payload.psychology, '这场梦里最反复的画面、声音和动作，往往比结论更接近你当下真正卡住或在意的位置。'),
+    unconscious: normalizeParagraph(payload.unconscious, '① 先看梦里反复出现的画面。\n\n② 再看你在梦里是靠近、停下，还是绕开它。\n\n③ 这些动作通常比抽象结论更接近这场梦真正的重心。'),
+    advice: normalizeParagraph(payload.advice, '① 先写下梦里最清楚的一幕。\n\n② 再补一句醒来后残留最久的感受。\n\n③ 只记录具体细节，先不要急着替它下结论。'),
     interpretation: {
-      lead: normalizeParagraph(interpretation.lead, '这场梦在说，有一部分新的感受已经开始靠近你，只是你还没有完全走进去。'),
-      overview: normalizeParagraph(interpretation.overview, '原文里的意象不是单独出现的，它们在一起构成了一条更清楚的内在线索。'),
-      emotion: normalizeParagraph(interpretation.emotion, '这场梦的情绪能量不是单一的，它更像几种感受同时在拉住你。'),
+      lead: normalizeParagraph(interpretation.lead, '这场梦把最关键的画面放在你面前，让你看见自己正在靠近什么，又为什么会停一下。'),
+      overview: normalizeParagraph(interpretation.overview, '梦里的画面不是分开的：场景、声音和动作连在一起，才能看出它真正聚焦的心理位置。'),
+      emotion: normalizeParagraph(interpretation.emotion, '这场梦里的情绪不是单一的，它通常会跟着画面和动作一起变化。'),
       emotionComposition: normalizeEmotionComposition(interpretation.emotionComposition, emotions),
-      unconscious: normalizeParagraph(interpretation.unconscious, '潜意识真正想传达的，不只是一个结论，而是你已经感觉到某个方向正在浮现。')
+      unconscious: normalizeParagraph(interpretation.unconscious, '梦里最反复的细节，通常不是为了给出漂亮结论，而是为了把真正重要的那一点留在你面前。')
     },
     actionGuidance: {
-      actionCue: normalizeString(actionGuidance.actionCue, '先写下一句醒来后最不想轻轻带过的话。'),
-      actionBody: normalizeParagraph(actionGuidance.actionBody, '今晚先把最清楚的一幕和醒来后的那份感觉写下来，不需要完整，只要足够真实。'),
-      directionCue: normalizeString(actionGuidance.directionCue, '接下来，继续留意那些反复出现却还没被认真回应的感觉。'),
-      directionBody: normalizeParagraph(actionGuidance.directionBody, '梦里的线索通常会在现实里继续出现。你不需要马上解释完，只需要开始留意它对应着什么。')
+      actionCue: normalizeString(actionGuidance.actionCue, '先记下梦里最具体的一个细节。'),
+      actionBody: normalizeParagraph(actionGuidance.actionBody, '先把那一幕写下来：它发生在哪里，里面有什么声音、光线、动作，醒来后你身体里还留着什么感觉。'),
+      directionCue: normalizeString(actionGuidance.directionCue, '接下来，继续留意梦里那个最反复的意象。'),
+      directionBody: normalizeParagraph(actionGuidance.directionBody, '先不要急着把它解释成某种大道理。只要观察它在现实里会不会以相似的情绪、场景或动作再次出现。')
     }
   };
 }
@@ -341,7 +347,7 @@ module.exports = async (req, res) => {
       },
       body: JSON.stringify({
         model: DEEPSEEK_MODEL,
-        temperature: 0.7,
+        temperature: 0.45,
         max_tokens: 1800,
         response_format: { type: 'json_object' },
         messages: buildMessages(normalizedDreamText, scaffold)
