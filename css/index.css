@@ -543,8 +543,11 @@
 }
 .idx-footerband__cols {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: clamp(40px, 5vw, 88px);
+  width: min(100%, 760px);
+  justify-self: end;
+  grid-template-columns: repeat(3, max-content);
+  justify-content: space-between;
+  gap: clamp(28px, 3.4vw, 56px);
   align-items: start;
 }
 .idx-footerband__col h3 {
