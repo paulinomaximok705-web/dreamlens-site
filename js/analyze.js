@@ -9,6 +9,7 @@
 const INLINE_EXAMPLE_DREAM = `我梦见自己走进一片发光的森林，树叶像玻璃一样轻轻作响。远处有一扇半开的门，门后不断传来海浪声。我想靠近，却总感觉脚下的地面在缓慢下沉。醒来时我没有特别害怕，反而有一种奇怪的平静和迟疑。`;
 const ANALYZE_API_ENDPOINT = window.DREAMLENS_ANALYZE_API || '/api/analyze';
 const ANALYZE_API_ENDPOINT_FALLBACK = window.DREAMLENS_ANALYZE_API_FALLBACK || '';
+const ANALYZE_REMOTE_TIMEOUT_MS = 12000;
 
 /* ============================================================
    象征词库：从梦境文本中识别意象并生成解读
@@ -348,11 +349,18 @@ function mergeAnalyzeResult(localResult, remoteResult) {
 }
 
 async function requestDreamAnalysisFromEndpoint(endpoint, rawText, scaffold) {
-    const response = await fetch(endpoint, {
+    const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const timeoutId = controller
+        ? setTimeout(() => controller.abort(new DOMException('Analyze timeout', 'AbortError')), ANALYZE_REMOTE_TIMEOUT_MS)
+        : null;
+
+    try {
+        const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
         },
+        signal: controller?.signal,
         body: JSON.stringify({
             dreamText: rawText,
             scaffold: {
@@ -363,9 +371,17 @@ async function requestDreamAnalysisFromEndpoint(endpoint, rawText, scaffold) {
                 emotions: scaffold.emotions
             }
         })
-    });
+        });
 
-    return parseAnalyzeApiResponse(response);
+        return parseAnalyzeApiResponse(response);
+    } catch (error) {
+        if (error?.name === 'AbortError') {
+            throw new Error('Dream analysis timed out');
+        }
+        throw error;
+    } finally {
+        if (timeoutId) clearTimeout(timeoutId);
+    }
 }
 
 async function requestDreamAnalysis(rawText, scaffold) {
@@ -413,6 +429,10 @@ function normalizeAnalyzeErrorMessage(error) {
 
     if (message.includes('Failed to fetch') || message.includes('NetworkError')) {
         return '当前无法连接到梦境解析服务，请稍后再试。';
+    }
+
+    if (message.includes('timed out') || message.includes('timeout')) {
+        return '这次深度解析等待太久，已先为你展示基础解析结果。';
     }
 
     if (message.includes('invalid') || message.includes('JSON')) {
@@ -703,20 +723,15 @@ function startLoadingPhaseSequence(onComplete) {
     syncLoadingPhase(current);
 
     loadingPhaseInterval = setInterval(() => {
-        current += 1;
-
-        if (current < LOADING_PHASE_IDS.length) {
+        if (current < LOADING_PHASE_IDS.length - 1) {
+            current += 1;
             syncLoadingPhase(current);
-            return;
         }
+    }, 760);
 
-        clearInterval(loadingPhaseInterval);
-        loadingPhaseInterval = null;
-        loadingPhaseFinishTimer = setTimeout(() => {
-            loadingPhaseFinishTimer = null;
-            Promise.resolve(onComplete()).catch(handleAnalyzeFailure);
-        }, 900);
-        }, 1650);
+    Promise.resolve()
+        .then(onComplete)
+        .catch(handleAnalyzeFailure);
 }
 
 function splitReadableSentences(text) {
@@ -1750,7 +1765,7 @@ function startAnalysis() {
         if (resultSection)  resultSection.style.display  = 'none';
         if (inputSection)   inputSection.classList.remove('az-input-card--transitioning');
         startLoadingPhaseSequence(showResult);
-    }, 680);
+    }, 220);
 }
 
 /* ============================================================

@@ -348,7 +348,7 @@ module.exports = async (req, res) => {
       body: JSON.stringify({
         model: DEEPSEEK_MODEL,
         temperature: 0.45,
-        max_tokens: 1800,
+        max_tokens: 1200,
         response_format: { type: 'json_object' },
         messages: buildMessages(normalizedDreamText, scaffold)
       })
