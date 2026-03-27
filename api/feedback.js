@@ -1,7 +1,10 @@
 const fs = require('fs/promises');
 const path = require('path');
 
-const STORE_PATH = path.join(process.cwd(), 'data', 'feedback.json');
+const SEED_STORE_PATH = path.join(process.cwd(), 'data', 'feedback.json');
+const STORE_PATH = process.env.DREAMLENS_FEEDBACK_STORE_PATH
+  ? path.resolve(process.env.DREAMLENS_FEEDBACK_STORE_PATH)
+  : path.join('/tmp', 'dreamlens-feedback.json');
 const MAX_FEEDBACK_LENGTH = 500;
 const MAX_COMMENT_LENGTH = 240;
 const MAX_NICKNAME_LENGTH = 24;
@@ -40,7 +43,19 @@ async function ensureStore() {
   try {
     await fs.access(STORE_PATH);
   } catch (_) {
-    await fs.writeFile(STORE_PATH, JSON.stringify({ feedbacks: [] }, null, 2), 'utf8');
+    let initialStore = { feedbacks: [] };
+
+    try {
+      const seedRaw = await fs.readFile(SEED_STORE_PATH, 'utf8');
+      const seedParsed = JSON.parse(seedRaw || '{"feedbacks":[]}');
+      if (Array.isArray(seedParsed.feedbacks)) {
+        initialStore = { feedbacks: seedParsed.feedbacks };
+      }
+    } catch (_) {
+      initialStore = { feedbacks: [] };
+    }
+
+    await fs.writeFile(STORE_PATH, JSON.stringify(initialStore, null, 2), 'utf8');
   }
 }
 
@@ -57,6 +72,21 @@ async function readStore() {
 async function writeStore(data) {
   await ensureStore();
   await fs.writeFile(STORE_PATH, JSON.stringify(data, null, 2), 'utf8');
+}
+
+function toPublicError(error, fallbackMessage) {
+  const code = String(error?.code || '').toUpperCase();
+  const message = String(error?.message || '');
+
+  if (code === 'EROFS' || code === 'EACCES' || code === 'EPERM') {
+    return '反馈服务暂时无法写入数据，请稍后再试。';
+  }
+
+  if (/read-only file system/i.test(message)) {
+    return '反馈服务暂时无法写入数据，请稍后再试。';
+  }
+
+  return fallbackMessage;
 }
 
 async function parseBody(req) {
@@ -96,7 +126,7 @@ module.exports = async (req, res) => {
       const store = await readStore();
       json(res, 200, { feedbacks: sortFeedbacks(store.feedbacks) });
     } catch (error) {
-      json(res, 500, { error: error.message || '读取反馈失败' });
+      json(res, 500, { error: toPublicError(error, '读取反馈失败，请稍后再试。') });
     }
     return;
   }
@@ -172,6 +202,6 @@ module.exports = async (req, res) => {
 
     json(res, 400, { error: '未知的请求类型' });
   } catch (error) {
-    json(res, 500, { error: error.message || '反馈请求失败' });
+    json(res, 500, { error: toPublicError(error, '反馈请求失败，请稍后再试。') });
   }
 };

@@ -94,6 +94,24 @@
     return error;
   }
 
+  function humanizeFeedbackError(error, fallbackMessage) {
+    const raw = String(error?.message || '');
+
+    if (!raw) {
+      return fallbackMessage;
+    }
+
+    if (/EROFS|EACCES|EPERM|read-only file system/i.test(raw)) {
+      return '反馈服务暂时不可写入，请稍后再试。';
+    }
+
+    if (/当前反馈接口尚未接通|API_UNAVAILABLE/i.test(raw)) {
+      return '公开反馈服务暂时不可用，请稍后再试。';
+    }
+
+    return raw;
+  }
+
   function shouldFallback(error) {
     return Boolean(error && error.code === 'API_UNAVAILABLE');
   }
@@ -406,7 +424,7 @@
       await fetchFeedbacks();
       window.showToast?.('反馈已公开留下，谢谢你一起把 DreamLens 打磨得更好。');
     } catch (error) {
-      window.showToast?.(error.message || '发布反馈失败，请稍后再试。');
+      window.showToast?.(humanizeFeedbackError(error, '发布反馈失败，请稍后再试。'));
     } finally {
       submitButton.disabled = false;
     }
@@ -452,7 +470,7 @@
       await fetchFeedbacks();
       window.showToast?.('这句回声已经留在这里了。');
     } catch (error) {
-      window.showToast?.(error.message || '发布评论失败，请稍后再试。');
+      window.showToast?.(humanizeFeedbackError(error, '发布评论失败，请稍后再试。'));
     } finally {
       submitButton.disabled = false;
     }
@@ -466,7 +484,7 @@
       if (feedbackEmptyEl) {
         feedbackEmptyEl.style.display = 'block';
       }
-      window.showToast?.(error.message || '公开反馈暂时不可用，请稍后再试。');
+      window.showToast?.(humanizeFeedbackError(error, '公开反馈暂时不可用，请稍后再试。'));
     });
   });
 })();
