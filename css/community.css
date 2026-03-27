@@ -735,7 +735,6 @@ body.community-ui-open {
 
 .community-post__footer--compact {
   padding: 14px 16px 16px;
-  border-top: 1px solid rgba(255,255,255,0.04);
 }
 
 .community-post__stats {
