@@ -110,6 +110,9 @@
   --ds-sub-text-soft:   var(--ds-t3);
   --ds-sub-text-muted:  var(--ds-t4);
   --ds-footer-text-home: #7f89ad;
+  --ds-home-nav-font-size: 0.76rem;
+  --ds-home-nav-line-height: 1;
+  --ds-home-nav-font-weight: 400;
 }
 
 /* ─── 2. Base Reset ────────────────────────────────────────────── */

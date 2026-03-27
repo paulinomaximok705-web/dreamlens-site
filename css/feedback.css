@@ -6,6 +6,12 @@
   z-index: 1;
 }
 
+.ds-nav #navLinks .ds-nav__link {
+  font-size: var(--ds-home-nav-font-size);
+  line-height: var(--ds-home-nav-line-height);
+  font-weight: var(--ds-home-nav-font-weight);
+}
+
 .feedback-home::before {
   content: '';
   position: absolute;

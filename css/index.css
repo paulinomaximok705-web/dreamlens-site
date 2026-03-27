@@ -689,7 +689,9 @@
 .ds-nav__link {
   width: 100%;
   text-align: center;
-  font-size: 0.76rem;
+  font-size: var(--ds-home-nav-font-size);
+  line-height: var(--ds-home-nav-line-height);
+  font-weight: var(--ds-home-nav-font-weight);
   padding: 7px 8px;
 }
 .ds-nav__link--ghost {
