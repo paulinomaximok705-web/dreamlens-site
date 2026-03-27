@@ -342,6 +342,27 @@
     return `--art-gradient:${getThemeByName(theme).gradient};`;
   }
 
+  function getPrimaryArt(arts) {
+    if (Array.isArray(arts) && arts.length) return arts[0];
+    return { kind: 'theme', theme: 'forest' };
+  }
+
+  function buildFeedArtMarkup(arts) {
+    const art = getPrimaryArt(arts);
+
+    if (art.kind === 'image' && art.src) {
+      return `
+        <div class="community-art-card community-art-card--cover">
+          <img src="${escapeHtml(art.src)}" alt="AI 生成的梦境艺术">
+        </div>
+      `;
+    }
+
+    return `
+      <div class="community-art-card community-art-card--cover" style="${getThemeStyle(art.theme)}"></div>
+    `;
+  }
+
   function buildArtMarkup(arts) {
     const list = Array.isArray(arts) ? arts : [];
     const gridClass = list.length > 1 ? 'community-post__art-grid is-double' : 'community-post__art-grid';
@@ -377,6 +398,13 @@
     return tags.map((tag) => `<span class="${className}">#${escapeHtml(tag)}</span>`).join('');
   }
 
+  function buildCompactTagMarkup(tags, className, limit = 2) {
+    return (Array.isArray(tags) ? tags : [])
+      .slice(0, limit)
+      .map((tag) => `<span class="${className}">#${escapeHtml(tag)}</span>`)
+      .join('');
+  }
+
   function excerptText(text, max = 98) {
     const normalized = String(text || '').replace(/\s+/g, ' ').trim();
     if (normalized.length <= max) return normalized;
@@ -384,32 +412,32 @@
   }
 
   function buildPostCard(post) {
+    const compactTags = buildCompactTagMarkup(post.tags, 'community-post__micro-tag');
+
     return `
-      <article class="community-post community-post--${escapeHtml(post.size)}" data-post-id="${escapeHtml(post.id)}">
-        <div class="community-post__header">
-          <div class="community-post__author">
-            <div class="community-post__avatar">${escapeHtml(getInitial(post.authorName))}</div>
-            <div class="community-post__author-copy">
-              <strong>${escapeHtml(post.authorName)}</strong>
-              <span>发布了一场梦</span>
-            </div>
-          </div>
-          <div class="community-post__meta">${escapeHtml(formatRelativeTime(post.createdAt))}</div>
-        </div>
-
+      <article class="community-post" data-post-id="${escapeHtml(post.id)}">
         <div class="community-post__media">
-          ${buildArtMarkup(post.arts)}
+          ${buildFeedArtMarkup(post.arts)}
         </div>
 
-        <div class="community-post__body">
+        <div class="community-post__body community-post__body--compact">
           <h3 class="community-post__title">${escapeHtml(post.title)}</h3>
           <p class="community-post__excerpt">${escapeHtml(excerptText(post.body))}</p>
-          <div class="community-post__tags">${buildTagMarkup(post.tags, 'community-post__tag')}</div>
+          ${compactTags ? `<div class="community-post__micro-tags">${compactTags}</div>` : ''}
+
+          <div class="community-post__author-row">
+            <div class="community-post__author">
+              <div class="community-post__avatar">${escapeHtml(getInitial(post.authorName))}</div>
+              <div class="community-post__author-copy">
+                <strong>${escapeHtml(post.authorName)}</strong>
+                <span>${escapeHtml(formatRelativeTime(post.createdAt))}</span>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div class="community-post__footer">
-          <div class="community-post__stats">${escapeHtml(formatCount(post.comments.length))} 条评论</div>
-          <div class="community-post__actions">
+        <div class="community-post__footer community-post__footer--compact">
+          <div class="community-post__actions community-post__actions--compact">
             <button type="button" class="community-post__action ${post.liked ? 'is-active' : ''}" data-action="like" data-post-id="${escapeHtml(post.id)}">
               <i class="fas fa-heart"></i>
               <span>${escapeHtml(formatCount(post.likes))}</span>
