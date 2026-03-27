@@ -69,7 +69,6 @@ body.community-ui-open {
   z-index: -1;
 }
 
-.community-toolbar,
 .community-feed-shell,
 .community-closing,
 .community-post,
@@ -321,7 +320,6 @@ body.community-ui-open {
   }
 }
 
-.community-toolbar__eyebrow,
 .community-feed-shell__eyebrow,
 .community-compose__eyebrow,
 .community-closing__eyebrow {
@@ -333,7 +331,6 @@ body.community-ui-open {
   text-transform: uppercase;
 }
 
-.community-toolbar__head h2,
 .community-feed-shell__head h2,
 .community-closing h2,
 .community-compose__header h3 {
@@ -343,7 +340,6 @@ body.community-ui-open {
   font-weight: 600;
 }
 
-.community-toolbar__head h2,
 .community-feed-shell__head h2 {
   font-size: clamp(1.38rem, 2.4vw, 1.92rem);
   line-height: 1.42;
@@ -357,7 +353,6 @@ body.community-ui-open {
   line-height: 1.88;
 }
 
-.community-tag-rail,
 .community-post__tags,
 .community-detail__tags,
 .community-compose__tags {
@@ -366,84 +361,41 @@ body.community-ui-open {
   gap: 8px;
 }
 
-.community-toolbar {
-  margin-top: 24px;
-  padding: 24px 28px 22px;
-  border-radius: 28px;
-  background:
-    linear-gradient(180deg, rgba(12, 11, 29, 0.92) 0%, rgba(9, 8, 23, 0.82) 100%);
+.community-section-divider {
+  position: relative;
+  margin-top: 8px;
+  padding: 10px 0 8px;
 }
 
-.community-toolbar__head {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(260px, 340px);
-  gap: 22px;
-  align-items: end;
+.community-section-divider__line {
+  position: relative;
+  width: min(1100px, calc(100% - 28px));
+  height: 1px;
+  margin: 0 auto;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(174, 163, 230, 0.04) 14%,
+    rgba(198, 188, 246, 0.24) 50%,
+    rgba(174, 163, 230, 0.04) 86%,
+    transparent 100%
+  );
+  box-shadow:
+    0 0 10px rgba(160, 142, 235, 0.08),
+    0 0 22px rgba(160, 142, 235, 0.03);
 }
 
-.community-toolbar__head p {
-  color: rgba(205, 198, 228, 0.62);
-  font-size: 0.9rem;
-  line-height: 1.84;
-}
-
-.community-toolbar__row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  margin-top: 18px;
-}
-
-.community-sort {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.community-sort__tab,
-.community-tag-rail__item {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 38px;
-  padding: 0 14px;
-  border-radius: 999px;
-  border: 1px solid rgba(255,255,255,0.05);
-  background: rgba(255,255,255,0.028);
-  color: rgba(220, 214, 243, 0.7);
-  font-size: 0.8rem;
-  transition:
-    transform 0.3s ease,
-    border-color 0.3s ease,
-    background 0.3s ease,
-    color 0.3s ease;
-}
-
-.community-sort__tab:hover,
-.community-tag-rail__item:hover {
-  transform: translateY(-1px);
-  border-color: rgba(210, 199, 255, 0.12);
-  color: rgba(248, 244, 255, 0.92);
-}
-
-.community-sort__tab.is-active,
-.community-tag-rail__item.is-active {
-  background:
-    linear-gradient(180deg, rgba(51, 43, 102, 0.94) 0%, rgba(28, 23, 58, 0.94) 100%);
-  border-color: rgba(221, 214, 255, 0.11);
-  color: rgba(249, 246, 255, 0.96);
-  box-shadow: 0 14px 30px rgba(17, 12, 39, 0.18);
-}
-
-.community-tag-rail {
-  margin-top: 18px;
-}
-
-.community-tag-rail__item small {
-  margin-left: 6px;
-  color: rgba(191, 184, 217, 0.56);
-  font-size: 0.72rem;
+.community-section-divider__line::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: min(360px, 42vw);
+  height: 16px;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle, rgba(173, 158, 239, 0.18) 0%, rgba(173, 158, 239, 0.04) 44%, transparent 76%);
+  filter: blur(10px);
+  pointer-events: none;
 }
 
 .community-feed-shell {
@@ -1225,7 +1177,6 @@ body.community-ui-open {
 }
 
 @media (max-width: 960px) {
-  .community-toolbar__head,
   .community-feed-shell__head,
   .community-closing {
     grid-template-columns: 1fr;
@@ -1237,7 +1188,6 @@ body.community-ui-open {
     padding: 0 16px 100px;
   }
 
-  .community-toolbar,
   .community-feed-shell,
   .community-closing {
     border-radius: 24px;
@@ -1245,6 +1195,15 @@ body.community-ui-open {
 
   .community-hero {
     padding: calc(var(--ds-nav-h, 72px) + 10px) 0 10px;
+  }
+
+  .community-section-divider {
+    margin-top: 2px;
+    padding: 8px 0 6px;
+  }
+
+  .community-section-divider__line {
+    width: min(100%, calc(100% - 20px));
   }
 
   .community-feed-shell__head p,
@@ -1286,13 +1245,11 @@ body.community-ui-open {
     min-width: 0;
   }
 
-  .community-toolbar,
   .community-feed-shell,
   .community-closing {
     padding: 20px;
   }
 
-  .community-toolbar__row,
   .community-post__header,
   .community-post__footer,
   .community-detail-post__header {
@@ -1301,22 +1258,9 @@ body.community-ui-open {
     align-items: flex-start;
   }
 
-  .community-toolbar__publish,
   .community-closing__button,
   .community-detail__comment-submit {
     width: 100%;
-  }
-
-  .community-toolbar__row {
-    gap: 12px;
-  }
-
-  .community-sort,
-  .community-tag-rail {
-    width: 100%;
-    overflow-x: auto;
-    flex-wrap: nowrap;
-    padding-bottom: 4px;
   }
 
   .community-feed {
