@@ -369,7 +369,7 @@ body.community-ui-open {
 
 .community-section-divider__line {
   position: relative;
-  width: min(1100px, calc(100% - 28px));
+  width: calc(100% - 2px);
   height: 1px;
   margin: 0 auto;
   background: linear-gradient(
@@ -1203,7 +1203,7 @@ body.community-ui-open {
   }
 
   .community-section-divider__line {
-    width: min(100%, calc(100% - 20px));
+    width: calc(100% - 2px);
   }
 
   .community-feed-shell__head p,
