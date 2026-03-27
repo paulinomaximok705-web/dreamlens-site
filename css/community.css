@@ -329,24 +329,11 @@ body.community-ui-open {
   text-transform: uppercase;
 }
 
-.community-feed-shell__head h2,
 .community-compose__header h3 {
   margin: 10px 0 0;
   color: rgba(246, 243, 255, 0.94);
   font-family: var(--ds-font-display);
   font-weight: 600;
-}
-
-.community-feed-shell__head h2 {
-  font-size: clamp(1.38rem, 2.4vw, 1.92rem);
-  line-height: 1.42;
-}
-
-.community-feed-shell__head p {
-  margin: 12px 0 0;
-  color: rgba(206, 199, 232, 0.66);
-  font-size: 0.92rem;
-  line-height: 1.88;
 }
 
 .community-post__tags,
@@ -400,14 +387,6 @@ body.community-ui-open {
   border-radius: 30px;
   background:
     linear-gradient(180deg, rgba(12, 11, 29, 0.92) 0%, rgba(9, 8, 23, 0.82) 100%);
-}
-
-.community-feed-shell__head {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(260px, 340px);
-  gap: 24px;
-  align-items: end;
-  margin-bottom: 22px;
 }
 
 .community-feed {
@@ -1195,12 +1174,6 @@ body.community-ui-open {
   }
 }
 
-@media (max-width: 960px) {
-  .community-feed-shell__head {
-    grid-template-columns: 1fr;
-  }
-}
-
 @media (max-width: 768px) {
   .community-home {
     padding: 0 16px 100px;
@@ -1221,11 +1194,6 @@ body.community-ui-open {
 
   .community-section-divider__line {
     width: calc(100% - 2px);
-  }
-
-  .community-feed-shell__head p {
-    font-size: 0.9rem;
-    line-height: 1.82;
   }
 
   .community-search {
