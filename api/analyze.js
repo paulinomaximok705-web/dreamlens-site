@@ -252,6 +252,12 @@ function summarizeDebugContent(content) {
     .slice(0, 220);
 }
 
+function summarizeDebugTail(content) {
+  return normalizeString(content)
+    .replace(/\s+/g, ' ')
+    .slice(-120);
+}
+
 const FRAMEWORK_MARKERS = [
   '荣格', '周公', '东方', '阴阳', '五行', '阈限', '阴影', '自性', '人格面具', '阿尼玛', '阿尼姆斯', '家宅', '门槛', '山水'
 ];
@@ -650,7 +656,8 @@ async function requestDeepSeek(apiKey, messages, options = {}) {
       const result = {
         response,
         data,
-        content: data?.choices?.[0]?.message?.content || ''
+        content: data?.choices?.[0]?.message?.content || '',
+        finishReason: normalizeString(data?.choices?.[0]?.finish_reason)
       };
 
       if (response.ok || attempt === attempts - 1 || ![408, 409, 429, 500, 502, 503, 504].includes(response.status)) {
@@ -779,7 +786,10 @@ module.exports = async (req, res) => {
         step: 'primary',
         status: primary.response.status,
         parsed: !!payload,
-        contentPreview: payload ? '' : summarizeDebugContent(primaryContent)
+        finishReason: primary.finishReason,
+        contentLength: primaryContent.length,
+        contentPreview: payload ? '' : summarizeDebugContent(primaryContent),
+        contentTail: payload ? '' : summarizeDebugTail(primaryContent)
       });
     }
 
@@ -800,7 +810,10 @@ module.exports = async (req, res) => {
           step: 'recovery',
           status: recovery.response.status,
           parsed: !!payload,
-          contentPreview: payload ? '' : summarizeDebugContent(recoveryContent)
+          finishReason: recovery.finishReason,
+          contentLength: recoveryContent.length,
+          contentPreview: payload ? '' : summarizeDebugContent(recoveryContent),
+          contentTail: payload ? '' : summarizeDebugTail(recoveryContent)
         });
       }
     }
