@@ -9,8 +9,7 @@
 const INLINE_EXAMPLE_DREAM = `我梦见自己走进一片发光的森林，树叶像玻璃一样轻轻作响。远处有一扇半开的门，门后不断传来海浪声。我想靠近，却总感觉脚下的地面在缓慢下沉。醒来时我没有特别害怕，反而有一种奇怪的平静和迟疑。`;
 const ANALYZE_API_ENDPOINT = window.DREAMLENS_ANALYZE_API || '/api/analyze';
 const ANALYZE_API_ENDPOINT_FALLBACK = window.DREAMLENS_ANALYZE_API_FALLBACK || '';
-const ANALYZE_REMOTE_SOFT_TIMEOUT_MS = 9000;
-const ANALYZE_REMOTE_HARD_TIMEOUT_MS = 65000;
+const ANALYZE_REMOTE_HARD_TIMEOUT_MS = 95000;
 
 /* ============================================================
    象征词库：从梦境文本中识别意象并生成解读
@@ -424,47 +423,14 @@ async function requestDreamAnalysis(rawText, scaffold, options = {}) {
     throw lastError || new Error('DeepSeek 梦境解析暂时不可用');
 }
 
-function delayResolve(ms, value) {
-    return new Promise((resolve) => {
-        setTimeout(() => resolve(value), ms);
-    });
-}
-
-async function analyzeUserDream(rawText, options = {}) {
-    const { onBackgroundUpgrade } = options;
+async function analyzeUserDream(rawText) {
     const scaffold = analyzeUserDreamLocal(rawText);
-    const remotePromise = requestDreamAnalysis(rawText, scaffold, {
-        timeoutMs: ANALYZE_REMOTE_HARD_TIMEOUT_MS
-    });
 
     try {
-        const settled = await Promise.race([
-            remotePromise.then((remoteResult) => ({ kind: 'remote', remoteResult })),
-            delayResolve(ANALYZE_REMOTE_SOFT_TIMEOUT_MS, { kind: 'local-preview' })
-        ]);
-
-        if (settled.kind === 'remote') {
-            return mergeAnalyzeResult(scaffold, settled.remoteResult);
-        }
-
-        if (typeof onBackgroundUpgrade === 'function') {
-            remotePromise
-                .then((remoteResult) => {
-                    onBackgroundUpgrade(mergeAnalyzeResult(scaffold, remoteResult));
-                })
-                .catch((error) => {
-                    console.warn('[DreamLens analyze] background deep analysis unavailable', error);
-                });
-        }
-
-        return {
-            ...scaffold,
-            source: 'local-preview',
-            provider: 'local',
-            _usedFallback: true,
-            _isBackgroundUpgradePending: true,
-            _fallbackMessage: '基础解析已先展示，深度解析继续生成中。'
-        };
+        const remoteResult = await requestDreamAnalysis(rawText, scaffold, {
+            timeoutMs: ANALYZE_REMOTE_HARD_TIMEOUT_MS
+        });
+        return mergeAnalyzeResult(scaffold, remoteResult);
     } catch (error) {
         console.warn('[DreamLens analyze] remote analysis unavailable, using local fallback', error);
         return {
@@ -1833,23 +1799,7 @@ function startAnalysis() {
 async function showResult() {
     const input = getUnifiedDreamInput();
     const requestId = ++activeAnalyzeRequestId;
-
-    const result = await analyzeUserDream(input, {
-        onBackgroundUpgrade(remoteResult) {
-            if (requestId !== activeAnalyzeRequestId) return;
-            if (getUnifiedDreamInput() !== input) return;
-
-            renderAnalysisResult(input, remoteResult, {
-                scroll: false,
-                persist: true,
-                refreshArt: false
-            });
-
-            if (typeof showToast === 'function') {
-                showToast('深度解析已生成，结果已自动更新。');
-            }
-        }
-    });
+    const result = await analyzeUserDream(input);
 
     if (requestId !== activeAnalyzeRequestId) return;
     renderAnalysisResult(input, result);
@@ -1930,7 +1880,7 @@ function renderAnalysisResult(input, result, options = {}) {
     updateAnalyzeRouteState({ view: 'result' }, { replace: true });
 
     // 保存到本地：只在真实解析完成时写入，避免刷新结果页重复落库
-    if (persist && result?.source !== 'local-preview') {
+    if (persist) {
         saveDreamToLocalStorage(input, result);
     }
 
