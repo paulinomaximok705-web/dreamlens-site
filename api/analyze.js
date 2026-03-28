@@ -1,8 +1,8 @@
 const DEEPSEEK_BASE_URL = (process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com').replace(/\/$/, '');
 const DEEPSEEK_MODEL = process.env.DEEPSEEK_MODEL || 'deepseek-chat';
-const DEEPSEEK_PRIMARY_MAX_TOKENS = Math.max(1100, Number.parseInt(process.env.DEEPSEEK_ANALYZE_MAX_TOKENS || '1100', 10) || 1100);
-const DEEPSEEK_RECOVERY_MAX_TOKENS = Math.max(900, Number.parseInt(process.env.DEEPSEEK_ANALYZE_RECOVERY_MAX_TOKENS || '900', 10) || 900);
-const DEEPSEEK_REFINEMENT_MAX_TOKENS = Number.parseInt(process.env.DEEPSEEK_ANALYZE_REFINEMENT_MAX_TOKENS || '720', 10);
+const DEEPSEEK_PRIMARY_MAX_TOKENS = Math.max(1300, Number.parseInt(process.env.DEEPSEEK_ANALYZE_MAX_TOKENS || '1300', 10) || 1300);
+const DEEPSEEK_RECOVERY_MAX_TOKENS = Math.max(1050, Number.parseInt(process.env.DEEPSEEK_ANALYZE_RECOVERY_MAX_TOKENS || '1050', 10) || 1050);
+const DEEPSEEK_REFINEMENT_MAX_TOKENS = Math.max(950, Number.parseInt(process.env.DEEPSEEK_ANALYZE_REFINEMENT_MAX_TOKENS || '950', 10) || 950);
 const DEEPSEEK_REPAIR_MAX_TOKENS = Number.parseInt(process.env.DEEPSEEK_ANALYZE_REPAIR_MAX_TOKENS || '520', 10);
 const DEEPSEEK_RESCUE_MAX_TOKENS = Number.parseInt(process.env.DEEPSEEK_ANALYZE_RESCUE_MAX_TOKENS || '560', 10);
 
@@ -107,9 +107,13 @@ function normalizeSymbols(value, fallback = DEFAULT_SYMBOLS) {
       .filter((item) => item.name && item.meaning)
     : [];
 
+  if (symbols.length >= 3) {
+    return symbols.slice(0, 4);
+  }
+
   const merged = [...symbols];
   for (const fallbackItem of fallback) {
-    if (merged.length >= 4) break;
+    if (merged.length >= 3) break;
     if (!merged.some((item) => item.name === fallbackItem.name)) {
       merged.push(fallbackItem);
     }
@@ -261,6 +265,9 @@ function summarizeDebugTail(content) {
 const FRAMEWORK_MARKERS = [
   '荣格', '周公', '东方', '阴阳', '五行', '阈限', '阴影', '自性', '人格面具', '阿尼玛', '阿尼姆斯', '家宅', '门槛', '山水'
 ];
+const REALITY_MARKERS = [
+  '工作', '关系', '家庭', '亲密', '沟通', '表达', '边界', '稳定', '责任', '告别', '决定', '现实', '生活', '压力', '角色', '拉扯', '靠近', '退缩'
+];
 
 const ANALYSIS_SYSTEM_RULES = [
   '你是 DreamLens 的梦境解析助手，需要基于用户原文输出结果页直接可用的结构化 JSON。',
@@ -273,12 +280,14 @@ const ANALYSIS_SYSTEM_RULES = [
   '引用荣格时，优先使用有原文支撑的具体概念，例如阴影、阈限、人格面具、阿尼玛/阿尼姆斯、自性、个体化、自我与无意识的关系；不要空喊“潜意识”“原型”却不解释。',
   '引用东方象征时，可结合阴阳、五行、山水、家宅、门槛、桥路、方位、颜色、动物、月夜、水火等传统语义，但必须和梦里的实际细节一一对应。',
   '每个主要意象至少回答三件事：它在梦里是怎样出现的；它在某个文化/心理框架里意味着什么；把它放回这场梦，更像哪一种现实中的情绪冲突、关系压力或内在拉扯。',
+  '每个字段最后都尽量往现实生活落一步，例如工作沟通、亲密关系、家庭角色、边界拿捏、难以开口、害怕失去稳定、未完成的告别；不要只停在抽象象征。',
   '如果原文细节不足，不要硬凑三套理论；宁可只抓 1 到 2 个核心意象做扎实解释，也不要泛泛铺开。',
   '少用套话，避免反复出现“这场梦在说”“潜意识在提醒你”“某个方向正在浮现”“你需要学会”这类空泛句式。',
   '尽量少谈宽泛的人生成长、疗愈、自我觉察，除非它能被梦里的具体细节明确支撑。',
+  '联系现实处境时，不要做武断诊断；优先使用“更像你最近在……时的感受”“也可能对应你在……里的拉扯”这种贴近日常但保留余地的表达。',
   '每一段最好都能落回梦里的具体线索，例如门、森林、水声、楼梯、追逐、停下、回头、醒来后的残留感。',
   '强调梦境感、夜色感、潜意识线索，但表达必须清楚、克制、具体。',
-  '宁可短一些，也不要拖成长段套话；能用更少的话说清楚，就不要写长。',
+  '可以写得比之前更充分，但不要用空话灌水；长度增加必须带来更多细节、更多现实映射、更多画面对应。',
   '不要把任何参数、UI、按钮、模型信息写进输出。'
 ];
 
@@ -288,32 +297,33 @@ const ANALYSIS_USER_REQUIREMENTS = [
   '3. emotions 输出 4 项左右，百分比总和约为 100。',
   '4. interpretation.emotionComposition 需要输出 4 项左右，总和约为 100。',
   '5. 如果原文明显包含森林、门、海浪、下沉、平静与迟疑这些线索，请优先准确反映。',
-  '6. summary 必须直接点出梦里最关键的 1 到 2 个画面，以及这些画面之间最具体的心理张力。',
-  '7. symbols 至少覆盖 3 个关键意象，优先写最反复、最异常、最有情绪重量的意象。meaning 要具体写出它在东方象征、荣格或周公语义中的对应，不要只写“代表成长”“象征变化”这种空话。',
-  '8. psychology 尽量写成 3 段：第一段偏荣格心理学，第二段偏东方象征或周公传统，第三段把两者收束回做梦者当下的真实处境。每段都必须引用梦里细节，不要空谈理论。',
-  '9. unconscious / advice / interpretation.* 要尽量少套话，多落回梦里的具体意象、动作、情绪和关系位置。',
-  '10. actionGuidance 也要具体，不要写成空泛建议；优先给出能立即执行的小动作，例如记录哪个意象、回想哪一幕、补写哪种醒后感受。',
+  '6. summary 必须直接点出梦里最关键的 1 到 2 个画面，以及这些画面之间最具体的心理张力；结尾最好落回一个现实中的矛盾，例如想靠近又退缩、想表达又卡住、想稳定又怕失去。',
+  '7. symbols 至少覆盖 3 个关键意象，优先写最反复、最异常、最有情绪重量的意象。meaning 要具体写出它在东方象征、荣格或周公语义中的对应，并补一句它更像现实里的哪种压力、关系或情绪处境。',
+  '8. psychology 尽量写成 3 段：第一段偏荣格心理学，第二段偏东方象征或周公传统，第三段把两者收束回做梦者当下的真实处境。每段都必须引用梦里细节，不要空谈理论；第三段至少写出 1 到 2 个可能的生活场景。',
+  '9. unconscious / advice / interpretation.* 要尽量少套话，多落回梦里的具体意象、动作、情绪和关系位置；最好出现“这更像你最近在……”这一类现实映射。',
+  '10. actionGuidance 也要具体，不要写成空泛建议；优先给出能立即执行的小动作，例如记录哪个意象、回想哪一幕、补写哪种醒后感受，并说明它对现实中的哪类困扰有帮助。',
   '11. 如果用到传统解梦或原型概念，必须解释为什么它和这场梦有关，不能只报术语名称。',
-  '12. 整体文字预算要克制，优先把 summary、overview、advice 写短，不要为了完整性把每个字段都拉长。',
+  '12. 可以写得更充实，但不要重复同一句话；每一段增加的字数都应该换来新的梦境细节、理论对应或现实联系。',
   '13. 输出必须是纯 JSON，不要有任何额外文本。'
 ];
 
 const RECOVERY_SYSTEM_RULES = [
   '你是 DreamLens 的梦境解析助手。',
   '上一次输出没有成功解析，这一次请只返回合法 JSON，不要输出任何解释、Markdown、代码块或多余文字。',
-  '所有字段都可以写得更短、更直接，但必须完整。',
+  '所有字段都可以写得紧凑，但必须完整，而且要比基础解析更具体。',
   '优先根据梦里最明确的画面、动作、声音、空间关系和醒来后的感受来写，不要套话。',
   '仍然要融入荣格心理学、东方象征和周公解梦中的传统意象语义，但只能写和原文细节直接对应的部分。',
   '周公相关内容只作为传统文化象征参考，不要写宿命吉凶判断。',
-  '如果某个字段拿不准，就写得克制、简短，也不要离开梦本身。'
+  '每一段至少往现实生活落一步，例如工作、关系、家庭、表达、边界或稳定感，不要只停在概念层。',
+  '如果某个字段拿不准，就写得克制、具体，也不要离开梦本身。'
 ];
 
 const RECOVERY_USER_REQUIREMENTS = [
-  '1. summary 要直接点明最关键的梦中画面。',
-  '2. symbols 的 meaning 不要空泛，至少落到一个具体框架或具体心理冲突。',
-  '3. psychology 尽量覆盖荣格角度 + 东方/周公角度，并回到现实心理处境。',
-  '4. advice 只给具体可执行的小动作。',
-  '5. 所有字段写短一点也可以，但必须完整，尤其不要把 summary 和 interpretation 拉太长。',
+  '1. summary 要直接点明最关键的梦中画面，并补一句现实中的心理张力。',
+  '2. symbols 的 meaning 不要空泛，至少落到一个具体框架或具体心理冲突，并补一句现实映射。',
+  '3. psychology 尽量覆盖荣格角度 + 东方/周公角度，并明确回到现实心理处境。',
+  '4. advice 只给具体可执行的小动作，并写出它对应哪类现实困扰。',
+  '5. 可以比之前多一点内容，但必须完整，尤其不要把第三段现实映射写丢。',
   '6. 只返回 JSON。'
 ];
 
@@ -449,14 +459,45 @@ function countParagraphs(text) {
     .length;
 }
 
+function countRealityAnchors(payload = {}) {
+  const text = [
+    payload.summary,
+    payload.psychology,
+    payload.unconscious,
+    payload.advice,
+    payload?.interpretation?.overview,
+    payload?.interpretation?.unconscious,
+    payload?.actionGuidance?.actionBody,
+    payload?.actionGuidance?.directionBody
+  ]
+    .map((item) => normalizeString(item))
+    .join('\n');
+
+  if (!text) return 0;
+  return REALITY_MARKERS.filter((marker) => text.includes(marker)).length;
+}
+
+function averageSymbolMeaningLength(symbols) {
+  if (!Array.isArray(symbols) || !symbols.length) return 0;
+  const items = symbols
+    .slice(0, 3)
+    .map((item) => normalizeString(item?.meaning))
+    .filter(Boolean);
+  if (!items.length) return 0;
+  return items.reduce((sum, item) => sum + item.length, 0) / items.length;
+}
+
 function needsQualityRefinement(payload, dreamText) {
   if (!payload || typeof payload !== 'object') return false;
 
   const summaryTooClose = isSummaryTooCloseToDream(payload.summary, dreamText);
   const symbolSpecificityTooLow = countFrameworkBackedSymbols(payload.symbols) < 2;
-  const psychologyTooThin = countParagraphs(payload.psychology) < 3;
+  const symbolDetailTooThin = averageSymbolMeaningLength(payload.symbols) < 30;
+  const psychologyTooThin = countParagraphs(payload.psychology) < 3 || normalizeString(payload.psychology).length < 150;
+  const adviceTooThin = normalizeString(payload.advice).length < 90;
+  const realityTooWeak = countRealityAnchors(payload) < 2;
 
-  return summaryTooClose || symbolSpecificityTooLow || psychologyTooThin;
+  return summaryTooClose || symbolSpecificityTooLow || symbolDetailTooThin || psychologyTooThin || adviceTooThin || realityTooWeak;
 }
 
 function buildRefinementMessages(dreamText, scaffold = {}, payload = {}) {
@@ -469,6 +510,8 @@ function buildRefinementMessages(dreamText, scaffold = {}, payload = {}) {
         'summary 不能只是复述用户原梦，必须提炼梦里最关键的心理张力。',
         '前 3 个 symbols.meaning 至少有 2 个要明确写出荣格、东方象征或周公语义中的具体对应，并落回这场梦里的情绪、关系或行动冲突。',
         'psychology 请写成 3 段：第一段偏荣格，第二段偏东方象征/周公，第三段回到这位做梦者当下的具体处境。',
+        '每个重要字段都要更具体一些，尤其是 summary、symbols、advice、interpretation.overview，不能只写一层意思。',
+        '至少在 3 个字段里把梦里的意象落回现实生活，例如工作沟通、亲密关系、家庭角色、边界拿捏、难以开口、害怕失去稳定等。',
         '周公语义只能作为传统文化象征参考，不要写吉凶预言。',
         '不要空话，不要模板句，不要只说“象征变化”“代表成长”“提示你关注自己”。'
       ].join('\n')
@@ -491,10 +534,11 @@ function buildRefinementMessages(dreamText, scaffold = {}, payload = {}) {
         '1. 保持字段结构不变，仍然输出完整 JSON。',
         '2. title / theme / tags 可以微调，但不要脱离原梦。',
         '3. summary 必须是提炼，不是照抄。',
-        '4. symbols.meaning 要更具体，至少有两个写出明确框架及其在这场梦里的含义。',
-        '5. psychology 必须三段分明，并且每段都要引用原梦里的具体线索，例如场景、门槛、动物、水、追逐、停下、回头、醒后感受等对应部分。',
-        '6. unconscious / advice / interpretation.* 也要更贴近梦里的动作和情绪，不要空泛。',
-        '7. 只返回 JSON。'
+        '4. symbols.meaning 要更具体，至少有两个写出明确框架及其在这场梦里的含义，并补一句现实映射。',
+        '5. psychology 必须三段分明，并且每段都要引用原梦里的具体线索，例如场景、门槛、动物、水、追逐、停下、回头、醒后感受等对应部分；第三段要更明确联系现实生活。',
+        '6. unconscious / advice / interpretation.* 也要更贴近梦里的动作和情绪，不要空泛；尽量把现实中的关系、工作、家庭、表达或边界处境写出来。',
+        '7. 如果内容偏短，请在不灌水的前提下补足细节。',
+        '8. 只返回 JSON。'
       ].join('\n')
     }
   ];
@@ -513,26 +557,26 @@ function buildMessages(dreamText, scaffold = {}) {
     title: '梦境标题，2到12个字',
     theme: '只能是 water/chase/fall/fly/forest/house/death/light/general 之一',
     tags: ['3个简短中文标签'],
-    summary: '1段总结，40到68字',
-    symbols: [{ name: '意象名', meaning: '该意象的心理含义，18到34字，要点出具体框架或心理冲突' }],
+    summary: '1段总结，52到86字，要点出画面张力并带现实映射',
+    symbols: [{ name: '意象名', meaning: '该意象的心理含义，28到52字，要写框架对应，并补一句现实里的情绪或关系处境' }],
     emotions: [{ label: '宁静/焦虑/神秘/自由/迷惘/恐惧/好奇/压迫 之一', pct: 30 }],
-    psychology: '3段，整体96到156字，用\\n\\n分段',
-    unconscious: '3小段，用①②③开头，总体66到108字',
-    advice: '3小段，用①②③开头，总体66到108字',
+    psychology: '3段，整体156到252字，用\\n\\n分段，第三段必须具体联系现实生活',
+    unconscious: '3小段，用①②③开头，总体96到150字',
+    advice: '3小段，用①②③开头，总体96到150字，要写得更具体',
     interpretation: {
-      lead: '统一解读核心判断，16到28字',
-      overview: '统一解读补充正文，28到56字',
-      emotion: '情绪能量分析，32到60字',
+      lead: '统一解读核心判断，18到32字',
+      overview: '统一解读补充正文，42到82字，要落回现实张力',
+      emotion: '情绪能量分析，42到76字',
       emotionComposition: [
         { key: 'attraction/hesitation/calm/unease/pressure/vigilance/release/curiosity', label: '中文情绪名', pct: 30, tone: 'violet/slate/moon/ember/pearl/cyan' }
       ],
-      unconscious: '潜意识传达，32到60字'
+      unconscious: '潜意识传达，42到76字，要指出现实中的内在冲突'
     },
     actionGuidance: {
-      actionCue: '现在就能做的一句提示，12到20字',
-      actionBody: '具体的小动作，22到52字',
-      directionCue: '继续留意的一句提示，12到20字',
-      directionBody: '继续观察的方向，22到52字'
+      actionCue: '现在就能做的一句提示，12到22字',
+      actionBody: '具体的小动作，38到78字，要说明它对应哪类现实困扰',
+      directionCue: '继续留意的一句提示，12到22字',
+      directionBody: '继续观察的方向，38到78字，要说明它在现实里可能出现在哪里'
     }
   };
 
@@ -575,26 +619,26 @@ function buildRecoveryMessages(dreamText, scaffold = {}) {
     title: '梦境标题，2到10字',
     theme: 'water/chase/fall/fly/forest/house/death/light/general 之一',
     tags: ['3个简短中文标签'],
-    summary: '1段总结，36到60字',
-    symbols: [{ name: '意象名', meaning: '心理含义，18到30字，要带具体框架' }],
+    summary: '1段总结，46到72字，要点出画面张力并带现实映射',
+    symbols: [{ name: '意象名', meaning: '心理含义，24到42字，要带具体框架和现实映射' }],
     emotions: [{ label: '宁静/焦虑/神秘/自由/迷惘/恐惧/好奇/压迫 之一', pct: 30 }],
-    psychology: '3段，整体90到138字，用\\n\\n分段',
-    unconscious: '3小段，用①②③开头，总体60到96字',
-    advice: '3小段，用①②③开头，总体60到96字',
+    psychology: '3段，整体132到210字，用\\n\\n分段，第三段必须具体联系现实生活',
+    unconscious: '3小段，用①②③开头，总体84到132字',
+    advice: '3小段，用①②③开头，总体84到132字，要更具体',
     interpretation: {
-      lead: '统一解读核心判断，16到26字',
-      overview: '统一解读补充正文，26到48字',
-      emotion: '情绪能量分析，28到52字',
+      lead: '统一解读核心判断，18到30字',
+      overview: '统一解读补充正文，36到68字，要落回现实张力',
+      emotion: '情绪能量分析，36到64字',
       emotionComposition: [
         { key: 'attraction/hesitation/calm/unease/pressure/vigilance/release/curiosity', label: '中文情绪名', pct: 30, tone: 'violet/slate/moon/ember/pearl/cyan' }
       ],
-      unconscious: '潜意识传达，28到52字'
+      unconscious: '潜意识传达，36到64字，要指出现实中的内在冲突'
     },
     actionGuidance: {
-      actionCue: '现在就能做的一句提示，12到20字',
-      actionBody: '具体的小动作，20到46字',
-      directionCue: '继续留意的一句提示，12到20字',
-      directionBody: '继续观察的方向，20到46字'
+      actionCue: '现在就能做的一句提示，12到22字',
+      actionBody: '具体的小动作，30到64字，要说明它对应哪类现实困扰',
+      directionCue: '继续留意的一句提示，12到22字',
+      directionBody: '继续观察的方向，30到64字，要说明它在现实里可能出现在哪里'
     }
   };
 
@@ -847,6 +891,34 @@ module.exports = async (req, res) => {
       if (debug) fallbackResponse._debug = trace;
       res.status(200).json(fallbackResponse);
       return;
+    }
+
+    if (needsQualityRefinement(payload, normalizedDreamText)) {
+      const refinement = await requestDeepSeek(apiKey, buildRefinementMessages(normalizedDreamText, scaffold, payload), {
+        temperature: 0.14,
+        maxTokens: DEEPSEEK_REFINEMENT_MAX_TOKENS,
+        attempts: 1
+      });
+      const refinementContent = collectMessageContent(refinement);
+
+      if (refinement.response.ok) {
+        const refinedPayload = await tryParseOrRepair(apiKey, refinementContent, normalizedDreamText, scaffold);
+        if (refinedPayload) {
+          payload = refinedPayload;
+        }
+      }
+
+      if (debug) {
+        trace.push({
+          step: 'refinement',
+          status: refinement.response.status,
+          parsed: !!payload,
+          finishReason: refinement.finishReason,
+          contentLength: refinementContent.length,
+          contentPreview: '',
+          contentTail: ''
+        });
+      }
     }
 
     const successResponse = normalizeAnalysisPayload(payload, scaffold);
