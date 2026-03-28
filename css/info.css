@@ -49,6 +49,152 @@
   z-index: 1;
 }
 
+.about-page .ds-subpage-shell__ring {
+  top: 50%;
+}
+
+.about-page .about-main {
+  --about-story-font-size: 0.9rem;
+  --about-story-line-height: 1.95;
+  max-width: 980px;
+  min-height: calc(100vh - var(--ds-nav-h) - 24px);
+  padding: calc(var(--ds-nav-h) + 42px) 24px 88px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.about-page .about-story-wrap {
+  width: min(920px, 100%);
+  position: relative;
+}
+
+.about-page .about-story-wrap::before,
+.about-page .about-story-wrap::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(48px);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.about-page .about-story-wrap::before {
+  width: 240px;
+  height: 240px;
+  top: -54px;
+  left: 7%;
+  background: radial-gradient(circle, rgba(141,104,255,0.34) 0%, rgba(141,104,255,0) 72%);
+  animation: about-orbit 14s ease-in-out infinite;
+}
+
+.about-page .about-story-wrap::after {
+  width: 280px;
+  height: 280px;
+  right: 4%;
+  bottom: -78px;
+  background: radial-gradient(circle, rgba(76,211,255,0.18) 0%, rgba(76,211,255,0) 74%);
+  animation: about-orbit 16s ease-in-out infinite reverse;
+}
+
+.about-page .about-story-card {
+  position: relative;
+  z-index: 1;
+  overflow: hidden;
+  padding: clamp(34px, 5.8vw, 60px);
+  border-radius: 36px;
+  border: 1px solid rgba(196, 184, 255, 0.22);
+  background:
+    linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.015) 26%, rgba(255,255,255,0.02) 100%),
+    radial-gradient(140% 120% at 18% 0%, rgba(160,124,255,0.18) 0%, transparent 46%),
+    radial-gradient(100% 108% at 100% 100%, rgba(76,211,255,0.12) 0%, transparent 54%),
+    linear-gradient(180deg, rgba(14,12,34,0.96) 0%, rgba(9,8,24,0.92) 100%);
+  box-shadow:
+    0 30px 90px rgba(3,4,14,0.56),
+    inset 0 1px 0 rgba(255,255,255,0.12),
+    inset 0 0 42px rgba(133,101,247,0.08);
+  backdrop-filter: blur(18px);
+  animation: about-breathe 8.6s ease-in-out infinite;
+}
+
+.about-page .about-story-card::before,
+.about-page .about-story-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.about-page .about-story-card::before {
+  background:
+    linear-gradient(120deg, rgba(255,255,255,0.24) 0%, rgba(255,255,255,0.05) 18%, rgba(255,255,255,0) 38%),
+    radial-gradient(80% 62% at 86% 18%, rgba(255,255,255,0.1) 0%, transparent 62%);
+  opacity: 0.78;
+  mix-blend-mode: screen;
+  animation: about-sheen 10.4s ease-in-out infinite;
+}
+
+.about-page .about-story-card::after {
+  inset: 1px;
+  border-radius: 35px;
+  border: 1px solid rgba(255,255,255,0.06);
+}
+
+.about-page .about-story-card__text {
+  position: relative;
+  z-index: 1;
+  max-width: 760px;
+  margin: 0 auto;
+  color: rgba(244,241,255,0.96);
+  font-family: var(--ds-font);
+  font-size: var(--about-story-font-size);
+  font-weight: 400;
+  line-height: var(--about-story-line-height);
+  letter-spacing: 0;
+  text-align: left;
+  text-shadow: 0 0 18px rgba(163,142,244,0.06);
+}
+
+@keyframes about-breathe {
+  0%, 100% {
+    transform: translateY(0) scale(1);
+    box-shadow:
+      0 30px 90px rgba(3,4,14,0.56),
+      inset 0 1px 0 rgba(255,255,255,0.12),
+      inset 0 0 42px rgba(133,101,247,0.08);
+  }
+  50% {
+    transform: translateY(-6px) scale(1.008);
+    box-shadow:
+      0 38px 110px rgba(3,4,14,0.62),
+      0 0 0 1px rgba(183,168,255,0.06),
+      inset 0 1px 0 rgba(255,255,255,0.16),
+      inset 0 0 54px rgba(146,114,255,0.12);
+  }
+}
+
+@keyframes about-orbit {
+  0%, 100% {
+    transform: translate3d(0, 0, 0) scale(1);
+    opacity: 0.84;
+  }
+  50% {
+    transform: translate3d(14px, -12px, 0) scale(1.08);
+    opacity: 1;
+  }
+}
+
+@keyframes about-sheen {
+  0%, 100% {
+    transform: translate3d(0, 0, 0);
+    opacity: 0.68;
+  }
+  50% {
+    transform: translate3d(18px, 10px, 0);
+    opacity: 0.92;
+  }
+}
+
 .info-hero {
   margin: 18px auto 28px;
   min-height: 320px;
@@ -427,6 +573,19 @@
     padding: 0 16px 72px;
   }
 
+  .about-page .about-main {
+    padding: calc(var(--ds-nav-h) + 26px) 16px 72px;
+  }
+
+  .about-page .about-story-card {
+    border-radius: 28px;
+    padding: 28px 22px;
+  }
+
+  .about-page .about-story-card::after {
+    border-radius: 27px;
+  }
+
   .info-card,
   .community-card {
     padding: 20px;
@@ -454,5 +613,12 @@
   .community-channel .ds-btn,
   .info-card .ds-btn {
     width: 100%;
+  }
+}
+
+@media (max-width: 540px) {
+  .about-page .about-main {
+    --about-story-font-size: 0.94rem;
+    --about-story-line-height: 1.88;
   }
 }
