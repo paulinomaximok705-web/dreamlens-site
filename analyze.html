@@ -284,18 +284,22 @@ if ('scrollRestoration' in history) {
           <section class="az-reading-meaning-panel__section az-reading-meaning-panel__section--lead">
             <p class="az-reading-meaning-panel__label">统一解读</p>
             <p class="az-reading-meaning-panel__lead" id="dreamInterpretationLead"></p>
-            <p class="az-reading-meaning-panel__support" id="dreamInterpretationOverview"></p>
+            <div class="az-reading-meaning-panel__takeaway" id="dreamInterpretationTakeaway" hidden>
+              <p class="az-reading-meaning-panel__takeaway-label">一句总结</p>
+              <p class="az-reading-meaning-panel__takeaway-text" id="dreamInterpretationTakeawayText"></p>
+            </div>
+            <div class="az-reading-meaning-panel__support" id="dreamInterpretationOverview"></div>
           </section>
 
           <section class="az-reading-meaning-panel__section az-reading-meaning-panel__section--energy">
             <p class="az-reading-meaning-panel__label">情绪能量分析</p>
-            <p class="az-reading-meaning-panel__text" id="dreamInterpretationEmotion"></p>
+            <div class="az-reading-meaning-panel__text" id="dreamInterpretationEmotion"></div>
             <div class="az-reading-energy-map" id="dreamInterpretationEmotionMix" aria-label="这场梦的情绪构成"></div>
           </section>
 
           <section class="az-reading-meaning-panel__section az-reading-meaning-panel__section--unconscious">
             <p class="az-reading-meaning-panel__label">潜意识传达</p>
-            <p class="az-reading-meaning-panel__text" id="dreamInterpretationUnconscious"></p>
+            <div class="az-reading-meaning-panel__text" id="dreamInterpretationUnconscious"></div>
           </section>
         </div>
       </section>
@@ -310,14 +314,14 @@ if ('scrollRestoration' in history) {
             <p class="az-reading-response__eyebrow">现在就能做</p>
             <h4 class="az-reading-response__title">一个你现在可以做的小动作</h4>
             <p class="az-reading-response__focus" id="resultActionCue"></p>
-            <p class="az-reading-response__text" id="resultActionBody"></p>
+            <div class="az-reading-response__text" id="resultActionBody"></div>
           </article>
           <div class="az-reading-response__divider"></div>
           <article class="az-reading-response__block az-reading-response__block--direction">
             <p class="az-reading-response__eyebrow">继续靠近</p>
             <h4 class="az-reading-response__title">一个继续留意的方向</h4>
             <p class="az-reading-response__focus" id="resultDirectionCue"></p>
-            <p class="az-reading-response__text" id="resultDirectionBody"></p>
+            <div class="az-reading-response__text" id="resultDirectionBody"></div>
           </article>
         </div>
       </section>

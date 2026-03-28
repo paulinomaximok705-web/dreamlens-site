@@ -863,6 +863,46 @@ function joinReadingParagraphs(items, limit = 3) {
     return normalized.join('\n\n');
 }
 
+function buildReadingTakeaway(summary, psychology, fallback = '') {
+    const candidates = [
+        ...splitReadableSentences(summary),
+        ...splitReadableSentences(psychology)
+    ]
+        .map(normalizeReadingSentence)
+        .filter(Boolean);
+
+    return candidates.find(sentence => sentence.length >= 24)
+        || candidates[0]
+        || fallback;
+}
+
+function renderReadingRichText(text, options = {}) {
+    const { emphasizeFirst = false } = options;
+    const paragraphs = splitReadingParagraphs(text)
+        .map(normalizeReadingParagraph)
+        .filter(Boolean);
+
+    if (!paragraphs.length) return '';
+
+    return paragraphs
+        .map((paragraph, index) => {
+            const classes = ['az-reading-rich-text__paragraph'];
+            if (emphasizeFirst && index === 0) classes.push('is-primary');
+            return `<p class="${classes.join(' ')}">${escapeReadingHtml(paragraph)}</p>`;
+        })
+        .join('');
+}
+
+function setReadingRichContent(element, text, options = {}) {
+    if (!element) return;
+    const markup = renderReadingRichText(text, options);
+    if (markup) {
+        element.innerHTML = markup;
+    } else {
+        element.textContent = '';
+    }
+}
+
 function ensureThreeClues(symbols) {
     const base = Array.isArray(symbols) ? symbols.slice(0, 3) : [];
     const fallbacks = [
@@ -1920,6 +1960,7 @@ function renderAnalysisResult(input, result, options = {}) {
     const emotion = getEmotionCenter(result.emotions);
     const interpretation = buildDisplayedInterpretation(result, emotion.label, input);
     const actionGuidance = buildDisplayedActionGuidance(result, input, emotion.label);
+    const takeaway = buildReadingTakeaway(result?.summary, result?.psychology, interpretation.lead);
 
     // Hero
     const titleEl = document.getElementById('resultTitle');
@@ -1930,11 +1971,23 @@ function renderAnalysisResult(input, result, options = {}) {
     const dreamInterpretationLeadEl = document.getElementById('dreamInterpretationLead');
     if (dreamInterpretationLeadEl) dreamInterpretationLeadEl.textContent = interpretation.lead;
 
+    const dreamInterpretationTakeawayEl = document.getElementById('dreamInterpretationTakeaway');
+    const dreamInterpretationTakeawayTextEl = document.getElementById('dreamInterpretationTakeawayText');
+    if (dreamInterpretationTakeawayEl && dreamInterpretationTakeawayTextEl) {
+        if (takeaway) {
+            dreamInterpretationTakeawayTextEl.textContent = takeaway;
+            dreamInterpretationTakeawayEl.hidden = false;
+        } else {
+            dreamInterpretationTakeawayTextEl.textContent = '';
+            dreamInterpretationTakeawayEl.hidden = true;
+        }
+    }
+
     const dreamInterpretationOverviewEl = document.getElementById('dreamInterpretationOverview');
-    if (dreamInterpretationOverviewEl) dreamInterpretationOverviewEl.textContent = interpretation.overview;
+    setReadingRichContent(dreamInterpretationOverviewEl, interpretation.overview, { emphasizeFirst: true });
 
     const dreamInterpretationEmotionEl = document.getElementById('dreamInterpretationEmotion');
-    if (dreamInterpretationEmotionEl) dreamInterpretationEmotionEl.textContent = interpretation.emotion;
+    setReadingRichContent(dreamInterpretationEmotionEl, interpretation.emotion, { emphasizeFirst: true });
 
     const dreamInterpretationEmotionMixEl = document.getElementById('dreamInterpretationEmotionMix');
     if (dreamInterpretationEmotionMixEl) {
@@ -1942,7 +1995,7 @@ function renderAnalysisResult(input, result, options = {}) {
     }
 
     const dreamInterpretationUnconsciousEl = document.getElementById('dreamInterpretationUnconscious');
-    if (dreamInterpretationUnconsciousEl) dreamInterpretationUnconsciousEl.textContent = interpretation.unconscious;
+    setReadingRichContent(dreamInterpretationUnconsciousEl, interpretation.unconscious, { emphasizeFirst: true });
 
     const dreamInterpretationPanelEl = document.getElementById('dreamInterpretationPanel');
     if (dreamInterpretationPanelEl) {
@@ -1956,13 +2009,13 @@ function renderAnalysisResult(input, result, options = {}) {
     if (actionCueEl) actionCueEl.textContent = actionGuidance.actionCue;
 
     const actionBodyEl = document.getElementById('resultActionBody');
-    if (actionBodyEl) actionBodyEl.textContent = actionGuidance.actionBody;
+    setReadingRichContent(actionBodyEl, actionGuidance.actionBody, { emphasizeFirst: true });
 
     const directionCueEl = document.getElementById('resultDirectionCue');
     if (directionCueEl) directionCueEl.textContent = actionGuidance.directionCue;
 
     const directionBodyEl = document.getElementById('resultDirectionBody');
-    if (directionBodyEl) directionBodyEl.textContent = actionGuidance.directionBody;
+    setReadingRichContent(directionBodyEl, actionGuidance.directionBody, { emphasizeFirst: true });
 
     // 结果页需要从页面顶部进入，避免 fixed 导航压住首个结果卡片
     if (scroll) {
