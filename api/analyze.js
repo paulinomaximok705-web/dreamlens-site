@@ -677,7 +677,24 @@ async function requestDeepSeek(apiKey, messages, options = {}) {
 }
 
 async function tryParseOrRepair(apiKey, rawContent, dreamText, scaffold = {}) {
-  return parseJsonContent(rawContent);
+  const parsed = parseJsonContent(rawContent);
+  if (parsed) return parsed;
+
+  const repairSource = normalizeString(rawContent).slice(0, 5000);
+  if (!apiKey || !repairSource) return null;
+
+  try {
+    const repair = await requestDeepSeek(apiKey, buildRepairMessages(repairSource, dreamText, scaffold), {
+      temperature: 0,
+      maxTokens: Math.min(DEEPSEEK_REPAIR_MAX_TOKENS, 420),
+      attempts: 1
+    });
+
+    if (!repair.response.ok) return null;
+    return parseJsonContent(collectMessageContent(repair));
+  } catch (_) {
+    return null;
+  }
 }
 
 function normalizeAnalysisPayload(payload = {}, scaffold = {}, meta = {}) {
