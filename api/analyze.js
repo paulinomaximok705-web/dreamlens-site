@@ -188,6 +188,10 @@ function parseJsonContent(content) {
   return null;
 }
 
+const FRAMEWORK_MARKERS = [
+  '荣格', '周公', '东方', '阴阳', '五行', '阈限', '阴影', '自性', '人格面具', '阿尼玛', '阿尼姆斯', '家宅', '门槛', '山水'
+];
+
 const ANALYSIS_SYSTEM_RULES = [
   '你是 DreamLens 的梦境解析助手，需要基于用户原文输出结果页直接可用的结构化 JSON。',
   '只允许输出合法 JSON，不要输出 Markdown、解释、标题、代码块。',
@@ -240,6 +244,92 @@ const RECOVERY_USER_REQUIREMENTS = [
   '4. advice 只给具体可执行的小动作。',
   '5. 只返回 JSON。'
 ];
+
+function normalizeComparableText(value) {
+  return normalizeString(value)
+    .replace(/[\s\u3000]/g, '')
+    .replace(/[，。、“”‘’：:；;、,.!?！？（）()【】《》<>—\-]/g, '')
+    .toLowerCase();
+}
+
+function isSummaryTooCloseToDream(summary, dreamText) {
+  const normalizedSummary = normalizeComparableText(summary);
+  const normalizedDream = normalizeComparableText(dreamText);
+
+  if (!normalizedSummary || !normalizedDream) return false;
+  if (normalizedSummary === normalizedDream) return true;
+
+  const shorter = normalizedSummary.length < normalizedDream.length ? normalizedSummary : normalizedDream;
+  const longer = shorter === normalizedSummary ? normalizedDream : normalizedSummary;
+  return shorter.length >= 18 && longer.includes(shorter) && shorter.length / longer.length > 0.6;
+}
+
+function countFrameworkBackedSymbols(symbols) {
+  if (!Array.isArray(symbols)) return 0;
+  return symbols
+    .slice(0, 3)
+    .filter((item) => FRAMEWORK_MARKERS.some((marker) => normalizeString(item?.meaning).includes(marker)))
+    .length;
+}
+
+function countParagraphs(text) {
+  return normalizeParagraph(text)
+    .split(/\n{2,}/)
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .length;
+}
+
+function needsQualityRefinement(payload, dreamText) {
+  if (!payload || typeof payload !== 'object') return false;
+
+  const summaryTooClose = isSummaryTooCloseToDream(payload.summary, dreamText);
+  const symbolSpecificityTooLow = countFrameworkBackedSymbols(payload.symbols) < 2;
+  const psychologyTooThin = countParagraphs(payload.psychology) < 3;
+
+  return summaryTooClose || symbolSpecificityTooLow || psychologyTooThin;
+}
+
+function buildRefinementMessages(dreamText, scaffold = {}, payload = {}) {
+  return [
+    {
+      role: 'system',
+      content: [
+        '你是 DreamLens 的梦境解析助手，现在需要在保留 JSON 结构的前提下，把一份过于泛化的解析改写得更具体、更有理论支撑。',
+        '只返回合法 JSON，不要输出解释、Markdown、代码块。',
+        'summary 不能只是复述用户原梦，必须提炼梦里最关键的心理张力。',
+        '前 3 个 symbols.meaning 至少有 2 个要明确写出荣格、东方象征或周公语义中的具体对应，并落回这场梦里的情绪、关系或行动冲突。',
+        'psychology 请写成 3 段：第一段偏荣格，第二段偏东方象征/周公，第三段回到这位做梦者当下的具体处境。',
+        '周公语义只能作为传统文化象征参考，不要写吉凶预言。',
+        '不要空话，不要模板句，不要只说“象征变化”“代表成长”“提示你关注自己”。'
+      ].join('\n')
+    },
+    {
+      role: 'user',
+      content: [
+        '请重写下面这份解析 JSON，让它更具体：',
+        '',
+        '梦境原文：',
+        dreamText,
+        '',
+        '本地结构线索：',
+        JSON.stringify(scaffold, null, 2),
+        '',
+        '当前过于泛化的 JSON：',
+        JSON.stringify(payload, null, 2),
+        '',
+        '重写要求：',
+        '1. 保持字段结构不变，仍然输出完整 JSON。',
+        '2. title / theme / tags 可以微调，但不要脱离原梦。',
+        '3. summary 必须是提炼，不是照抄。',
+        '4. symbols.meaning 要更具体，至少有两个写出明确框架及其在这场梦里的含义。',
+        '5. psychology 必须三段分明，并且每段都要引用原梦里的具体线索，例如场景、门槛、动物、水、追逐、停下、回头、醒后感受等对应部分。',
+        '6. unconscious / advice / interpretation.* 也要更贴近梦里的动作和情绪，不要空泛。',
+        '7. 只返回 JSON。'
+      ].join('\n')
+    }
+  ];
+}
 
 function buildMessages(dreamText, scaffold = {}) {
   const scaffoldSummary = JSON.stringify({
@@ -487,6 +577,20 @@ module.exports = async (req, res) => {
     if (!payload) {
       res.status(502).json({ error: 'DeepSeek returned invalid JSON content' });
       return;
+    }
+
+    if (needsQualityRefinement(payload, normalizedDreamText)) {
+      const refinement = await requestDeepSeek(apiKey, buildRefinementMessages(normalizedDreamText, scaffold, payload), {
+        temperature: 0.22,
+        maxTokens: 1100
+      });
+
+      if (refinement.response.ok) {
+        const refinedPayload = parseJsonContent(refinement.content);
+        if (refinedPayload) {
+          payload = refinedPayload;
+        }
+      }
     }
 
     res.status(200).json(normalizeAnalysisPayload(payload, scaffold));
