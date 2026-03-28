@@ -1,5 +1,8 @@
 const DEEPSEEK_BASE_URL = (process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com').replace(/\/$/, '');
 const DEEPSEEK_MODEL = process.env.DEEPSEEK_MODEL || 'deepseek-chat';
+const DEEPSEEK_PRIMARY_MAX_TOKENS = Number.parseInt(process.env.DEEPSEEK_ANALYZE_MAX_TOKENS || '760', 10);
+const DEEPSEEK_RECOVERY_MAX_TOKENS = Number.parseInt(process.env.DEEPSEEK_ANALYZE_RECOVERY_MAX_TOKENS || '620', 10);
+const DEEPSEEK_REFINEMENT_MAX_TOKENS = Number.parseInt(process.env.DEEPSEEK_ANALYZE_REFINEMENT_MAX_TOKENS || '720', 10);
 
 const ALLOWED_THEMES = new Set(['water', 'chase', 'fall', 'fly', 'forest', 'house', 'death', 'light', 'general']);
 const ALLOWED_EMOTION_LABELS = ['宁静', '焦虑', '神秘', '自由', '迷惘', '恐惧', '好奇', '压迫'];
@@ -344,26 +347,26 @@ function buildMessages(dreamText, scaffold = {}) {
     title: '梦境标题，2到12个字',
     theme: '只能是 water/chase/fall/fly/forest/house/death/light/general 之一',
     tags: ['3到4个简短中文标签'],
-    summary: '1段总结，80到150字',
-    symbols: [{ name: '意象名', meaning: '该意象的心理含义，18到50字' }],
+    summary: '1段总结，55到90字',
+    symbols: [{ name: '意象名', meaning: '该意象的心理含义，24到46字，要点出具体框架或心理冲突' }],
     emotions: [{ label: '宁静/焦虑/神秘/自由/迷惘/恐惧/好奇/压迫 之一', pct: 30 }],
-    psychology: '2到3段，整体160到320字，用\\n\\n分段',
-    unconscious: '3小段，用①②③开头，总体120到220字',
-    advice: '3小段，用①②③开头，总体120到220字',
+    psychology: '3段，整体150到240字，用\\n\\n分段',
+    unconscious: '3小段，用①②③开头，总体90到150字',
+    advice: '3小段，用①②③开头，总体90到150字',
     interpretation: {
-      lead: '统一解读核心判断，24到60字',
-      overview: '统一解读补充正文，45到120字',
-      emotion: '情绪能量分析，60到140字',
+      lead: '统一解读核心判断，20到42字',
+      overview: '统一解读补充正文，36到78字',
+      emotion: '情绪能量分析，45到90字',
       emotionComposition: [
         { key: 'attraction/hesitation/calm/unease/pressure/vigilance/release/curiosity', label: '中文情绪名', pct: 30, tone: 'violet/slate/moon/ember/pearl/cyan' }
       ],
-      unconscious: '潜意识传达，60到140字'
+      unconscious: '潜意识传达，45到90字'
     },
     actionGuidance: {
-      actionCue: '现在就能做的一句提示，16到36字',
-      actionBody: '具体的小动作，45到110字',
-      directionCue: '继续留意的一句提示，16到36字',
-      directionBody: '继续观察的方向，45到110字'
+      actionCue: '现在就能做的一句提示，14到28字',
+      actionBody: '具体的小动作，32到72字',
+      directionCue: '继续留意的一句提示，14到28字',
+      directionBody: '继续观察的方向，32到72字'
     }
   };
 
@@ -406,10 +409,10 @@ function buildRecoveryMessages(dreamText, scaffold = {}) {
     title: '梦境标题，2到10字',
     theme: 'water/chase/fall/fly/forest/house/death/light/general 之一',
     tags: ['3个简短中文标签'],
-    summary: '1段总结，60到100字',
-    symbols: [{ name: '意象名', meaning: '心理含义，16到36字' }],
+    summary: '1段总结，45到70字',
+    symbols: [{ name: '意象名', meaning: '心理含义，20到36字，要带具体框架' }],
     emotions: [{ label: '宁静/焦虑/神秘/自由/迷惘/恐惧/好奇/压迫 之一', pct: 30 }],
-    psychology: '2段，整体120到200字，用\\n\\n分段',
+    psychology: '3段，整体120到180字，用\\n\\n分段',
     unconscious: '3小段，用①②③开头，总体90到150字',
     advice: '3小段，用①②③开头，总体90到150字',
     interpretation: {
@@ -551,8 +554,8 @@ module.exports = async (req, res) => {
 
   try {
     const primary = await requestDeepSeek(apiKey, buildMessages(normalizedDreamText, scaffold), {
-      temperature: 0.35,
-      maxTokens: 1050
+      temperature: 0.25,
+      maxTokens: DEEPSEEK_PRIMARY_MAX_TOKENS
     });
 
     if (!primary.response.ok) {
@@ -565,8 +568,8 @@ module.exports = async (req, res) => {
 
     if (!payload) {
       const recovery = await requestDeepSeek(apiKey, buildRecoveryMessages(normalizedDreamText, scaffold), {
-        temperature: 0.2,
-        maxTokens: 900
+        temperature: 0.18,
+        maxTokens: DEEPSEEK_RECOVERY_MAX_TOKENS
       });
 
       if (recovery.response.ok) {
@@ -581,8 +584,8 @@ module.exports = async (req, res) => {
 
     if (needsQualityRefinement(payload, normalizedDreamText)) {
       const refinement = await requestDeepSeek(apiKey, buildRefinementMessages(normalizedDreamText, scaffold, payload), {
-        temperature: 0.22,
-        maxTokens: 1100
+        temperature: 0.18,
+        maxTokens: DEEPSEEK_REFINEMENT_MAX_TOKENS
       });
 
       if (refinement.response.ok) {

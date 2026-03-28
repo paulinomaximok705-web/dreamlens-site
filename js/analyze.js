@@ -9,7 +9,8 @@
 const INLINE_EXAMPLE_DREAM = `我梦见自己走进一片发光的森林，树叶像玻璃一样轻轻作响。远处有一扇半开的门，门后不断传来海浪声。我想靠近，却总感觉脚下的地面在缓慢下沉。醒来时我没有特别害怕，反而有一种奇怪的平静和迟疑。`;
 const ANALYZE_API_ENDPOINT = window.DREAMLENS_ANALYZE_API || '/api/analyze';
 const ANALYZE_API_ENDPOINT_FALLBACK = window.DREAMLENS_ANALYZE_API_FALLBACK || '';
-const ANALYZE_REMOTE_TIMEOUT_MS = 12000;
+const ANALYZE_REMOTE_SOFT_TIMEOUT_MS = 9000;
+const ANALYZE_REMOTE_HARD_TIMEOUT_MS = 65000;
 
 /* ============================================================
    象征词库：从梦境文本中识别意象并生成解读
@@ -348,10 +349,11 @@ function mergeAnalyzeResult(localResult, remoteResult) {
     };
 }
 
-async function requestDreamAnalysisFromEndpoint(endpoint, rawText, scaffold) {
+async function requestDreamAnalysisFromEndpoint(endpoint, rawText, scaffold, options = {}) {
+    const timeoutMs = Number.isFinite(options.timeoutMs) ? options.timeoutMs : ANALYZE_REMOTE_HARD_TIMEOUT_MS;
     const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
     const timeoutId = controller
-        ? setTimeout(() => controller.abort(new DOMException('Analyze timeout', 'AbortError')), ANALYZE_REMOTE_TIMEOUT_MS)
+        ? setTimeout(() => controller.abort(new DOMException('Analyze timeout', 'AbortError')), timeoutMs)
         : null;
 
     try {
@@ -384,7 +386,7 @@ async function requestDreamAnalysisFromEndpoint(endpoint, rawText, scaffold) {
     }
 }
 
-async function requestDreamAnalysis(rawText, scaffold) {
+async function requestDreamAnalysis(rawText, scaffold, options = {}) {
     const endpoints = [ANALYZE_API_ENDPOINT, ANALYZE_API_ENDPOINT_FALLBACK]
         .filter(Boolean)
         .filter((endpoint, index, list) => list.indexOf(endpoint) === index);
@@ -393,7 +395,7 @@ async function requestDreamAnalysis(rawText, scaffold) {
 
     for (const endpoint of endpoints) {
         try {
-            return await requestDreamAnalysisFromEndpoint(endpoint, rawText, scaffold);
+            return await requestDreamAnalysisFromEndpoint(endpoint, rawText, scaffold, options);
         } catch (error) {
             lastError = error;
         }
@@ -402,12 +404,47 @@ async function requestDreamAnalysis(rawText, scaffold) {
     throw lastError || new Error('DeepSeek 梦境解析暂时不可用');
 }
 
-async function analyzeUserDream(rawText) {
+function delayResolve(ms, value) {
+    return new Promise((resolve) => {
+        setTimeout(() => resolve(value), ms);
+    });
+}
+
+async function analyzeUserDream(rawText, options = {}) {
+    const { onBackgroundUpgrade } = options;
     const scaffold = analyzeUserDreamLocal(rawText);
+    const remotePromise = requestDreamAnalysis(rawText, scaffold, {
+        timeoutMs: ANALYZE_REMOTE_HARD_TIMEOUT_MS
+    });
 
     try {
-        const remoteResult = await requestDreamAnalysis(rawText, scaffold);
-        return mergeAnalyzeResult(scaffold, remoteResult);
+        const settled = await Promise.race([
+            remotePromise.then((remoteResult) => ({ kind: 'remote', remoteResult })),
+            delayResolve(ANALYZE_REMOTE_SOFT_TIMEOUT_MS, { kind: 'local-preview' })
+        ]);
+
+        if (settled.kind === 'remote') {
+            return mergeAnalyzeResult(scaffold, settled.remoteResult);
+        }
+
+        if (typeof onBackgroundUpgrade === 'function') {
+            remotePromise
+                .then((remoteResult) => {
+                    onBackgroundUpgrade(mergeAnalyzeResult(scaffold, remoteResult));
+                })
+                .catch((error) => {
+                    console.warn('[DreamLens analyze] background deep analysis unavailable', error);
+                });
+        }
+
+        return {
+            ...scaffold,
+            source: 'local-preview',
+            provider: 'local',
+            _usedFallback: true,
+            _isBackgroundUpgradePending: true,
+            _fallbackMessage: '基础解析已先展示，深度解析继续生成中。'
+        };
     } catch (error) {
         console.warn('[DreamLens analyze] remote analysis unavailable, using local fallback', error);
         return {
@@ -415,6 +452,7 @@ async function analyzeUserDream(rawText) {
             source: 'local-fallback',
             provider: 'local',
             _usedFallback: true,
+            _isBackgroundUpgradePending: false,
             _fallbackMessage: normalizeAnalyzeErrorMessage(error)
         };
     }
@@ -457,6 +495,7 @@ function handleAnalyzeFailure(error) {
 let selectedEmotion = '';
 let analysisResult  = null;
 let isExampleExpanded = false;
+let activeAnalyzeRequestId = 0;
 let analysisTransitionTimer = null;
 let loadingPhaseInterval = null;
 let loadingPhaseFinishTimer = null;
@@ -1773,11 +1812,29 @@ function startAnalysis() {
 ============================================================ */
 async function showResult() {
     const input = getUnifiedDreamInput();
+    const requestId = ++activeAnalyzeRequestId;
 
-    const result = await analyzeUserDream(input);
+    const result = await analyzeUserDream(input, {
+        onBackgroundUpgrade(remoteResult) {
+            if (requestId !== activeAnalyzeRequestId) return;
+            if (getUnifiedDreamInput() !== input) return;
+
+            renderAnalysisResult(input, remoteResult, {
+                scroll: false,
+                persist: true,
+                refreshArt: false
+            });
+
+            if (typeof showToast === 'function') {
+                showToast('深度解析已生成，结果已自动更新。');
+            }
+        }
+    });
+
+    if (requestId !== activeAnalyzeRequestId) return;
     renderAnalysisResult(input, result);
     if (result?._usedFallback && typeof showToast === 'function') {
-        showToast('云端深度解析暂时不可用，已先为你展示基础解析结果。');
+        showToast(result._fallbackMessage || '云端深度解析暂时不可用，已先为你展示基础解析结果。');
     }
 }
 
@@ -1853,7 +1910,7 @@ function renderAnalysisResult(input, result, options = {}) {
     updateAnalyzeRouteState({ view: 'result' }, { replace: true });
 
     // 保存到本地：只在真实解析完成时写入，避免刷新结果页重复落库
-    if (persist) {
+    if (persist && result?.source !== 'local-preview') {
         saveDreamToLocalStorage(input, result);
     }
 
@@ -1867,6 +1924,7 @@ function renderAnalysisResult(input, result, options = {}) {
    重置解析
 ============================================================ */
 function resetAnalysis() {
+    activeAnalyzeRequestId += 1;
     showAnalyzeInputView({ resetTop: true });
     updateAnalyzeRouteState({ view: 'input' }, { replace: true });
 }
