@@ -466,7 +466,7 @@
   --idx-footer-nav-line-height: 1;
   --idx-footer-nav-letter-spacing: 0;
   width: 100%;
-  padding: 142px 28px 0;
+  padding: 184px 28px 0;
   margin-top: auto;
   background: transparent;
   text-align: left;
@@ -828,7 +828,7 @@
     min-height: auto;
   }
   .idx-footerband {
-    padding: 72px 20px 0;
+    padding: 92px 20px 0;
   }
   .idx-footerband__logo-text {
     font-size: 1.7rem;
