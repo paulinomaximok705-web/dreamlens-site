@@ -1,7 +1,7 @@
 const DEEPSEEK_BASE_URL = (process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com').replace(/\/$/, '');
 const DEEPSEEK_MODEL = process.env.DEEPSEEK_MODEL || 'deepseek-chat';
-const DEEPSEEK_PRIMARY_MAX_TOKENS = Number.parseInt(process.env.DEEPSEEK_ANALYZE_MAX_TOKENS || '760', 10);
-const DEEPSEEK_RECOVERY_MAX_TOKENS = Number.parseInt(process.env.DEEPSEEK_ANALYZE_RECOVERY_MAX_TOKENS || '620', 10);
+const DEEPSEEK_PRIMARY_MAX_TOKENS = Number.parseInt(process.env.DEEPSEEK_ANALYZE_MAX_TOKENS || '620', 10);
+const DEEPSEEK_RECOVERY_MAX_TOKENS = Number.parseInt(process.env.DEEPSEEK_ANALYZE_RECOVERY_MAX_TOKENS || '480', 10);
 const DEEPSEEK_REFINEMENT_MAX_TOKENS = Number.parseInt(process.env.DEEPSEEK_ANALYZE_REFINEMENT_MAX_TOKENS || '720', 10);
 const DEEPSEEK_REPAIR_MAX_TOKENS = Number.parseInt(process.env.DEEPSEEK_ANALYZE_REPAIR_MAX_TOKENS || '520', 10);
 const DEEPSEEK_RESCUE_MAX_TOKENS = Number.parseInt(process.env.DEEPSEEK_ANALYZE_RESCUE_MAX_TOKENS || '560', 10);
@@ -195,27 +195,49 @@ function normalizeEmotionComposition(value, emotionFallback = DEFAULT_EMOTIONS) 
 function parseJsonContent(content) {
   if (!content) return null;
   const raw = String(content).trim();
-
-  try {
-    return JSON.parse(raw);
-  } catch (_) {}
+  const candidates = [raw];
 
   const fenceMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/i);
   if (fenceMatch?.[1]) {
-    try {
-      return JSON.parse(fenceMatch[1].trim());
-    } catch (_) {}
+    candidates.push(fenceMatch[1].trim());
   }
 
   const firstBrace = raw.indexOf('{');
   const lastBrace = raw.lastIndexOf('}');
   if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+    candidates.push(raw.slice(firstBrace, lastBrace + 1));
+  }
+
+  for (const candidate of candidates) {
     try {
-      return JSON.parse(raw.slice(firstBrace, lastBrace + 1));
+      return JSON.parse(candidate);
+    } catch (_) {}
+  }
+
+  for (const candidate of candidates) {
+    const repaired = repairJsonLikeContent(candidate);
+    if (!repaired) continue;
+    try {
+      return JSON.parse(repaired);
     } catch (_) {}
   }
 
   return null;
+}
+
+function repairJsonLikeContent(content) {
+  const raw = normalizeString(content);
+  if (!raw) return '';
+
+  return raw
+    .replace(/\uFEFF/g, '')
+    .replace(/\u00A0/g, ' ')
+    .replace(/[\u201C\u201D]/g, '"')
+    .replace(/[\u2018\u2019]/g, "'")
+    .replace(/,\s*([}\]])/g, '$1')
+    .replace(/([{,]\s*)([A-Za-z_][A-Za-z0-9_]*)(\s*:)/g, '$1"$2"$3')
+    .replace(/([{,]\s*)'([^'\\]+?)'(\s*:)/g, '$1"$2"$3')
+    .replace(/:\s*'([^'\\]*(?:\\.[^'\\]*)*)'(?=\s*[,}\]])/g, (_, value) => `: ${JSON.stringify(value)}`);
 }
 
 function collectMessageContent(result) {
@@ -640,21 +662,7 @@ async function requestDeepSeek(apiKey, messages, options = {}) {
 }
 
 async function tryParseOrRepair(apiKey, rawContent, dreamText, scaffold = {}) {
-  const parsed = parseJsonContent(rawContent);
-  if (parsed) return parsed;
-
-  if (!normalizeString(rawContent)) return null;
-
-  try {
-    const repair = await requestDeepSeek(apiKey, buildRepairMessages(rawContent, dreamText, scaffold), {
-      temperature: 0.1,
-      maxTokens: DEEPSEEK_REPAIR_MAX_TOKENS
-    });
-    if (!repair.response.ok) return null;
-    return parseJsonContent(repair.content);
-  } catch (_) {
-    return null;
-  }
+  return parseJsonContent(rawContent);
 }
 
 function normalizeAnalysisPayload(payload = {}, scaffold = {}, meta = {}) {
@@ -746,7 +754,7 @@ module.exports = async (req, res) => {
 
   try {
     const primary = await requestDeepSeek(apiKey, buildMessages(normalizedDreamText, scaffold), {
-      temperature: 0.25,
+      temperature: 0.18,
       maxTokens: DEEPSEEK_PRIMARY_MAX_TOKENS,
       attempts: 2
     });
@@ -756,41 +764,13 @@ module.exports = async (req, res) => {
 
     if (!payload) {
       const recovery = await requestDeepSeek(apiKey, buildRecoveryMessages(normalizedDreamText, scaffold), {
-        temperature: 0.18,
+        temperature: 0.1,
         maxTokens: DEEPSEEK_RECOVERY_MAX_TOKENS,
-        attempts: 2
+        attempts: 1
       });
 
       if (recovery.response.ok) {
         payload = await tryParseOrRepair(apiKey, collectMessageContent(recovery), normalizedDreamText, scaffold);
-      }
-    }
-
-    if (!payload) {
-      try {
-        const rescue = await requestDeepSeek(apiKey, buildRescueMessages(normalizedDreamText, scaffold), {
-          temperature: 0.12,
-          maxTokens: DEEPSEEK_RESCUE_MAX_TOKENS,
-          attempts: 2
-        });
-        if (rescue.response.ok) {
-          payload = await tryParseOrRepair(apiKey, collectMessageContent(rescue), normalizedDreamText, scaffold);
-        }
-      } catch (_) {}
-    }
-
-    if (needsQualityRefinement(payload, normalizedDreamText)) {
-      const refinement = await requestDeepSeek(apiKey, buildRefinementMessages(normalizedDreamText, scaffold, payload), {
-        temperature: 0.18,
-        maxTokens: DEEPSEEK_REFINEMENT_MAX_TOKENS,
-        attempts: 1
-      });
-
-      if (refinement.response.ok) {
-        const refinedPayload = parseJsonContent(refinement.content);
-        if (refinedPayload) {
-          payload = refinedPayload;
-        }
       }
     }
 
