@@ -1,7 +1,7 @@
 const DEEPSEEK_BASE_URL = (process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com').replace(/\/$/, '');
 const DEEPSEEK_MODEL = process.env.DEEPSEEK_MODEL || 'deepseek-chat';
-const DEEPSEEK_PRIMARY_MAX_TOKENS = Number.parseInt(process.env.DEEPSEEK_ANALYZE_MAX_TOKENS || '620', 10);
-const DEEPSEEK_RECOVERY_MAX_TOKENS = Number.parseInt(process.env.DEEPSEEK_ANALYZE_RECOVERY_MAX_TOKENS || '480', 10);
+const DEEPSEEK_PRIMARY_MAX_TOKENS = Number.parseInt(process.env.DEEPSEEK_ANALYZE_MAX_TOKENS || '760', 10);
+const DEEPSEEK_RECOVERY_MAX_TOKENS = Number.parseInt(process.env.DEEPSEEK_ANALYZE_RECOVERY_MAX_TOKENS || '620', 10);
 const DEEPSEEK_REFINEMENT_MAX_TOKENS = Number.parseInt(process.env.DEEPSEEK_ANALYZE_REFINEMENT_MAX_TOKENS || '720', 10);
 const DEEPSEEK_REPAIR_MAX_TOKENS = Number.parseInt(process.env.DEEPSEEK_ANALYZE_REPAIR_MAX_TOKENS || '520', 10);
 const DEEPSEEK_RESCUE_MAX_TOKENS = Number.parseInt(process.env.DEEPSEEK_ANALYZE_RESCUE_MAX_TOKENS || '560', 10);
@@ -288,7 +288,8 @@ const ANALYSIS_USER_REQUIREMENTS = [
   '9. unconscious / advice / interpretation.* 要尽量少套话，多落回梦里的具体意象、动作、情绪和关系位置。',
   '10. actionGuidance 也要具体，不要写成空泛建议；优先给出能立即执行的小动作，例如记录哪个意象、回想哪一幕、补写哪种醒后感受。',
   '11. 如果用到传统解梦或原型概念，必须解释为什么它和这场梦有关，不能只报术语名称。',
-  '12. 输出必须是纯 JSON，不要有任何额外文本。'
+  '12. 整体文字预算要克制，优先把 summary、overview、advice 写短，不要为了完整性把每个字段都拉长。',
+  '13. 输出必须是纯 JSON，不要有任何额外文本。'
 ];
 
 const RECOVERY_SYSTEM_RULES = [
@@ -306,7 +307,8 @@ const RECOVERY_USER_REQUIREMENTS = [
   '2. symbols 的 meaning 不要空泛，至少落到一个具体框架或具体心理冲突。',
   '3. psychology 尽量覆盖荣格角度 + 东方/周公角度，并回到现实心理处境。',
   '4. advice 只给具体可执行的小动作。',
-  '5. 只返回 JSON。'
+  '5. 所有字段写短一点也可以，但必须完整，尤其不要把 summary 和 interpretation 拉太长。',
+  '6. 只返回 JSON。'
 ];
 
 function buildRepairMessages(rawContent, dreamText, scaffold = {}) {
@@ -504,27 +506,27 @@ function buildMessages(dreamText, scaffold = {}) {
   const schema = {
     title: '梦境标题，2到12个字',
     theme: '只能是 water/chase/fall/fly/forest/house/death/light/general 之一',
-    tags: ['3到4个简短中文标签'],
-    summary: '1段总结，55到90字',
-    symbols: [{ name: '意象名', meaning: '该意象的心理含义，24到46字，要点出具体框架或心理冲突' }],
+    tags: ['3个简短中文标签'],
+    summary: '1段总结，40到68字',
+    symbols: [{ name: '意象名', meaning: '该意象的心理含义，18到34字，要点出具体框架或心理冲突' }],
     emotions: [{ label: '宁静/焦虑/神秘/自由/迷惘/恐惧/好奇/压迫 之一', pct: 30 }],
-    psychology: '3段，整体150到240字，用\\n\\n分段',
-    unconscious: '3小段，用①②③开头，总体90到150字',
-    advice: '3小段，用①②③开头，总体90到150字',
+    psychology: '3段，整体96到156字，用\\n\\n分段',
+    unconscious: '3小段，用①②③开头，总体66到108字',
+    advice: '3小段，用①②③开头，总体66到108字',
     interpretation: {
-      lead: '统一解读核心判断，20到42字',
-      overview: '统一解读补充正文，36到78字',
-      emotion: '情绪能量分析，45到90字',
+      lead: '统一解读核心判断，16到28字',
+      overview: '统一解读补充正文，28到56字',
+      emotion: '情绪能量分析，32到60字',
       emotionComposition: [
         { key: 'attraction/hesitation/calm/unease/pressure/vigilance/release/curiosity', label: '中文情绪名', pct: 30, tone: 'violet/slate/moon/ember/pearl/cyan' }
       ],
-      unconscious: '潜意识传达，45到90字'
+      unconscious: '潜意识传达，32到60字'
     },
     actionGuidance: {
-      actionCue: '现在就能做的一句提示，14到28字',
-      actionBody: '具体的小动作，32到72字',
-      directionCue: '继续留意的一句提示，14到28字',
-      directionBody: '继续观察的方向，32到72字'
+      actionCue: '现在就能做的一句提示，12到20字',
+      actionBody: '具体的小动作，22到52字',
+      directionCue: '继续留意的一句提示，12到20字',
+      directionBody: '继续观察的方向，22到52字'
     }
   };
 
@@ -567,26 +569,26 @@ function buildRecoveryMessages(dreamText, scaffold = {}) {
     title: '梦境标题，2到10字',
     theme: 'water/chase/fall/fly/forest/house/death/light/general 之一',
     tags: ['3个简短中文标签'],
-    summary: '1段总结，45到70字',
-    symbols: [{ name: '意象名', meaning: '心理含义，20到36字，要带具体框架' }],
+    summary: '1段总结，36到60字',
+    symbols: [{ name: '意象名', meaning: '心理含义，18到30字，要带具体框架' }],
     emotions: [{ label: '宁静/焦虑/神秘/自由/迷惘/恐惧/好奇/压迫 之一', pct: 30 }],
-    psychology: '3段，整体120到180字，用\\n\\n分段',
-    unconscious: '3小段，用①②③开头，总体90到150字',
-    advice: '3小段，用①②③开头，总体90到150字',
+    psychology: '3段，整体90到138字，用\\n\\n分段',
+    unconscious: '3小段，用①②③开头，总体60到96字',
+    advice: '3小段，用①②③开头，总体60到96字',
     interpretation: {
-      lead: '统一解读核心判断，18到36字',
-      overview: '统一解读补充正文，40到80字',
-      emotion: '情绪能量分析，45到90字',
+      lead: '统一解读核心判断，16到26字',
+      overview: '统一解读补充正文，26到48字',
+      emotion: '情绪能量分析，28到52字',
       emotionComposition: [
         { key: 'attraction/hesitation/calm/unease/pressure/vigilance/release/curiosity', label: '中文情绪名', pct: 30, tone: 'violet/slate/moon/ember/pearl/cyan' }
       ],
-      unconscious: '潜意识传达，45到90字'
+      unconscious: '潜意识传达，28到52字'
     },
     actionGuidance: {
-      actionCue: '现在就能做的一句提示，16到28字',
-      actionBody: '具体的小动作，35到75字',
-      directionCue: '继续留意的一句提示，16到28字',
-      directionBody: '继续观察的方向，35到75字'
+      actionCue: '现在就能做的一句提示，12到20字',
+      actionBody: '具体的小动作，20到46字',
+      directionCue: '继续留意的一句提示，12到20字',
+      directionBody: '继续观察的方向，20到46字'
     }
   };
 
