@@ -1,8 +1,8 @@
 const DEEPSEEK_BASE_URL = (process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com').replace(/\/$/, '');
 const DEEPSEEK_MODEL = process.env.DEEPSEEK_MODEL || 'deepseek-chat';
-const DEEPSEEK_PRIMARY_MAX_TOKENS = Math.max(1300, Number.parseInt(process.env.DEEPSEEK_ANALYZE_MAX_TOKENS || '1300', 10) || 1300);
-const DEEPSEEK_RECOVERY_MAX_TOKENS = Math.max(1050, Number.parseInt(process.env.DEEPSEEK_ANALYZE_RECOVERY_MAX_TOKENS || '1050', 10) || 1050);
-const DEEPSEEK_REFINEMENT_MAX_TOKENS = Math.max(950, Number.parseInt(process.env.DEEPSEEK_ANALYZE_REFINEMENT_MAX_TOKENS || '950', 10) || 950);
+const DEEPSEEK_PRIMARY_MAX_TOKENS = Math.max(1800, Number.parseInt(process.env.DEEPSEEK_ANALYZE_MAX_TOKENS || '1800', 10) || 1800);
+const DEEPSEEK_RECOVERY_MAX_TOKENS = Math.max(1500, Number.parseInt(process.env.DEEPSEEK_ANALYZE_RECOVERY_MAX_TOKENS || '1500', 10) || 1500);
+const DEEPSEEK_REFINEMENT_MAX_TOKENS = Math.max(1300, Number.parseInt(process.env.DEEPSEEK_ANALYZE_REFINEMENT_MAX_TOKENS || '1300', 10) || 1300);
 const DEEPSEEK_REPAIR_MAX_TOKENS = Number.parseInt(process.env.DEEPSEEK_ANALYZE_REPAIR_MAX_TOKENS || '520', 10);
 const DEEPSEEK_RESCUE_MAX_TOKENS = Number.parseInt(process.env.DEEPSEEK_ANALYZE_RESCUE_MAX_TOKENS || '560', 10);
 
