@@ -3771,6 +3771,7 @@
   font-size: 0.98rem;
   line-height: 1.95;
   color: rgba(197, 189, 225, 0.82);
+  white-space: pre-line;
 }
 
 .az-reading-response__divider {
@@ -5805,6 +5806,7 @@
   line-height: var(--az-dream-original-line-height);
   letter-spacing: var(--az-dream-original-letter-spacing);
   color: var(--az-dream-original-color);
+  white-space: pre-line;
 }
 
 .az-reading-meaning-panel__section--energy .az-reading-meaning-panel__text,
@@ -6360,6 +6362,7 @@
   line-height: var(--az-dream-original-line-height);
   letter-spacing: var(--az-dream-original-letter-spacing);
   color: rgba(205, 198, 232, 0.82);
+  white-space: pre-line;
 }
 
 .az-reading-section--extension {

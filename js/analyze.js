@@ -835,6 +835,34 @@ function deriveMeaningCopy(summary, psychology, unconscious) {
     return { lead, detail };
 }
 
+function splitReadingParagraphs(text) {
+    return String(text || '')
+        .replace(/\r\n/g, '\n')
+        .split(/\n{2,}/)
+        .map(part => part.trim())
+        .filter(Boolean);
+}
+
+function normalizeReadingParagraph(text) {
+    return String(text || '')
+        .replace(/^[①②③]\s*/u, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function joinReadingParagraphs(items, limit = 3) {
+    const normalized = [];
+
+    for (const item of items) {
+        const text = normalizeReadingParagraph(item);
+        if (!text || normalized.includes(text)) continue;
+        normalized.push(text);
+        if (normalized.length >= limit) break;
+    }
+
+    return normalized.join('\n\n');
+}
+
 function ensureThreeClues(symbols) {
     const base = Array.isArray(symbols) ? symbols.slice(0, 3) : [];
     const fallbacks = [
@@ -1608,6 +1636,45 @@ function buildDreamInterpretation(result, emotionLabel, rawText = '') {
     };
 }
 
+function buildDisplayedInterpretation(result, emotionLabel, rawText = '') {
+    const fallback = buildDreamInterpretation(result, emotionLabel, rawText);
+    const remoteInterpretation = result?.interpretation && typeof result.interpretation === 'object'
+        ? result.interpretation
+        : null;
+
+    if (!remoteInterpretation) {
+        return fallback;
+    }
+
+    const summaryParagraphs = splitReadingParagraphs(result?.summary);
+    const psychologyParagraphs = splitReadingParagraphs(result?.psychology);
+    const unconsciousParagraphs = splitReadingParagraphs(result?.unconscious);
+
+    return {
+        lead: remoteInterpretation.lead || fallback.lead,
+        overview: joinReadingParagraphs([
+            remoteInterpretation.overview,
+            result?.summary,
+            summaryParagraphs[0],
+            psychologyParagraphs[0],
+            psychologyParagraphs[1]
+        ], 4) || fallback.overview,
+        emotion: joinReadingParagraphs([
+            remoteInterpretation.emotion,
+            psychologyParagraphs[2],
+            psychologyParagraphs[1],
+            summaryParagraphs[1]
+        ], 3) || fallback.emotion,
+        emotionComposition: Array.isArray(remoteInterpretation.emotionComposition) && remoteInterpretation.emotionComposition.length
+            ? remoteInterpretation.emotionComposition
+            : fallback.emotionComposition,
+        unconscious: joinReadingParagraphs([
+            remoteInterpretation.unconscious,
+            ...unconsciousParagraphs
+        ], 4) || fallback.unconscious
+    };
+}
+
 function buildActionGuidance(result, rawText = '', emotionLabel = '') {
     const context = collectDreamSignalContext(result, rawText);
     const { signals, cueWords } = context;
@@ -1657,6 +1724,33 @@ function buildActionGuidance(result, rawText = '', emotionLabel = '') {
         actionBody: '不用急着把梦解释完整。只要把醒来后最残留的那一句感觉写下来，它就已经是在把梦里的信息慢慢带回现实。',
         directionCue: '接下来，继续留意那些反复出现、却还没被你认真回应的感受。',
         directionBody: '这场梦真正给出的不是任务，而是方向。只要你开始留意它在现实里对应的场景，这场梦就会继续告诉你下一步该靠近哪里。'
+    };
+}
+
+function buildDisplayedActionGuidance(result, rawText = '', emotionLabel = '') {
+    const fallback = buildActionGuidance(result, rawText, emotionLabel);
+    const remoteAction = result?.actionGuidance && typeof result.actionGuidance === 'object'
+        ? result.actionGuidance
+        : null;
+    const adviceParagraphs = splitReadingParagraphs(result?.advice);
+
+    if (!remoteAction) {
+        return fallback;
+    }
+
+    return {
+        actionCue: remoteAction.actionCue || fallback.actionCue,
+        actionBody: joinReadingParagraphs([
+            remoteAction.actionBody,
+            adviceParagraphs[0],
+            adviceParagraphs[1]
+        ], 3) || fallback.actionBody,
+        directionCue: remoteAction.directionCue || fallback.directionCue,
+        directionBody: joinReadingParagraphs([
+            remoteAction.directionBody,
+            adviceParagraphs[2],
+            adviceParagraphs[1]
+        ], 3) || fallback.directionBody
     };
 }
 
@@ -1824,8 +1918,8 @@ function renderAnalysisResult(input, result, options = {}) {
     setAnalyzeButtonLoading(false);
 
     const emotion = getEmotionCenter(result.emotions);
-    const interpretation = result?.interpretation || buildDreamInterpretation(result, emotion.label, input);
-    const actionGuidance = result?.actionGuidance || buildActionGuidance(result, input, emotion.label);
+    const interpretation = buildDisplayedInterpretation(result, emotion.label, input);
+    const actionGuidance = buildDisplayedActionGuidance(result, input, emotion.label);
 
     // Hero
     const titleEl = document.getElementById('resultTitle');
