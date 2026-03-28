@@ -658,13 +658,26 @@ async function tryParseOrRepair(apiKey, rawContent, dreamText, scaffold = {}) {
 }
 
 function normalizeAnalysisPayload(payload = {}, scaffold = {}, meta = {}) {
+  const useScaffoldNarrativeFallback = meta.source === 'stable-fallback' || meta.provider === 'local' || meta.usedFallback;
   const fallbackTheme = normalizeTheme(scaffold.theme, 'general');
   const fallbackTitle = normalizeString(scaffold.title, '梦境解析');
   const fallbackTags = normalizeTags(scaffold.tags, DEFAULT_TAGS);
   const fallbackSymbols = normalizeSymbols(scaffold.symbols, DEFAULT_SYMBOLS);
   const fallbackEmotions = normalizeEmotions(scaffold.emotions, DEFAULT_EMOTIONS);
-  const fallbackInterpretation = normalizeScaffoldInterpretation(scaffold.interpretation);
-  const fallbackActionGuidance = normalizeScaffoldActionGuidance(scaffold.actionGuidance);
+  const fallbackInterpretation = useScaffoldNarrativeFallback ? normalizeScaffoldInterpretation(scaffold.interpretation) : null;
+  const fallbackActionGuidance = useScaffoldNarrativeFallback ? normalizeScaffoldActionGuidance(scaffold.actionGuidance) : null;
+  const fallbackSummary = useScaffoldNarrativeFallback
+    ? normalizeString(scaffold.summary, '这场梦把一些白天还没说清的感受重新带回了你面前。')
+    : '这场梦把一些白天还没说清的感受重新带回了你面前。';
+  const fallbackPsychology = useScaffoldNarrativeFallback
+    ? normalizeString(scaffold.psychology, '这场梦里最反复的画面、声音和动作，往往比结论更接近你当下真正卡住或在意的位置。')
+    : '这场梦里最反复的画面、声音和动作，往往比结论更接近你当下真正卡住或在意的位置。';
+  const fallbackUnconscious = useScaffoldNarrativeFallback
+    ? normalizeString(scaffold.unconscious, '① 先看梦里反复出现的画面。\n\n② 再看你在梦里是靠近、停下，还是绕开它。\n\n③ 这些动作通常比抽象结论更接近这场梦真正的重心。')
+    : '① 先看梦里反复出现的画面。\n\n② 再看你在梦里是靠近、停下，还是绕开它。\n\n③ 这些动作通常比抽象结论更接近这场梦真正的重心。';
+  const fallbackAdvice = useScaffoldNarrativeFallback
+    ? normalizeString(scaffold.advice, '① 先写下梦里最清楚的一幕。\n\n② 再补一句醒来后残留最久的感受。\n\n③ 只记录具体细节，先不要急着替它下结论。')
+    : '① 先写下梦里最清楚的一幕。\n\n② 再补一句醒来后残留最久的感受。\n\n③ 只记录具体细节，先不要急着替它下结论。';
 
   const emotions = normalizeEmotions(payload.emotions, fallbackEmotions);
   const interpretation = payload.interpretation || {};
@@ -679,12 +692,12 @@ function normalizeAnalysisPayload(payload = {}, scaffold = {}, meta = {}) {
     title: normalizeString(payload.title, fallbackTitle),
     theme: normalizeTheme(payload.theme, fallbackTheme),
     tags: normalizeTags(payload.tags, fallbackTags),
-    summary: normalizeParagraph(payload.summary, normalizeString(scaffold.summary, '这场梦把一些白天还没说清的感受重新带回了你面前。')),
+    summary: normalizeParagraph(payload.summary, fallbackSummary),
     symbols: normalizeSymbols(payload.symbols, fallbackSymbols),
     emotions,
-    psychology: normalizeParagraph(payload.psychology, normalizeString(scaffold.psychology, '这场梦里最反复的画面、声音和动作，往往比结论更接近你当下真正卡住或在意的位置。')),
-    unconscious: normalizeParagraph(payload.unconscious, normalizeString(scaffold.unconscious, '① 先看梦里反复出现的画面。\n\n② 再看你在梦里是靠近、停下，还是绕开它。\n\n③ 这些动作通常比抽象结论更接近这场梦真正的重心。')),
-    advice: normalizeParagraph(payload.advice, normalizeString(scaffold.advice, '① 先写下梦里最清楚的一幕。\n\n② 再补一句醒来后残留最久的感受。\n\n③ 只记录具体细节，先不要急着替它下结论。')),
+    psychology: normalizeParagraph(payload.psychology, fallbackPsychology),
+    unconscious: normalizeParagraph(payload.unconscious, fallbackUnconscious),
+    advice: normalizeParagraph(payload.advice, fallbackAdvice),
     interpretation: {
       lead: normalizeParagraph(interpretation.lead, normalizeString(fallbackInterpretation?.lead, '这场梦把最关键的画面放在你面前，让你看见自己正在靠近什么，又为什么会停一下。')),
       overview: normalizeParagraph(interpretation.overview, normalizeString(fallbackInterpretation?.overview, '梦里的画面不是分开的：场景、声音和动作连在一起，才能看出它真正聚焦的心理位置。')),
