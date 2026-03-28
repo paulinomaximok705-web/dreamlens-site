@@ -246,6 +246,12 @@ function collectMessageContent(result) {
   return content;
 }
 
+function summarizeDebugContent(content) {
+  return normalizeString(content)
+    .replace(/\s+/g, ' ')
+    .slice(0, 220);
+}
+
 const FRAMEWORK_MARKERS = [
   '荣格', '周公', '东方', '阴阳', '五行', '阈限', '阴影', '自性', '人格面具', '阿尼玛', '阿尼姆斯', '家宅', '门槛', '山水'
 ];
@@ -724,6 +730,9 @@ function normalizeAnalysisPayload(payload = {}, scaffold = {}, meta = {}) {
 
 module.exports = async (req, res) => {
   const apiKey = process.env.DEEPSEEK_API_KEY;
+  const requestUrl = new URL(req.url || '/', 'http://localhost');
+  const debug = requestUrl.searchParams.get('debug') === '1' || req.headers['x-dreamlens-debug'] === '1';
+  const trace = [];
 
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -758,9 +767,19 @@ module.exports = async (req, res) => {
       maxTokens: DEEPSEEK_PRIMARY_MAX_TOKENS,
       attempts: 2
     });
+    const primaryContent = collectMessageContent(primary);
     let payload = primary.response.ok
-      ? await tryParseOrRepair(apiKey, collectMessageContent(primary), normalizedDreamText, scaffold)
+      ? await tryParseOrRepair(apiKey, primaryContent, normalizedDreamText, scaffold)
       : null;
+
+    if (debug) {
+      trace.push({
+        step: 'primary',
+        status: primary.response.status,
+        parsed: !!payload,
+        contentPreview: payload ? '' : summarizeDebugContent(primaryContent)
+      });
+    }
 
     if (!payload) {
       const recovery = await requestDeepSeek(apiKey, buildRecoveryMessages(normalizedDreamText, scaffold), {
@@ -768,31 +787,56 @@ module.exports = async (req, res) => {
         maxTokens: DEEPSEEK_RECOVERY_MAX_TOKENS,
         attempts: 1
       });
+      const recoveryContent = collectMessageContent(recovery);
 
       if (recovery.response.ok) {
-        payload = await tryParseOrRepair(apiKey, collectMessageContent(recovery), normalizedDreamText, scaffold);
+        payload = await tryParseOrRepair(apiKey, recoveryContent, normalizedDreamText, scaffold);
+      }
+
+      if (debug) {
+        trace.push({
+          step: 'recovery',
+          status: recovery.response.status,
+          parsed: !!payload,
+          contentPreview: payload ? '' : summarizeDebugContent(recoveryContent)
+        });
       }
     }
 
     if (!payload) {
-      res.status(200).json(normalizeAnalysisPayload({}, scaffold, {
+      const fallbackResponse = normalizeAnalysisPayload({}, scaffold, {
         source: 'stable-fallback',
         provider: 'local',
         model: 'local-fallback',
         usedFallback: true,
         fallbackMessage: '云端深度解析这次没有稳定完成，已回退为结构化基础解析。'
-      }));
+      });
+
+      if (debug) fallbackResponse._debug = trace;
+      res.status(200).json(fallbackResponse);
       return;
     }
 
-    res.status(200).json(normalizeAnalysisPayload(payload, scaffold));
+    const successResponse = normalizeAnalysisPayload(payload, scaffold);
+    if (debug) successResponse._debug = trace;
+    res.status(200).json(successResponse);
   } catch (error) {
-    res.status(200).json(normalizeAnalysisPayload({}, scaffold, {
+    const fallbackResponse = normalizeAnalysisPayload({}, scaffold, {
       source: 'stable-fallback',
       provider: 'local',
       model: 'local-fallback',
       usedFallback: true,
       fallbackMessage: error.message || 'Dream analysis failed'
-    }));
+    });
+
+    if (debug) {
+      trace.push({
+        step: 'exception',
+        message: error.message || 'Dream analysis failed'
+      });
+      fallbackResponse._debug = trace;
+    }
+
+    res.status(200).json(fallbackResponse);
   }
 };
