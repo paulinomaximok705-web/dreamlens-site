@@ -349,6 +349,32 @@ function mergeAnalyzeResult(localResult, remoteResult) {
     };
 }
 
+function serializeAnalyzeScaffold(scaffold) {
+    const tags = Array.isArray(scaffold?.tags)
+        ? scaffold.tags
+            .map((item) => {
+                if (typeof item === 'string') return item.trim();
+                if (item && typeof item.text === 'string') return item.text.trim();
+                return '';
+            })
+            .filter(Boolean)
+        : [];
+
+    return {
+        title: scaffold?.title || '',
+        theme: scaffold?.theme || 'general',
+        tags,
+        symbols: Array.isArray(scaffold?.symbols) ? scaffold.symbols : [],
+        emotions: Array.isArray(scaffold?.emotions) ? scaffold.emotions : [],
+        summary: scaffold?.summary || '',
+        psychology: scaffold?.psychology || '',
+        unconscious: scaffold?.unconscious || '',
+        advice: scaffold?.advice || '',
+        interpretation: scaffold?.interpretation || null,
+        actionGuidance: scaffold?.actionGuidance || null
+    };
+}
+
 async function requestDreamAnalysisFromEndpoint(endpoint, rawText, scaffold, options = {}) {
     const timeoutMs = Number.isFinite(options.timeoutMs) ? options.timeoutMs : ANALYZE_REMOTE_HARD_TIMEOUT_MS;
     const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
@@ -365,13 +391,7 @@ async function requestDreamAnalysisFromEndpoint(endpoint, rawText, scaffold, opt
         signal: controller?.signal,
         body: JSON.stringify({
             dreamText: rawText,
-            scaffold: {
-                title: scaffold.title,
-                theme: scaffold.theme,
-                tags: scaffold.tags,
-                symbols: scaffold.symbols,
-                emotions: scaffold.emotions
-            }
+            scaffold: serializeAnalyzeScaffold(scaffold)
         })
         });
 

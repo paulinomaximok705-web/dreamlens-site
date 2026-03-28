@@ -3,6 +3,8 @@ const DEEPSEEK_MODEL = process.env.DEEPSEEK_MODEL || 'deepseek-chat';
 const DEEPSEEK_PRIMARY_MAX_TOKENS = Number.parseInt(process.env.DEEPSEEK_ANALYZE_MAX_TOKENS || '760', 10);
 const DEEPSEEK_RECOVERY_MAX_TOKENS = Number.parseInt(process.env.DEEPSEEK_ANALYZE_RECOVERY_MAX_TOKENS || '620', 10);
 const DEEPSEEK_REFINEMENT_MAX_TOKENS = Number.parseInt(process.env.DEEPSEEK_ANALYZE_REFINEMENT_MAX_TOKENS || '720', 10);
+const DEEPSEEK_REPAIR_MAX_TOKENS = Number.parseInt(process.env.DEEPSEEK_ANALYZE_REPAIR_MAX_TOKENS || '520', 10);
+const DEEPSEEK_RESCUE_MAX_TOKENS = Number.parseInt(process.env.DEEPSEEK_ANALYZE_RESCUE_MAX_TOKENS || '560', 10);
 
 const ALLOWED_THEMES = new Set(['water', 'chase', 'fall', 'fly', 'forest', 'house', 'death', 'light', 'general']);
 const ALLOWED_EMOTION_LABELS = ['宁静', '焦虑', '神秘', '自由', '迷惘', '恐惧', '好奇', '压迫'];
@@ -53,6 +55,10 @@ function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
 }
 
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 function normalizeParagraph(value, fallback = '') {
   const text = normalizeString(value, fallback).replace(/\r\n/g, '\n').replace(/\n{3,}/g, '\n\n');
   return text;
@@ -68,6 +74,27 @@ function normalizeTags(value, fallback = DEFAULT_TAGS) {
     ? value.map((item) => normalizeString(item)).filter(Boolean)
     : [];
   return (tags.length ? tags : fallback).slice(0, 4);
+}
+
+function normalizeScaffoldInterpretation(value) {
+  if (!value || typeof value !== 'object') return null;
+  return {
+    lead: normalizeString(value.lead),
+    overview: normalizeString(value.overview),
+    emotion: normalizeString(value.emotion),
+    emotionComposition: Array.isArray(value.emotionComposition) ? value.emotionComposition : [],
+    unconscious: normalizeString(value.unconscious)
+  };
+}
+
+function normalizeScaffoldActionGuidance(value) {
+  if (!value || typeof value !== 'object') return null;
+  return {
+    actionCue: normalizeString(value.actionCue),
+    actionBody: normalizeString(value.actionBody),
+    directionCue: normalizeString(value.directionCue),
+    directionBody: normalizeString(value.directionBody)
+  };
 }
 
 function normalizeSymbols(value, fallback = DEFAULT_SYMBOLS) {
@@ -191,6 +218,12 @@ function parseJsonContent(content) {
   return null;
 }
 
+function collectMessageContent(result) {
+  const content = normalizeString(result?.content);
+  if (!content) return '';
+  return content;
+}
+
 const FRAMEWORK_MARKERS = [
   '荣格', '周公', '东方', '阴阳', '五行', '阈限', '阴影', '自性', '人格面具', '阿尼玛', '阿尼姆斯', '家宅', '门槛', '山水'
 ];
@@ -247,6 +280,103 @@ const RECOVERY_USER_REQUIREMENTS = [
   '4. advice 只给具体可执行的小动作。',
   '5. 只返回 JSON。'
 ];
+
+function buildRepairMessages(rawContent, dreamText, scaffold = {}) {
+  const compactSchema = {
+    title: '梦境标题',
+    theme: 'water/chase/fall/fly/forest/house/death/light/general 之一',
+    tags: ['简短中文标签'],
+    summary: '1段总结',
+    symbols: [{ name: '意象名', meaning: '具体含义' }],
+    emotions: [{ label: '情绪名', pct: 30 }],
+    psychology: '3段心理分析',
+    unconscious: '3小段',
+    advice: '3小段',
+    interpretation: {
+      lead: '一句核心判断',
+      overview: '补充正文',
+      emotion: '情绪分析',
+      emotionComposition: [{ key: 'pressure', label: '压迫', pct: 30, tone: 'ember' }],
+      unconscious: '潜意识传达'
+    },
+    actionGuidance: {
+      actionCue: '一句行动提示',
+      actionBody: '行动正文',
+      directionCue: '一句继续观察提示',
+      directionBody: '继续观察正文'
+    }
+  };
+
+  return [
+    {
+      role: 'system',
+      content: [
+        '你是 JSON 修复助手。',
+        '下面会给你一段 DreamLens 解析模型输出的原始文本，它不是合法 JSON。',
+        '请保留其中有价值的解析内容，修复为合法 JSON。',
+        '如果原始文本里缺少某些字段，就根据梦境原文和 scaffold 补全，但不要脱离原梦。',
+        '只返回合法 JSON，不要输出解释、Markdown、代码块。'
+      ].join('\n')
+    },
+    {
+      role: 'user',
+      content: [
+        '梦境原文：',
+        dreamText,
+        '',
+        'scaffold：',
+        JSON.stringify(scaffold, null, 2),
+        '',
+        '需要修复的原始文本：',
+        rawContent,
+        '',
+        '目标 JSON 结构：',
+        JSON.stringify(compactSchema, null, 2)
+      ].join('\n')
+    }
+  ];
+}
+
+function buildRescueMessages(dreamText, scaffold = {}) {
+  const miniSchema = {
+    title: '梦境标题，2到10字',
+    theme: 'water/chase/fall/fly/forest/house/death/light/general 之一',
+    tags: ['3个简短中文标签'],
+    summary: '55到80字',
+    symbols: [{ name: '意象名', meaning: '24到42字，必须具体' }],
+    emotions: [{ label: '情绪名', pct: 30 }],
+    psychology: '3段，总计120到180字',
+    unconscious: '3小段，总计80到120字',
+    advice: '3小段，总计80到120字'
+  };
+
+  return [
+    {
+      role: 'system',
+      content: [
+        '你是 DreamLens 的救援解析助手。',
+        '前面的输出没有成功，现在请只生成最核心且稳定的 JSON 字段。',
+        '必须具体、贴近梦的画面，必须带荣格、东方象征或周公语义中的至少两个明确对应。',
+        '只返回合法 JSON，不要输出解释、Markdown、代码块。'
+      ].join('\n')
+    },
+    {
+      role: 'user',
+      content: [
+        '请根据这段梦境生成一份稳定、具体的最小可用 JSON：',
+        '',
+        '梦境原文：',
+        dreamText,
+        '',
+        'scaffold：',
+        JSON.stringify(scaffold, null, 2),
+        '',
+        '目标 JSON 结构：',
+        JSON.stringify(miniSchema, null, 2)
+      ].join('\n')
+    }
+  ];
+}
 
 function normalizeComparableText(value) {
   return normalizeString(value)
@@ -459,65 +589,114 @@ function buildRecoveryMessages(dreamText, scaffold = {}) {
 }
 
 async function requestDeepSeek(apiKey, messages, options = {}) {
-  const response = await fetch(`${DEEPSEEK_BASE_URL}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`
-    },
-    body: JSON.stringify({
-      model: DEEPSEEK_MODEL,
-      temperature: options.temperature ?? 0.35,
-      max_tokens: options.maxTokens ?? 1050,
-      response_format: { type: 'json_object' },
-      messages
-    })
-  });
+  const attempts = Math.max(1, Number.parseInt(String(options.attempts ?? 2), 10) || 2);
+  let lastError = null;
 
-  const data = await response.json();
-  return {
-    response,
-    data,
-    content: data?.choices?.[0]?.message?.content || ''
-  };
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      const response = await fetch(`${DEEPSEEK_BASE_URL}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          model: DEEPSEEK_MODEL,
+          temperature: options.temperature ?? 0.35,
+          max_tokens: options.maxTokens ?? 1050,
+          response_format: { type: 'json_object' },
+          messages
+        })
+      });
+
+      const rawText = await response.text();
+      let data = null;
+      try {
+        data = rawText ? JSON.parse(rawText) : null;
+      } catch (_) {
+        data = null;
+      }
+
+      const result = {
+        response,
+        data,
+        content: data?.choices?.[0]?.message?.content || ''
+      };
+
+      if (response.ok || attempt === attempts - 1 || ![408, 409, 429, 500, 502, 503, 504].includes(response.status)) {
+        return result;
+      }
+
+      lastError = new Error(data?.error?.message || data?.error || `DeepSeek temporary error ${response.status}`);
+    } catch (error) {
+      lastError = error;
+      if (attempt === attempts - 1) throw error;
+    }
+
+    await delay(320 * (attempt + 1));
+  }
+
+  throw lastError || new Error('DeepSeek analyze request failed');
 }
 
-function normalizeAnalysisPayload(payload = {}, scaffold = {}) {
+async function tryParseOrRepair(apiKey, rawContent, dreamText, scaffold = {}) {
+  const parsed = parseJsonContent(rawContent);
+  if (parsed) return parsed;
+
+  if (!normalizeString(rawContent)) return null;
+
+  try {
+    const repair = await requestDeepSeek(apiKey, buildRepairMessages(rawContent, dreamText, scaffold), {
+      temperature: 0.1,
+      maxTokens: DEEPSEEK_REPAIR_MAX_TOKENS
+    });
+    if (!repair.response.ok) return null;
+    return parseJsonContent(repair.content);
+  } catch (_) {
+    return null;
+  }
+}
+
+function normalizeAnalysisPayload(payload = {}, scaffold = {}, meta = {}) {
   const fallbackTheme = normalizeTheme(scaffold.theme, 'general');
   const fallbackTitle = normalizeString(scaffold.title, '梦境解析');
   const fallbackTags = normalizeTags(scaffold.tags, DEFAULT_TAGS);
   const fallbackSymbols = normalizeSymbols(scaffold.symbols, DEFAULT_SYMBOLS);
   const fallbackEmotions = normalizeEmotions(scaffold.emotions, DEFAULT_EMOTIONS);
+  const fallbackInterpretation = normalizeScaffoldInterpretation(scaffold.interpretation);
+  const fallbackActionGuidance = normalizeScaffoldActionGuidance(scaffold.actionGuidance);
 
   const emotions = normalizeEmotions(payload.emotions, fallbackEmotions);
   const interpretation = payload.interpretation || {};
   const actionGuidance = payload.actionGuidance || {};
 
   return {
-    source: 'deepseek',
-    provider: 'deepseek',
-    model: DEEPSEEK_MODEL,
+    source: meta.source || 'deepseek',
+    provider: meta.provider || 'deepseek',
+    model: meta.model || DEEPSEEK_MODEL,
+    _usedFallback: !!meta.usedFallback,
+    _fallbackMessage: normalizeString(meta.fallbackMessage),
     title: normalizeString(payload.title, fallbackTitle),
     theme: normalizeTheme(payload.theme, fallbackTheme),
     tags: normalizeTags(payload.tags, fallbackTags),
-    summary: normalizeParagraph(payload.summary, '这场梦把一些白天还没说清的感受重新带回了你面前。'),
+    summary: normalizeParagraph(payload.summary, normalizeString(scaffold.summary, '这场梦把一些白天还没说清的感受重新带回了你面前。')),
     symbols: normalizeSymbols(payload.symbols, fallbackSymbols),
     emotions,
-    psychology: normalizeParagraph(payload.psychology, '这场梦里最反复的画面、声音和动作，往往比结论更接近你当下真正卡住或在意的位置。'),
-    unconscious: normalizeParagraph(payload.unconscious, '① 先看梦里反复出现的画面。\n\n② 再看你在梦里是靠近、停下，还是绕开它。\n\n③ 这些动作通常比抽象结论更接近这场梦真正的重心。'),
-    advice: normalizeParagraph(payload.advice, '① 先写下梦里最清楚的一幕。\n\n② 再补一句醒来后残留最久的感受。\n\n③ 只记录具体细节，先不要急着替它下结论。'),
+    psychology: normalizeParagraph(payload.psychology, normalizeString(scaffold.psychology, '这场梦里最反复的画面、声音和动作，往往比结论更接近你当下真正卡住或在意的位置。')),
+    unconscious: normalizeParagraph(payload.unconscious, normalizeString(scaffold.unconscious, '① 先看梦里反复出现的画面。\n\n② 再看你在梦里是靠近、停下，还是绕开它。\n\n③ 这些动作通常比抽象结论更接近这场梦真正的重心。')),
+    advice: normalizeParagraph(payload.advice, normalizeString(scaffold.advice, '① 先写下梦里最清楚的一幕。\n\n② 再补一句醒来后残留最久的感受。\n\n③ 只记录具体细节，先不要急着替它下结论。')),
     interpretation: {
-      lead: normalizeParagraph(interpretation.lead, '这场梦把最关键的画面放在你面前，让你看见自己正在靠近什么，又为什么会停一下。'),
-      overview: normalizeParagraph(interpretation.overview, '梦里的画面不是分开的：场景、声音和动作连在一起，才能看出它真正聚焦的心理位置。'),
-      emotion: normalizeParagraph(interpretation.emotion, '这场梦里的情绪不是单一的，它通常会跟着画面和动作一起变化。'),
-      emotionComposition: normalizeEmotionComposition(interpretation.emotionComposition, emotions),
-      unconscious: normalizeParagraph(interpretation.unconscious, '梦里最反复的细节，通常不是为了给出漂亮结论，而是为了把真正重要的那一点留在你面前。')
+      lead: normalizeParagraph(interpretation.lead, normalizeString(fallbackInterpretation?.lead, '这场梦把最关键的画面放在你面前，让你看见自己正在靠近什么，又为什么会停一下。')),
+      overview: normalizeParagraph(interpretation.overview, normalizeString(fallbackInterpretation?.overview, '梦里的画面不是分开的：场景、声音和动作连在一起，才能看出它真正聚焦的心理位置。')),
+      emotion: normalizeParagraph(interpretation.emotion, normalizeString(fallbackInterpretation?.emotion, '这场梦里的情绪不是单一的，它通常会跟着画面和动作一起变化。')),
+      emotionComposition: normalizeEmotionComposition(interpretation.emotionComposition, normalizeEmotions(payload.emotions, fallbackEmotions)),
+      unconscious: normalizeParagraph(interpretation.unconscious, normalizeString(fallbackInterpretation?.unconscious, '梦里最反复的细节，通常不是为了给出漂亮结论，而是为了把真正重要的那一点留在你面前。'))
     },
     actionGuidance: {
-      actionCue: normalizeString(actionGuidance.actionCue, '先记下梦里最具体的一个细节。'),
-      actionBody: normalizeParagraph(actionGuidance.actionBody, '先把那一幕写下来：它发生在哪里，里面有什么声音、光线、动作，醒来后你身体里还留着什么感觉。'),
-      directionCue: normalizeString(actionGuidance.directionCue, '接下来，继续留意梦里那个最反复的意象。'),
-      directionBody: normalizeParagraph(actionGuidance.directionBody, '先不要急着把它解释成某种大道理。只要观察它在现实里会不会以相似的情绪、场景或动作再次出现。')
+      actionCue: normalizeString(actionGuidance.actionCue, normalizeString(fallbackActionGuidance?.actionCue, '先记下梦里最具体的一个细节。')),
+      actionBody: normalizeParagraph(actionGuidance.actionBody, normalizeString(fallbackActionGuidance?.actionBody, '先把那一幕写下来：它发生在哪里，里面有什么声音、光线、动作，醒来后你身体里还留着什么感觉。')),
+      directionCue: normalizeString(actionGuidance.directionCue, normalizeString(fallbackActionGuidance?.directionCue, '接下来，继续留意梦里那个最反复的意象。')),
+      directionBody: normalizeParagraph(actionGuidance.directionBody, normalizeString(fallbackActionGuidance?.directionBody, '先不要急着把它解释成某种大道理。只要观察它在现实里会不会以相似的情绪、场景或动作再次出现。'))
     }
   };
 }
@@ -555,37 +734,43 @@ module.exports = async (req, res) => {
   try {
     const primary = await requestDeepSeek(apiKey, buildMessages(normalizedDreamText, scaffold), {
       temperature: 0.25,
-      maxTokens: DEEPSEEK_PRIMARY_MAX_TOKENS
+      maxTokens: DEEPSEEK_PRIMARY_MAX_TOKENS,
+      attempts: 2
     });
-
-    if (!primary.response.ok) {
-      const errorText = primary.data?.error?.message || primary.data?.error || 'DeepSeek analyze request failed';
-      res.status(primary.response.status).json({ error: errorText });
-      return;
-    }
-
-    let payload = parseJsonContent(primary.content);
+    let payload = primary.response.ok
+      ? await tryParseOrRepair(apiKey, collectMessageContent(primary), normalizedDreamText, scaffold)
+      : null;
 
     if (!payload) {
       const recovery = await requestDeepSeek(apiKey, buildRecoveryMessages(normalizedDreamText, scaffold), {
         temperature: 0.18,
-        maxTokens: DEEPSEEK_RECOVERY_MAX_TOKENS
+        maxTokens: DEEPSEEK_RECOVERY_MAX_TOKENS,
+        attempts: 2
       });
 
       if (recovery.response.ok) {
-        payload = parseJsonContent(recovery.content);
+        payload = await tryParseOrRepair(apiKey, collectMessageContent(recovery), normalizedDreamText, scaffold);
       }
     }
 
     if (!payload) {
-      res.status(502).json({ error: 'DeepSeek returned invalid JSON content' });
-      return;
+      try {
+        const rescue = await requestDeepSeek(apiKey, buildRescueMessages(normalizedDreamText, scaffold), {
+          temperature: 0.12,
+          maxTokens: DEEPSEEK_RESCUE_MAX_TOKENS,
+          attempts: 2
+        });
+        if (rescue.response.ok) {
+          payload = await tryParseOrRepair(apiKey, collectMessageContent(rescue), normalizedDreamText, scaffold);
+        }
+      } catch (_) {}
     }
 
     if (needsQualityRefinement(payload, normalizedDreamText)) {
       const refinement = await requestDeepSeek(apiKey, buildRefinementMessages(normalizedDreamText, scaffold, payload), {
         temperature: 0.18,
-        maxTokens: DEEPSEEK_REFINEMENT_MAX_TOKENS
+        maxTokens: DEEPSEEK_REFINEMENT_MAX_TOKENS,
+        attempts: 1
       });
 
       if (refinement.response.ok) {
@@ -596,8 +781,25 @@ module.exports = async (req, res) => {
       }
     }
 
+    if (!payload) {
+      res.status(200).json(normalizeAnalysisPayload({}, scaffold, {
+        source: 'stable-fallback',
+        provider: 'local',
+        model: 'local-fallback',
+        usedFallback: true,
+        fallbackMessage: '云端深度解析这次没有稳定完成，已回退为结构化基础解析。'
+      }));
+      return;
+    }
+
     res.status(200).json(normalizeAnalysisPayload(payload, scaffold));
   } catch (error) {
-    res.status(500).json({ error: error.message || 'Dream analysis failed' });
+    res.status(200).json(normalizeAnalysisPayload({}, scaffold, {
+      source: 'stable-fallback',
+      provider: 'local',
+      model: 'local-fallback',
+      usedFallback: true,
+      fallbackMessage: error.message || 'Dream analysis failed'
+    }));
   }
 };
