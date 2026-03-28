@@ -876,6 +876,158 @@ function buildReadingTakeaway(summary, psychology, fallback = '') {
         || fallback;
 }
 
+function collectDreamAnchors(result, rawText = '') {
+    const context = collectDreamSignalContext(result, rawText);
+    const pool = [
+        context.cueWords.forestWord,
+        context.cueWords.doorWord,
+        context.cueWords.waterWord,
+        context.cueWords.sinkingWord,
+        context.cueWords.lightWord,
+        context.cueWords.houseWord,
+        context.cueWords.mirrorWord,
+        ...context.symbols.slice(0, 4).map(item => item?.name)
+    ];
+    const anchors = [];
+
+    for (const item of pool) {
+        const text = normalizeReadingParagraph(String(item || ''))
+            .replace(/^那([扇道片个段])/, '')
+            .replace(/^一直/, '')
+            .trim();
+        if (!text || anchors.includes(text)) continue;
+        anchors.push(text);
+    }
+
+    return anchors;
+}
+
+function countAdviceAnchorHits(text, anchors = []) {
+    const clean = normalizeReadingParagraph(stripOrdinalPrefix(text));
+    if (!clean) return 0;
+
+    return anchors.reduce((total, anchor) => {
+        const normalized = normalizeReadingParagraph(anchor);
+        if (!normalized) return total;
+        if (clean.includes(normalized)) return total + 1;
+
+        const compact = normalized
+            .replace(/^发光的/, '')
+            .replace(/^半开的/, '')
+            .replace(/^缓慢/, '')
+            .replace(/^一直没停下的/, '');
+
+        if (compact && compact.length >= 2 && clean.includes(compact)) {
+            return total + 1;
+        }
+
+        return total;
+    }, 0);
+}
+
+function isSpeculativeAdviceParagraph(text, anchors = []) {
+    const clean = normalizeReadingParagraph(stripOrdinalPrefix(text));
+    if (!clean) return true;
+
+    const anchorHits = countAdviceAnchorHits(clean, anchors);
+    const hasLooseExample = /(比如|例如)/.test(clean);
+    const hasFabricatedScenario = /(新项目|新关系|换工作|深夜沉思|某次|某个邀请|某段关系|若即若离的关系)/.test(clean);
+
+    return (hasLooseExample || hasFabricatedScenario) && anchorHits === 0;
+}
+
+function scoreAdviceParagraph(text, anchors = [], cue = '') {
+    const clean = normalizeReadingParagraph(stripOrdinalPrefix(text));
+    if (!clean || isSpeculativeAdviceParagraph(clean, anchors)) return -1;
+
+    let score = 0;
+    const anchorHits = countAdviceAnchorHits(clean, anchors);
+    score += anchorHits * 3;
+
+    if (cue && clean.includes(cue)) score += 2;
+    if (/写下|记下|回想|观察|留意|补写|记录|问自己|分清|分辨|对照|停在|标出|圈出/.test(clean)) score += 2;
+    if (/对应|帮助你|这样能|这样可以|更容易看清|更容易分清|落回现实|现实里/.test(clean)) score += 1;
+    if (clean.length >= 28) score += 1;
+
+    return score;
+}
+
+function selectAnchoredAdviceParagraphs(result, rawText = '', cue = '', usedParagraphs = new Set(), limit = 1) {
+    const anchors = collectDreamAnchors(result, rawText);
+    const paragraphs = splitReadingParagraphs(result?.advice)
+        .map(normalizeReadingParagraph)
+        .filter(Boolean);
+
+    const scored = paragraphs
+        .filter(paragraph => !usedParagraphs.has(paragraph))
+        .map(paragraph => ({ paragraph, score: scoreAdviceParagraph(paragraph, anchors, cue) }))
+        .filter(item => item.score >= 0)
+        .sort((a, b) => b.score - a.score || b.paragraph.length - a.paragraph.length);
+
+    const selected = [];
+    for (const item of scored) {
+        selected.push(item.paragraph);
+        usedParagraphs.add(item.paragraph);
+        if (selected.length >= limit) break;
+    }
+
+    if (selected.length) return selected;
+
+    for (const paragraph of paragraphs) {
+        if (usedParagraphs.has(paragraph) || isSpeculativeAdviceParagraph(paragraph, anchors)) continue;
+        selected.push(paragraph);
+        usedParagraphs.add(paragraph);
+        if (selected.length >= limit) break;
+    }
+
+    return selected;
+}
+
+function buildGuidanceBridge(result, rawText = '', variant = 'action') {
+    const context = collectDreamSignalContext(result, rawText);
+    const { signals, cueWords } = context;
+    const doorWord = cueWords.doorWord || '那扇门';
+    const waterWord = cueWords.waterWord || '那道声音';
+    const forestWord = cueWords.forestWord || '那片森林';
+    const sinkingWord = cueWords.sinkingWord || '那股下沉感';
+    const houseWord = cueWords.houseWord || '那个房间';
+    const mirrorWord = cueWords.mirrorWord || '镜中的自己';
+
+    if (signals.door && signals.water && signals.hesitation) {
+        return variant === 'action'
+            ? `${doorWord}、${waterWord}和你停住脚步的那一刻，本来就是前面总结里最核心的张力，所以现在更适合先分清吸引你的是什么、让你迟疑的又是什么。`
+            : `接下来更值得留意的，是现实里哪些时刻会重现 ${doorWord} 带来的靠近感，以及 ${sinkingWord || '那种停一下的感觉'} 带来的退缩。`;
+    }
+
+    if (signals.forest && signals.door) {
+        return variant === 'action'
+            ? `前面的解读已经把重点落在 ${forestWord} 与 ${doorWord} 之间的“想靠近又停一下”上，所以建议也应该顺着这一幕往下走，而不是跳去猜更大的结论。`
+            : `继续观察时，不妨只盯住 ${forestWord} 和 ${doorWord} 这组意象在现实里的回声，看看哪些场景会让你再次出现相同的靠近与保留。`;
+    }
+
+    if (signals.water && signals.sinking) {
+        return variant === 'action'
+            ? `${waterWord} 和 ${sinkingWord} 同时出现，说明前面的解读真正抓住的是“被牵引”和“怕失稳”这股拉扯，所以建议会更偏向先把这股感觉记实。`
+            : `继续留意时，重点不是找大道理，而是看现实里哪些时刻会同时出现被吸引和发虚这两股感觉。`;
+    }
+
+    if (signals.house) {
+        return variant === 'action'
+            ? `前面的总结更聚焦 ${houseWord} 牵出的安全感和整理需求，所以现在的建议也更适合先回到那个最有感觉的内在区域。`
+            : `接下来可以继续观察，现实里哪些空间、关系或安排，会让你再次感到像 ${houseWord} 一样熟悉却需要整理。`;
+    }
+
+    if (signals.mirror) {
+        return variant === 'action'
+            ? `${mirrorWord} 让这场梦更像一次对自己的正面相遇，所以建议更适合先写清你最不想回避的那一点，而不是急着下定义。`
+            : `继续留意时，可以观察现实里哪些瞬间会像 ${mirrorWord} 一样，把你带回那个最真实却最容易躲开的自我感受。`;
+    }
+
+    return variant === 'action'
+        ? '前面的解读反复落在梦里最清楚的那一幕和醒来后的残留感上，所以建议也应该先围绕那一幕做一个小而具体的动作。'
+        : '接下来继续观察时，只要留意现实里何时会再次出现这股相似的情绪和动作，建议就会更贴近这场梦真正的重心。';
+}
+
 function renderReadingRichText(text, options = {}) {
     const { emphasizeFirst = false } = options;
     const paragraphs = splitReadingParagraphs(text)
@@ -1772,24 +1924,52 @@ function buildDisplayedActionGuidance(result, rawText = '', emotionLabel = '') {
     const remoteAction = result?.actionGuidance && typeof result.actionGuidance === 'object'
         ? result.actionGuidance
         : null;
-    const adviceParagraphs = splitReadingParagraphs(result?.advice);
+    const usedAdviceParagraphs = new Set();
+    const actionBridge = buildGuidanceBridge(result, rawText, 'action');
+    const directionBridge = buildGuidanceBridge(result, rawText, 'direction');
 
     if (!remoteAction) {
-        return fallback;
+        return {
+            actionCue: fallback.actionCue,
+            actionBody: joinReadingParagraphs([
+                actionBridge,
+                fallback.actionBody
+            ], 2) || fallback.actionBody,
+            directionCue: fallback.directionCue,
+            directionBody: joinReadingParagraphs([
+                directionBridge,
+                fallback.directionBody
+            ], 2) || fallback.directionBody
+        };
     }
+
+    const actionSupportParagraphs = selectAnchoredAdviceParagraphs(
+        result,
+        rawText,
+        remoteAction.actionCue || fallback.actionCue,
+        usedAdviceParagraphs,
+        1
+    );
+    const directionSupportParagraphs = selectAnchoredAdviceParagraphs(
+        result,
+        rawText,
+        remoteAction.directionCue || fallback.directionCue,
+        usedAdviceParagraphs,
+        1
+    );
 
     return {
         actionCue: remoteAction.actionCue || fallback.actionCue,
         actionBody: joinReadingParagraphs([
+            actionBridge,
             remoteAction.actionBody,
-            adviceParagraphs[0],
-            adviceParagraphs[1]
+            ...actionSupportParagraphs
         ], 3) || fallback.actionBody,
         directionCue: remoteAction.directionCue || fallback.directionCue,
         directionBody: joinReadingParagraphs([
+            directionBridge,
             remoteAction.directionBody,
-            adviceParagraphs[2],
-            adviceParagraphs[1]
+            ...directionSupportParagraphs
         ], 3) || fallback.directionBody
     };
 }

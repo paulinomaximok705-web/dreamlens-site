@@ -268,6 +268,9 @@ const FRAMEWORK_MARKERS = [
 const REALITY_MARKERS = [
   '工作', '关系', '家庭', '亲密', '沟通', '表达', '边界', '稳定', '责任', '告别', '决定', '现实', '生活', '压力', '角色', '拉扯', '靠近', '退缩'
 ];
+const GUIDANCE_ACTION_MARKERS = [
+  '写下', '记下', '记录', '回想', '回看', '留意', '观察', '补写', '对照', '分清', '分辨', '问自己', '圈出', '标出'
+];
 
 const ANALYSIS_SYSTEM_RULES = [
   '你是 DreamLens 的梦境解析助手，需要基于用户原文输出结果页直接可用的结构化 JSON。',
@@ -301,7 +304,7 @@ const ANALYSIS_USER_REQUIREMENTS = [
   '7. symbols 至少覆盖 3 个关键意象，优先写最反复、最异常、最有情绪重量的意象。meaning 要具体写出它在东方象征、荣格或周公语义中的对应，并补一句它更像现实里的哪种压力、关系或情绪处境。',
   '8. psychology 尽量写成 3 段：第一段偏荣格心理学，第二段偏东方象征或周公传统，第三段把两者收束回做梦者当下的真实处境。每段都必须引用梦里细节，不要空谈理论；第三段至少写出 1 到 2 个可能的生活场景。',
   '9. unconscious / advice / interpretation.* 要尽量少套话，多落回梦里的具体意象、动作、情绪和关系位置；最好出现“这更像你最近在……”这一类现实映射。',
-  '10. actionGuidance 也要具体，不要写成空泛建议；优先给出能立即执行的小动作，例如记录哪个意象、回想哪一幕、补写哪种醒后感受，并说明它对现实中的哪类困扰有帮助。',
+  '10. actionGuidance 和 advice 必须顺着 summary / interpretation 已经点出的核心张力往下写，最好复用同一两个意象或动作；不要另起炉灶，也不要写“比如新项目、新关系、某次深夜沉思”这类原梦没有支撑的假设例子。',
   '11. 如果用到传统解梦或原型概念，必须解释为什么它和这场梦有关，不能只报术语名称。',
   '12. 可以写得更充实，但不要重复同一句话；每一段增加的字数都应该换来新的梦境细节、理论对应或现实联系。',
   '13. 输出必须是纯 JSON，不要有任何额外文本。'
@@ -322,7 +325,7 @@ const RECOVERY_USER_REQUIREMENTS = [
   '1. summary 要直接点明最关键的梦中画面，并补一句现实中的心理张力。',
   '2. symbols 的 meaning 不要空泛，至少落到一个具体框架或具体心理冲突，并补一句现实映射。',
   '3. psychology 尽量覆盖荣格角度 + 东方/周公角度，并明确回到现实心理处境。',
-  '4. advice 只给具体可执行的小动作，并写出它对应哪类现实困扰。',
+  '4. advice 和 actionGuidance 只给具体可执行的小动作，并写出它为什么正好对应前面已经点出的梦中张力；不要举原梦没有支撑的例子。',
   '5. 可以比之前多一点内容，但必须完整，尤其不要把第三段现实映射写丢。',
   '6. 只返回 JSON。'
 ];
@@ -487,6 +490,55 @@ function averageSymbolMeaningLength(symbols) {
   return items.reduce((sum, item) => sum + item.length, 0) / items.length;
 }
 
+function collectGuidanceText(payload = {}) {
+  return [
+    payload.advice,
+    payload?.actionGuidance?.actionBody,
+    payload?.actionGuidance?.directionBody
+  ]
+    .map((item) => normalizeString(item))
+    .join('\n');
+}
+
+function countGuidanceActionMarkers(payload = {}) {
+  const text = collectGuidanceText(payload);
+  if (!text) return 0;
+  return GUIDANCE_ACTION_MARKERS.filter((marker) => text.includes(marker)).length;
+}
+
+function countGuidanceDreamAnchors(payload = {}, dreamText = '') {
+  const guidanceText = collectGuidanceText(payload);
+  if (!guidanceText) return 0;
+
+  const source = normalizeString(dreamText);
+  const anchors = [
+    ...(Array.isArray(payload.symbols)
+      ? payload.symbols.slice(0, 4).map((item) => normalizeString(item?.name)).filter(Boolean)
+      : []),
+    ...(source.includes('森林') || source.includes('树林') ? ['森林'] : []),
+    ...(source.includes('门') ? ['门'] : []),
+    ...(source.includes('海') || source.includes('水') ? ['海', '水'] : []),
+    ...(source.includes('下沉') || source.includes('坠落') || source.includes('落下') ? ['下沉', '坠落'] : []),
+    ...(source.includes('发光') || source.includes('光线') || source.includes('亮光') ? ['光'] : []),
+    ...(source.includes('房间') || source.includes('房子') || source.includes('家') ? ['房间', '家'] : []),
+    ...(source.includes('镜') || source.includes('倒影') ? ['镜子'] : [])
+  ];
+
+  const uniqueAnchors = [...new Set(anchors.filter(Boolean))];
+  return uniqueAnchors.filter((anchor) => guidanceText.includes(anchor)).length;
+}
+
+function guidanceLooksSpeculative(payload = {}, dreamText = '') {
+  const text = collectGuidanceText(payload);
+  if (!text) return false;
+
+  const hasLooseExample = /(比如|例如)/.test(text);
+  const hasFabricatedScenario = /(新项目|新关系|换工作|深夜沉思|某次|某个邀请|某段关系|若即若离)/.test(text);
+  if (!hasLooseExample && !hasFabricatedScenario) return false;
+
+  return countGuidanceDreamAnchors(payload, dreamText) < 2;
+}
+
 function needsQualityRefinement(payload, dreamText) {
   if (!payload || typeof payload !== 'object') return false;
 
@@ -496,8 +548,19 @@ function needsQualityRefinement(payload, dreamText) {
   const psychologyTooThin = countParagraphs(payload.psychology) < 3 || normalizeString(payload.psychology).length < 150;
   const adviceTooThin = normalizeString(payload.advice).length < 90;
   const realityTooWeak = countRealityAnchors(payload) < 2;
+  const guidanceDreamGroundingTooWeak = countGuidanceDreamAnchors(payload, dreamText) < 1;
+  const guidanceActionTooWeak = countGuidanceActionMarkers(payload) < 2;
+  const guidanceTooSpeculative = guidanceLooksSpeculative(payload, dreamText);
 
-  return summaryTooClose || symbolSpecificityTooLow || symbolDetailTooThin || psychologyTooThin || adviceTooThin || realityTooWeak;
+  return summaryTooClose
+    || symbolSpecificityTooLow
+    || symbolDetailTooThin
+    || psychologyTooThin
+    || adviceTooThin
+    || realityTooWeak
+    || guidanceDreamGroundingTooWeak
+    || guidanceActionTooWeak
+    || guidanceTooSpeculative;
 }
 
 function buildRefinementMessages(dreamText, scaffold = {}, payload = {}) {
@@ -512,6 +575,8 @@ function buildRefinementMessages(dreamText, scaffold = {}, payload = {}) {
         'psychology 请写成 3 段：第一段偏荣格，第二段偏东方象征/周公，第三段回到这位做梦者当下的具体处境。',
         '每个重要字段都要更具体一些，尤其是 summary、symbols、advice、interpretation.overview，不能只写一层意思。',
         '至少在 3 个字段里把梦里的意象落回现实生活，例如工作沟通、亲密关系、家庭角色、边界拿捏、难以开口、害怕失去稳定等。',
+        'advice 和 actionGuidance 必须承接 summary / interpretation 已经点出的核心张力，最好复用同一两个意象或动作，不要另起一套建议逻辑。',
+        '不要举原梦没有支撑的例子，不要写“比如新项目、新关系、某次深夜沉思”这类看起来具体但其实凭空猜测的场景。',
         '周公语义只能作为传统文化象征参考，不要写吉凶预言。',
         '不要空话，不要模板句，不要只说“象征变化”“代表成长”“提示你关注自己”。'
       ].join('\n')
@@ -537,8 +602,10 @@ function buildRefinementMessages(dreamText, scaffold = {}, payload = {}) {
         '4. symbols.meaning 要更具体，至少有两个写出明确框架及其在这场梦里的含义，并补一句现实映射。',
         '5. psychology 必须三段分明，并且每段都要引用原梦里的具体线索，例如场景、门槛、动物、水、追逐、停下、回头、醒后感受等对应部分；第三段要更明确联系现实生活。',
         '6. unconscious / advice / interpretation.* 也要更贴近梦里的动作和情绪，不要空泛；尽量把现实中的关系、工作、家庭、表达或边界处境写出来。',
-        '7. 如果内容偏短，请在不灌水的前提下补足细节。',
-        '8. 只返回 JSON。'
+        '7. advice 和 actionGuidance 必须顺着 summary / interpretation 已经抓住的那条核心张力继续往下写，最好复用同一两个意象或动作，不要另起炉灶。',
+        '8. 不要举原梦没有支撑的现实例子，不要写“比如新项目、新关系、某次深夜沉思”之类的假设场景。',
+        '9. 如果内容偏短，请在不灌水的前提下补足细节。',
+        '10. 只返回 JSON。'
       ].join('\n')
     }
   ];
@@ -562,7 +629,7 @@ function buildMessages(dreamText, scaffold = {}) {
     emotions: [{ label: '宁静/焦虑/神秘/自由/迷惘/恐惧/好奇/压迫 之一', pct: 30 }],
     psychology: '3段，整体156到252字，用\\n\\n分段，第三段必须具体联系现实生活',
     unconscious: '3小段，用①②③开头，总体96到150字',
-    advice: '3小段，用①②③开头，总体96到150字，要写得更具体',
+    advice: '3小段，用①②③开头，总体96到150字，要写得更具体；必须承接 summary / psychology 已点出的核心张力，不要举原梦没支撑的例子',
     interpretation: {
       lead: '统一解读核心判断，18到32字',
       overview: '统一解读补充正文，42到82字，要落回现实张力',
@@ -574,9 +641,9 @@ function buildMessages(dreamText, scaffold = {}) {
     },
     actionGuidance: {
       actionCue: '现在就能做的一句提示，12到22字',
-      actionBody: '具体的小动作，38到78字，要说明它对应哪类现实困扰',
+      actionBody: '具体的小动作，38到78字，要直接承接前面总结里的核心张力，并说明它为什么有助于看清这场梦对应的现实困扰',
       directionCue: '继续留意的一句提示，12到22字',
-      directionBody: '继续观察的方向，38到78字，要说明它在现实里可能出现在哪里'
+      directionBody: '继续观察的方向，38到78字，要复用前面已经点出的意象或动作，并说明它在现实里可能出现在哪里；不要凭空举例'
     }
   };
 
@@ -624,7 +691,7 @@ function buildRecoveryMessages(dreamText, scaffold = {}) {
     emotions: [{ label: '宁静/焦虑/神秘/自由/迷惘/恐惧/好奇/压迫 之一', pct: 30 }],
     psychology: '3段，整体132到210字，用\\n\\n分段，第三段必须具体联系现实生活',
     unconscious: '3小段，用①②③开头，总体84到132字',
-    advice: '3小段，用①②③开头，总体84到132字，要更具体',
+    advice: '3小段，用①②③开头，总体84到132字，要更具体；必须承接前面已经总结出的梦中张力，不要举原梦没支撑的例子',
     interpretation: {
       lead: '统一解读核心判断，18到30字',
       overview: '统一解读补充正文，36到68字，要落回现实张力',
@@ -636,9 +703,9 @@ function buildRecoveryMessages(dreamText, scaffold = {}) {
     },
     actionGuidance: {
       actionCue: '现在就能做的一句提示，12到22字',
-      actionBody: '具体的小动作，30到64字，要说明它对应哪类现实困扰',
+      actionBody: '具体的小动作，30到64字，要说明它为什么正好对应前面总结出的现实困扰',
       directionCue: '继续留意的一句提示，12到22字',
-      directionBody: '继续观察的方向，30到64字，要说明它在现实里可能出现在哪里'
+      directionBody: '继续观察的方向，30到64字，要复用前面已点出的意象或动作，不要凭空举例'
     }
   };
 
