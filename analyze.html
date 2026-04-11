@@ -277,63 +277,49 @@ if ('scrollRestoration' in history) {
 
       <section class="az-reading-section az-reading-section--meaning-core">
         <div class="az-reading-section__head">
-          <h3 class="az-reading-section__title">梦境整理与可能解释</h3>
-          <p class="az-reading-section__note">我们先整理梦里确实出现了什么，再给出一种较稳妥的理解和其他可能方向。</p>
+          <h3 class="az-reading-section__title">心理学深度解读</h3>
+          <p class="az-reading-section__note">从意象、情绪与潜意识线索里，进入这场梦更深一层的心理解释。</p>
         </div>
         <div class="az-reading-meaning-panel" id="dreamInterpretationPanel">
           <section class="az-reading-meaning-panel__section az-reading-meaning-panel__section--lead">
-            <p class="az-reading-meaning-panel__label">核心感受</p>
+            <p class="az-reading-meaning-panel__label">统一解读</p>
             <p class="az-reading-meaning-panel__lead" id="dreamInterpretationLead"></p>
-            <p class="az-reading-meaning-panel__notice" id="dreamInterpretationNotice" hidden></p>
             <div class="az-reading-meaning-panel__takeaway" id="dreamInterpretationTakeaway" hidden>
-              <p class="az-reading-meaning-panel__takeaway-label">换成现实里的话</p>
+              <p class="az-reading-meaning-panel__takeaway-label">一句总结</p>
               <p class="az-reading-meaning-panel__takeaway-text" id="dreamInterpretationTakeawayText"></p>
             </div>
-          </section>
-
-          <section class="az-reading-meaning-panel__section">
-            <p class="az-reading-meaning-panel__label">画面里的关键张力</p>
             <div class="az-reading-meaning-panel__support" id="dreamInterpretationOverview"></div>
           </section>
 
-          <section class="az-reading-meaning-panel__section">
-            <p class="az-reading-meaning-panel__label">一种较稳妥的解释</p>
-            <div class="az-reading-meaning-panel__text" id="dreamInterpretationInterpretation"></div>
+          <section class="az-reading-meaning-panel__section az-reading-meaning-panel__section--energy">
+            <p class="az-reading-meaning-panel__label">情绪能量分析</p>
+            <div class="az-reading-meaning-panel__text" id="dreamInterpretationEmotion"></div>
+            <div class="az-reading-energy-map" id="dreamInterpretationEmotionMix" aria-label="这场梦的情绪构成"></div>
           </section>
 
-          <section class="az-reading-meaning-panel__section">
-            <p class="az-reading-meaning-panel__label">还可能有的其他解释</p>
-            <div class="az-reading-meaning-panel__text" id="dreamInterpretationAlternatives"></div>
-          </section>
-
-          <section class="az-reading-meaning-panel__section">
-            <p class="az-reading-meaning-panel__label">和现实的连接问题</p>
-            <div class="az-reading-meaning-panel__text" id="dreamInterpretationQuestions"></div>
-          </section>
-
-          <section class="az-reading-meaning-panel__section">
-            <p class="az-reading-meaning-panel__label">边界提示</p>
-            <div class="az-reading-meaning-panel__text" id="dreamInterpretationBoundary"></div>
+          <section class="az-reading-meaning-panel__section az-reading-meaning-panel__section--unconscious">
+            <p class="az-reading-meaning-panel__label">潜意识传达</p>
+            <div class="az-reading-meaning-panel__text" id="dreamInterpretationUnconscious"></div>
           </section>
         </div>
       </section>
 
       <section class="az-reading-section az-reading-section--response">
         <div class="az-reading-section__head">
-          <h3 class="az-reading-section__title">如果你想继续整理</h3>
-          <p class="az-reading-section__note">这些建议不是结论，只是顺着上面的线索，再往现实里轻轻走一步。</p>
+          <h3 class="az-reading-section__title">行动建议</h3>
+          <p class="az-reading-section__note">把这场梦轻轻带回现实，不急着解释完，只先做一个可执行的靠近。</p>
         </div>
         <div class="az-reading-response">
           <article class="az-reading-response__block az-reading-response__block--action">
-            <p class="az-reading-response__eyebrow">现在可以做</p>
-            <h4 class="az-reading-response__title">一个更贴着这场梦的小动作</h4>
+            <p class="az-reading-response__eyebrow">现在就能做</p>
+            <h4 class="az-reading-response__title">一个你现在可以做的小动作</h4>
             <p class="az-reading-response__focus" id="resultActionCue"></p>
             <div class="az-reading-response__text" id="resultActionBody"></div>
           </article>
           <div class="az-reading-response__divider"></div>
           <article class="az-reading-response__block az-reading-response__block--direction">
-            <p class="az-reading-response__eyebrow">接下来留意</p>
-            <h4 class="az-reading-response__title">一个可以继续对照的方向</h4>
+            <p class="az-reading-response__eyebrow">继续靠近</p>
+            <h4 class="az-reading-response__title">一个继续留意的方向</h4>
             <p class="az-reading-response__focus" id="resultDirectionCue"></p>
             <div class="az-reading-response__text" id="resultDirectionBody"></div>
           </article>
@@ -526,7 +512,7 @@ if ('scrollRestoration' in history) {
     __dreamlensShouldUseSameOriginApi ? __dreamlensLocalAnalyzeApi : ''
   );
 </script>
-<script src="js/analyze.js?v=20260412-render-guard"></script>
+<script src="js/analyze.js?v=20260412-result-revert"></script>
 <script src="js/dream-art.js"></script>
 <script>
 // 从日记页跳转来时，自动填入待重新解析的梦境

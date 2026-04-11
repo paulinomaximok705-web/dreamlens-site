@@ -1321,61 +1321,47 @@ function renderEmergencyAnalysisResult(input, result, options = {}) {
     analysisResult = result;
     ensureResultViewVisible();
 
-    const reading = result?.reading || {};
-    const title = result?.title || '梦境整理';
-    const lead = reading.coreFeeling || result?.summary || '这场梦已经被整理好了，只是结果页这次没有完整展开。';
-    const notice = result?.qualityNotice || reading.qualityNotice || '';
-    const interpretation = reading.groundedInterpretation || result?.psychology || '更稳妥的理解，通常要先回到梦里实际发生了什么，再慢慢看它像哪种现实感受。';
-    const alternatives = Array.isArray(reading.otherPossibleExplanations) && reading.otherPossibleExplanations.length
-        ? reading.otherPossibleExplanations.join('\n\n')
-        : (result?.unconscious || '');
-    const questions = Array.isArray(reading.realityQuestions) && reading.realityQuestions.length
-        ? reading.realityQuestions.join('\n\n')
-        : '梦里最让我停住的一幕，放到白天更像哪种熟悉感觉？';
-    const boundary = reading.boundaryNote || '梦的整理不是事实判断，它更适合作为自我观察的线索。';
-    const actionCue = result?.actionGuidance?.actionCue || '如果你想继续整理';
-    const actionBody = result?.actionGuidance?.actionBody || result?.advice || '先记下梦里最清楚的一幕，再补一句醒来后残留最久的感觉。';
-    const directionCue = result?.actionGuidance?.directionCue || '接下来可以留意';
-    const directionBody = result?.actionGuidance?.directionBody || '接下来只要留意现实里哪些时刻会让你再次出现和梦里相近的感觉。';
+    const emotion = getEmotionCenter(result.emotions);
+    const interpretation = buildDisplayedInterpretation(result, emotion.label, input);
+    const actionGuidance = buildDisplayedActionGuidance(result, input, emotion.label);
+    const takeaway = buildReadingTakeaway(result, input, emotion.label, interpretation.lead);
 
     const titleEl = document.getElementById('resultTitle');
-    if (titleEl) titleEl.textContent = title;
+    if (titleEl) titleEl.textContent = result?.title || '梦境整理';
 
     const leadEl = document.getElementById('dreamInterpretationLead');
-    if (leadEl) leadEl.textContent = lead;
-
-    const noticeEl = document.getElementById('dreamInterpretationNotice');
-    if (noticeEl) {
-        noticeEl.textContent = notice;
-        noticeEl.hidden = !notice;
-    }
+    if (leadEl) leadEl.textContent = interpretation.lead || result?.summary || '这场梦已经生成了结果，只是当前的展示层没有完整展开。';
 
     const takeawayEl = document.getElementById('dreamInterpretationTakeaway');
     const takeawayTextEl = document.getElementById('dreamInterpretationTakeawayText');
     if (takeawayEl && takeawayTextEl) {
-        takeawayTextEl.textContent = buildReadingTakeaway(result, input, '', lead) || '';
+        takeawayTextEl.textContent = takeaway || '';
         takeawayEl.hidden = !takeawayTextEl.textContent;
     }
 
-    const setEmergencyMarkup = (id, text, label) => {
-        const element = document.getElementById(id);
-        if (element) element.innerHTML = renderEmergencyCard(text, label);
-    };
+    setMeaningCardGroupContent(document.getElementById('dreamInterpretationOverview'), interpretation.overviewCards);
+    setMeaningCardGroupContent(document.getElementById('dreamInterpretationEmotion'), interpretation.emotionCards);
 
-    setEmergencyMarkup('dreamInterpretationOverview', Array.isArray(reading.keyTensions) && reading.keyTensions.length
-        ? reading.keyTensions.map((item) => `${item.contrast}\n${item.evidence}`).join('\n\n')
-        : lead, '画面里的关键张力');
-    setEmergencyMarkup('dreamInterpretationInterpretation', interpretation, '一种较稳妥的解释');
-    setEmergencyMarkup('dreamInterpretationAlternatives', alternatives, '还可能有的其他解释');
-    setEmergencyMarkup('dreamInterpretationQuestions', questions, '和现实的连接问题');
-    setEmergencyMarkup('dreamInterpretationBoundary', boundary, '边界提示');
+    const emotionMixEl = document.getElementById('dreamInterpretationEmotionMix');
+    if (emotionMixEl) {
+        emotionMixEl.innerHTML = renderEmotionComposition(interpretation.emotionComposition);
+    }
+
+    setMeaningCardGroupContent(document.getElementById('dreamInterpretationUnconscious'), interpretation.unconsciousCards);
+
+    const interpretationPanelEl = document.getElementById('dreamInterpretationPanel');
+    if (interpretationPanelEl) {
+        interpretationPanelEl.classList.remove('is-refreshed');
+        void interpretationPanelEl.offsetWidth;
+        interpretationPanelEl.classList.add('is-refreshed');
+    }
 
     const actionCueEl = document.getElementById('resultActionCue');
-    if (actionCueEl) actionCueEl.textContent = actionCue;
+    if (actionCueEl) actionCueEl.textContent = actionGuidance.actionCue;
     const directionCueEl = document.getElementById('resultDirectionCue');
-    if (directionCueEl) directionCueEl.textContent = directionCue;
-    setReadingRichContent(document.getElementById('resultActionBody'), actionBody, { emphasizeFirst: true });
-    setReadingRichContent(document.getElementById('resultDirectionBody'), directionBody, { emphasizeFirst: true });
+    if (directionCueEl) directionCueEl.textContent = actionGuidance.directionCue;
+    setReadingRichContent(document.getElementById('resultActionBody'), actionGuidance.actionBody, { emphasizeFirst: true });
+    setReadingRichContent(document.getElementById('resultDirectionBody'), actionGuidance.directionBody, { emphasizeFirst: true });
 
     if (scroll) window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
     persistAnalyzeDraft(input);
@@ -2507,7 +2493,7 @@ function buildDreamInterpretation(result, emotionLabel, rawText = '') {
 }
 
 function buildDisplayedInterpretation(result, emotionLabel, rawText = '') {
-    return normalizeDisplayedReading(result, rawText, emotionLabel);
+    return buildMeaningPanelLayout(result, rawText, emotionLabel);
 }
 
 function buildActionGuidance(result, rawText = '', emotionLabel = '') {
@@ -2750,7 +2736,7 @@ function renderAnalysisResult(input, result, options = {}) {
         const emotion = getEmotionCenter(result.emotions);
         const interpretation = buildDisplayedInterpretation(result, emotion.label, input);
         const actionGuidance = buildDisplayedActionGuidance(result, input, emotion.label);
-        const takeaway = buildReadingTakeaway(result, input, emotion.label, interpretation.coreFeeling);
+        const takeaway = buildReadingTakeaway(result, input, emotion.label, interpretation.lead);
 
         const titleEl = document.getElementById('resultTitle');
         if (titleEl) titleEl.textContent = result.title;
@@ -2758,18 +2744,7 @@ function renderAnalysisResult(input, result, options = {}) {
         updateDreamClueModule(input, result, emotion.label);
 
         const dreamInterpretationLeadEl = document.getElementById('dreamInterpretationLead');
-        if (dreamInterpretationLeadEl) dreamInterpretationLeadEl.textContent = interpretation.coreFeeling;
-
-        const dreamInterpretationNoticeEl = document.getElementById('dreamInterpretationNotice');
-        if (dreamInterpretationNoticeEl) {
-            if (interpretation.qualityNotice) {
-                dreamInterpretationNoticeEl.textContent = interpretation.qualityNotice;
-                dreamInterpretationNoticeEl.hidden = false;
-            } else {
-                dreamInterpretationNoticeEl.textContent = '';
-                dreamInterpretationNoticeEl.hidden = true;
-            }
-        }
+        if (dreamInterpretationLeadEl) dreamInterpretationLeadEl.textContent = interpretation.lead;
 
         const dreamInterpretationTakeawayEl = document.getElementById('dreamInterpretationTakeaway');
         const dreamInterpretationTakeawayTextEl = document.getElementById('dreamInterpretationTakeawayText');
@@ -2784,19 +2759,18 @@ function renderAnalysisResult(input, result, options = {}) {
         }
 
         const dreamInterpretationOverviewEl = document.getElementById('dreamInterpretationOverview');
-        setMeaningCardGroupContent(dreamInterpretationOverviewEl, interpretation.tensionCards, { split: true });
+        setMeaningCardGroupContent(dreamInterpretationOverviewEl, interpretation.overviewCards);
 
-        const dreamInterpretationInterpretationEl = document.getElementById('dreamInterpretationInterpretation');
-        setMeaningCardGroupContent(dreamInterpretationInterpretationEl, interpretation.groundedCards);
+        const dreamInterpretationEmotionEl = document.getElementById('dreamInterpretationEmotion');
+        setMeaningCardGroupContent(dreamInterpretationEmotionEl, interpretation.emotionCards);
 
-        const dreamInterpretationAlternativesEl = document.getElementById('dreamInterpretationAlternatives');
-        setMeaningCardGroupContent(dreamInterpretationAlternativesEl, interpretation.alternativeCards, { split: true });
+        const dreamInterpretationEmotionMixEl = document.getElementById('dreamInterpretationEmotionMix');
+        if (dreamInterpretationEmotionMixEl) {
+            dreamInterpretationEmotionMixEl.innerHTML = renderEmotionComposition(interpretation.emotionComposition);
+        }
 
-        const dreamInterpretationQuestionsEl = document.getElementById('dreamInterpretationQuestions');
-        setMeaningCardGroupContent(dreamInterpretationQuestionsEl, interpretation.questionCards, { split: true });
-
-        const dreamInterpretationBoundaryEl = document.getElementById('dreamInterpretationBoundary');
-        setMeaningCardGroupContent(dreamInterpretationBoundaryEl, interpretation.boundaryCards);
+        const dreamInterpretationUnconsciousEl = document.getElementById('dreamInterpretationUnconscious');
+        setMeaningCardGroupContent(dreamInterpretationUnconsciousEl, interpretation.unconsciousCards);
 
         const dreamInterpretationPanelEl = document.getElementById('dreamInterpretationPanel');
         if (dreamInterpretationPanelEl) {
