@@ -902,6 +902,15 @@ function splitReadableSentences(text) {
         .filter(Boolean);
 }
 
+function normalizeParagraph(value, fallback = '') {
+    const source = value == null ? fallback : value;
+    const text = String(source || '')
+        .replace(/\r\n/g, '\n')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+    return text || String(fallback || '').trim();
+}
+
 function stripOrdinalPrefix(text) {
     return (text || '').replace(/^[①②③④⑤⑥⑦⑧⑨⑩]\s*/, '').trim();
 }
