@@ -92,29 +92,35 @@ const TAG_LIBRARY = {
 function analyzeUserDreamLocal(rawText) {
     const text = rawText.trim();
 
-    /* 1. 识别梦境主题 */
     const theme = detectTheme(text);
-
-    /* 2. 从文本提取关键意象（最多4个） */
     const symbols = extractSymbols(text);
-
-    /* 3. 计算情绪能量 */
     const emotions = calcEmotions(text);
-
-    /* 4. 选取标签 */
     const tags = TAG_LIBRARY[theme] || TAG_LIBRARY.general;
+    const title = buildTitle(text, theme, symbols);
+    const reading = buildLocalReading(text, theme, symbols, emotions);
 
-    /* 5. 选取框架 */
-    const fw = PSYCH_FRAMEWORKS[theme] || PSYCH_FRAMEWORKS.general;
+    const draft = {
+        title,
+        theme,
+        tags,
+        symbols,
+        emotions,
+        qualityNotice: reading.qualityNotice || '',
+        reading,
+        actionGuidance: null
+    };
 
-    /* 6. 动态生成各节文字 */
-    const title    = buildTitle(text, theme);
-    const summary  = buildSummary(text, theme, symbols);
-    const psych    = buildPsychology(text, theme, fw, symbols);
-    const uncon    = buildUnconscious(text, theme, symbols);
-    const advice   = buildAdvice(text, theme, symbols);
+    draft.actionGuidance = buildLocalActionGuidance(draft, text);
+    draft.summary = reading.coreFeeling;
+    draft.psychology = reading.groundedInterpretation;
+    draft.unconscious = reading.otherPossibleExplanations
+        .map((item, index) => `${['①', '②', '③'][index] || '-'} ${item}`)
+        .join('\n\n');
+    draft.advice = [draft.actionGuidance.actionBody, draft.actionGuidance.directionBody]
+        .filter(Boolean)
+        .join('\n\n');
 
-    return { title, theme, tags, summary, symbols, emotions, psychology: psych, unconscious: uncon, advice };
+    return draft;
 }
 
 /* ── 主题检测 ── */
@@ -177,25 +183,32 @@ function calcEmotions(text) {
 }
 
 /* ── 构建标题 ── */
-function buildTitle(text, theme) {
-    const titleMap = {
-        water:  '水的召唤',
-        chase:  '追逐与困缚',
-        fall:   '坠落中的蜕变',
-        fly:    '飞翔的自由',
-        forest: '森林里的寻找',
-        house:  '家的秘密',
-        death:  '终结与新生',
-        light:  '光的指引',
-        general:'心灵的信使'
+function buildTitle(text, theme, symbols = []) {
+    const firstSymbol = symbols[0]?.name || SYMBOL_LIBRARY.find(s => s.keywords.some(kw => text.includes(kw)))?.name || '梦境';
+
+    if (containsCue(text, ['半开的门', '门']) && containsCue(text, ['下沉', '坠落'])) {
+        return '想靠近又站不稳';
+    }
+
+    if (containsCue(text, ['亲人', '家人', '故人', '外婆', '奶奶']) && containsCue(text, ['院子', '庭院', '老家'])) {
+        return '回到熟悉院子的梦';
+    }
+
+    if (containsCue(text, ['房间', '房子', '家']) && containsCue(text, ['安心', '温暖', '安静'])) {
+        return '熟悉空间里的停留';
+    }
+
+    const calmTitles = {
+        forest: '门前的迟疑',
+        house: '熟悉与缺席',
+        water: '被牵引的一幕',
+        chase: '一直没放下的追赶',
+        fall: '脚下松动的时候',
+        light: '亮起来的那一刻',
+        general: `${firstSymbol}相关的梦`
     };
 
-    // 尝试从原文中提取第一个名词意象作为标题前缀
-    const firstSymbol = SYMBOL_LIBRARY.find(s => s.keywords.some(kw => text.includes(kw)));
-    const prefix = firstSymbol ? firstSymbol.name : '梦境';
-
-    const base = titleMap[theme] || '心灵的信使';
-    return theme === 'general' ? `${prefix}的低语` : base;
+    return calmTitles[theme] || `${firstSymbol}相关的梦`;
 }
 
 /* ── 构建摘要（严格引用用户原文）── */
@@ -300,6 +313,128 @@ function buildAdvice(text, theme, symbols) {
     return (adviceMap[theme] || adviceMap.general).join('\n\n');
 }
 
+function isSparseDreamText(text) {
+    const clean = (text || '').trim();
+    if (!clean) return true;
+    if (clean.length < 38) return true;
+    return clean.length < 60 && splitReadableSentences(clean).length <= 1;
+}
+
+function buildLocalReading(text, theme, symbols = [], emotions = []) {
+    const limited = isSparseDreamText(text);
+    const firstSymbol = symbols[0]?.name || '这场梦';
+    const wakeTone = containsCue(text, ['平静', '安静', '宁静'])
+        ? '醒来后的感受更偏向平静'
+        : containsCue(text, ['害怕', '恐惧', '紧张', '不安'])
+            ? '醒来后的感受更偏向紧张'
+            : '醒来后的余韵没有完全散开';
+    const tensions = [];
+    const pushTension = (contrast, evidence) => {
+        if (!contrast || !evidence) return;
+        if (tensions.some((item) => item.contrast === contrast)) return;
+        tensions.push({ contrast, evidence });
+    };
+
+    if (containsCue(text, ['靠近', '走近']) && containsCue(text, ['下沉', '坠落', '站不稳'])) {
+        pushTension('靠近 vs 下沉', '梦里想继续靠近，但脚下同时开始变得不稳。');
+    }
+    if (containsCue(text, ['发光', '亮光']) && containsCue(text, ['门', '半开的门', '远处'])) {
+        pushTension('被吸引 vs 还没真正进入', '亮起来的景象和远处的入口在吸引你，但你并没有顺利走进去。');
+    }
+    if (containsCue(text, ['平静', '安静']) && containsCue(text, ['迟疑', '犹豫', '停住'])) {
+        pushTension('平静 vs 迟疑', '醒来后不是害怕，而是安静里带着一点停顿。');
+    }
+    if (containsCue(text, ['亲人', '家人', '故人', '外婆', '奶奶']) && containsCue(text, ['温暖', '安心', '院子', '老家', '呼唤'])) {
+        pushTension('熟悉感 vs 缺席感', '画面里有温暖和归属，但也夹着无法真正回去的缺口。');
+    }
+    if (containsCue(text, ['房间', '房子', '家']) && containsCue(text, ['空', '旧', '安静', '灰'])) {
+        pushTension('熟悉 vs 变化', '空间看起来熟悉，但它带给你的感觉已经和过去不完全一样。');
+    }
+
+    if (!tensions.length) {
+        pushTension('画面很清楚 vs 含义还没定下来', `梦里最清楚的是 ${firstSymbol}，但它留下来的感受还需要继续对照。`);
+    }
+    if (tensions.length < 2) {
+        pushTension('记得住的画面 vs 说不清的余韵', `${wakeTone}，说明重点不只在情节，也在醒来后的残留感觉。`);
+    }
+
+    const coreFeeling = limited
+        ? '这段描述更像一小块还没完全展开的梦境切片。现在最稳妥的，不是急着下判断，而是先记住它留下来的那一点气氛和停顿。'
+        : containsCue(text, ['平静', '安静', '宁静']) && containsCue(text, ['迟疑', '犹豫'])
+            ? '这场梦最突出的气质不是害怕，而是一种被某个画面轻轻牵住之后，心里同时出现平静和迟疑。重点更像“已经被触动”，但还没有准备好立刻走近。'
+            : `这场梦留下来的重心，更像是 ${wakeTone}，同时夹着一点还没被说清的牵引或停顿。`;
+
+    const groundedInterpretation = limited
+        ? '因为原文给出的信息还不多，更稳妥的做法是先承认：这个梦只呈现出一种模糊但真实的感受轮廓，而不是把它解释成更大的主题。真正可靠的线索，还是梦里最清楚的一幕和醒来后的余韵。'
+        : containsCue(text, ['门', '半开的门']) && containsCue(text, ['海浪', '水声', '海']) && containsCue(text, ['下沉', '坠落'])
+            ? '更稳妥的理解，不是把“森林、门、海浪、下沉”分别翻成固定答案，而是把它们连起来看：有东西在吸引你往前，但你一认真靠近，身体和地面感又像在提醒你先慢一点。醒来后留下的是平静和迟疑，不是恐惧，所以它未必在说危险，更像是在整理一种“想靠近某件事，同时担心自己站不稳”的状态。'
+            : containsCue(text, ['亲人', '家人', '故人', '外婆', '奶奶'])
+                ? '更稳妥的理解，是这场梦把熟悉感和缺席感放在了一起。它未必在指向什么神秘信息，更像是在让你重新碰到某份仍然有温度、但还没完全安放好的想念或情绪联结。'
+                : `更稳妥的理解，是先把 ${firstSymbol} 放回整场梦的动作和气氛里看：你是在靠近它、躲开它，还是只是被它停住。比起直接给它一个固定含义，这种看法更接近这场梦真正留下来的线索。`;
+
+    const otherPossibleExplanations = limited
+        ? [
+            '也不排除这只是白天残留情绪在夜里被重新排了一次，所以画面清楚，但暂时还不足以支持更远的推测。',
+            '另一种可能是，你只记住了最醒目的片段，真正重要的上下文还没有被完整写出来。'
+        ]
+        : [
+            containsCue(text, ['压力', '紧张', '不安', '下沉', '追'])
+                ? '也可能这更接近普通压力梦：白天已经在挂着的事，到了夜里只是换了一种更有画面的方式出现。'
+                : '也可能这场梦只是把你最近已经有的一股感觉重新排了一遍，让它在夜里更容易被注意到。',
+            containsCue(text, ['海浪', '水声', '风声', '玻璃一样作响'])
+                ? '另一种可能是，声音和质感在这里比象征更重要，它们像是在放大一种你已经隐约感觉到、但还没有说出口的内在节奏。'
+                : '另一种可能是，梦并不是在要求你立刻明白它，而是在让你慢一点看清自己是怎么靠近、怎么停下的。',
+            '也不排除这只是一次很好的自我整理入口：它真正有用的地方，不是解释得多深，而是能不能帮你更准确地对照现实里的感受。'
+        ].slice(0, 3);
+
+    const realityQuestions = containsCue(text, ['门', '靠近', '下沉'])
+        ? [
+            '最近有没有什么事本来在吸引我，但我一认真靠近，就会担心自己站不稳？',
+            '醒来后那种“平静里带迟疑”的感觉，现实里更像我面对什么场景时的反应？',
+            '如果我不急着做决定，这场梦最像是在提醒我先看清哪一种顾虑？'
+        ]
+        : containsCue(text, ['亲人', '家人', '故人', '外婆', '奶奶'])
+            ? [
+                '最近有没有哪一刻让我突然碰到一种熟悉但说不清的想念？',
+                '这场梦里的安心感和缺席感，现实里更像落在某个人、某个地方，还是某种过去的状态上？',
+                '如果这不是“要我回去”，那它更像是在提醒我承认哪一种还没放好的情绪？'
+            ]
+            : [
+                '梦里最清楚的一幕，放到白天更像哪种熟悉感觉？',
+                '醒来后的余韵更接近想靠近、想退回，还是只是单纯疲惫？',
+                '如果不急着解释这个梦，我最想先确认的是哪一点？'
+            ];
+
+    const dominantEmotion = Array.isArray(emotions) && emotions.length ? emotions[0].label : '';
+    const qualityNotice = limited ? '描述较少，下面只能给出非常初步的整理。' : '';
+
+    return {
+        qualityNotice,
+        coreFeeling,
+        keyTensions: tensions.slice(0, 4),
+        groundedInterpretation,
+        otherPossibleExplanations,
+        realityQuestions,
+        boundaryNote: '梦的整理不是事实判断，它更适合作为自我观察的线索。',
+        dominantEmotion
+    };
+}
+
+function buildLocalActionGuidance(result, rawText = '') {
+    const reading = result?.reading || {};
+    const tensions = Array.isArray(reading.keyTensions) ? reading.keyTensions : [];
+    const firstTension = tensions[0]?.contrast || '梦里最明显的张力';
+    const firstEvidence = tensions[0]?.evidence || '那一幕最清楚的画面';
+    const keyPhrase = pickCue(rawText, ['半开的门', '门', '海浪声', '下沉', '院子', '房间', '名字', '哭醒'], '那一幕');
+
+    return {
+        actionCue: '如果你想继续整理',
+        actionBody: `先把 ${keyPhrase} 和“${firstTension}”一起写成两句话：第一句只写梦里发生了什么，第二句只写它让你身体里留下了什么感觉。这个动作能帮你把 ${firstEvidence} 留在白天，而不是马上把它解释掉。`,
+        directionCue: '接下来可以留意',
+        directionBody: `接下来不妨只观察一件事：现实里什么时候会再出现和“${firstTension}”相近的感觉。先找到对应，再决定要不要给它更进一步的解释。`
+    };
+}
+
 async function parseAnalyzeApiResponse(response) {
     const raw = await response.text();
     let data = null;
@@ -324,11 +459,11 @@ async function parseAnalyzeApiResponse(response) {
 }
 
 function mergeAnalyzeResult(localResult, remoteResult) {
-    const remoteInterpretation = remoteResult?.interpretation && typeof remoteResult.interpretation === 'object'
-        ? remoteResult.interpretation
-        : null;
     const remoteActionGuidance = remoteResult?.actionGuidance && typeof remoteResult.actionGuidance === 'object'
         ? remoteResult.actionGuidance
+        : null;
+    const remoteReading = remoteResult?.reading && typeof remoteResult.reading === 'object'
+        ? remoteResult.reading
         : null;
 
     return {
@@ -337,14 +472,15 @@ function mergeAnalyzeResult(localResult, remoteResult) {
         title: remoteResult?.title || localResult.title,
         theme: remoteResult?.theme || localResult.theme,
         tags: Array.isArray(remoteResult?.tags) && remoteResult.tags.length ? remoteResult.tags : localResult.tags,
-        summary: remoteResult?.summary || localResult.summary,
         symbols: Array.isArray(remoteResult?.symbols) && remoteResult.symbols.length ? remoteResult.symbols : localResult.symbols,
         emotions: Array.isArray(remoteResult?.emotions) && remoteResult.emotions.length ? remoteResult.emotions : localResult.emotions,
+        qualityNotice: typeof remoteResult?.qualityNotice === 'string' ? remoteResult.qualityNotice : localResult.qualityNotice,
+        reading: remoteReading || localResult.reading,
+        summary: remoteResult?.summary || localResult.summary,
         psychology: remoteResult?.psychology || localResult.psychology,
         unconscious: remoteResult?.unconscious || localResult.unconscious,
         advice: remoteResult?.advice || localResult.advice,
-        interpretation: remoteInterpretation || null,
-        actionGuidance: remoteActionGuidance || null
+        actionGuidance: remoteActionGuidance || localResult.actionGuidance || null
     };
 }
 
@@ -365,11 +501,12 @@ function serializeAnalyzeScaffold(scaffold) {
         tags,
         symbols: Array.isArray(scaffold?.symbols) ? scaffold.symbols : [],
         emotions: Array.isArray(scaffold?.emotions) ? scaffold.emotions : [],
+        qualityNotice: scaffold?.qualityNotice || '',
+        reading: scaffold?.reading || null,
         summary: scaffold?.summary || '',
         psychology: scaffold?.psychology || '',
         unconscious: scaffold?.unconscious || '',
         advice: scaffold?.advice || '',
-        interpretation: scaffold?.interpretation || null,
         actionGuidance: scaffold?.actionGuidance || null
     };
 }
@@ -456,14 +593,14 @@ function normalizeAnalyzeErrorMessage(error) {
     }
 
     if (message.includes('timed out') || message.includes('timeout')) {
-        return '这次深度解析等待太久，已先为你展示基础解析结果。';
+        return '这次云端整理等待太久，已改为基于原文的初步整理。';
     }
 
     if (message.includes('invalid') || message.includes('JSON')) {
         return '这次解析结果没有成功生成，请再试一次。';
     }
 
-    return '这次 DeepSeek 解析暂时没有完成，请稍后再试。';
+    return '这次 DeepSeek 整理暂时没有完成，请稍后再试。';
 }
 
 function handleAnalyzeFailure(error) {
@@ -863,17 +1000,367 @@ function joinReadingParagraphs(items, limit = 3) {
     return normalized.join('\n\n');
 }
 
-function buildReadingTakeaway(summary, psychology, fallback = '') {
+function normalizeUniqueReadingParagraphs(items, limit = 3) {
+    const normalized = [];
+
+    for (const item of items) {
+        const text = normalizeReadingParagraph(item);
+        if (!text || normalized.includes(text)) continue;
+        normalized.push(text);
+        if (normalized.length >= limit) break;
+    }
+
+    return normalized;
+}
+
+function buildReadingCardText(items, limit = 2) {
+    return normalizeUniqueReadingParagraphs(items, limit).join('\n\n');
+}
+
+function scoreRealityTakeawaySentence(sentence) {
+    const text = normalizeReadingSentence(sentence);
+    if (!text) return -1;
+
+    let score = 0;
+    if (/你最近|最近/.test(text)) score += 5;
+    if (/现实|生活|关系|工作|家庭|沟通|边界|稳定|拉扯|靠近|退缩|表达|失控|机会|方向/.test(text)) score += 4;
+    if (/更像|对应|说明|反映/.test(text)) score += 2;
+    if (/森林|树叶|海浪|门后|发光|下沉|镜子|房间|走进/.test(text) && !/现实|最近|生活|关系|工作/.test(text)) score -= 4;
+    if (text.length >= 18 && text.length <= 72) score += 1;
+    return score;
+}
+
+function humanizeRealityTakeaway(sentence) {
+    let text = normalizeReadingSentence(sentence)
+        .replace(/^值得注意的是[:：]?/, '')
+        .replace(/^具体到你的生活，这可能对应着/, '放到现实里，你最近可能正在')
+        .replace(/^具体到你的生活，这更像是/, '放到现实里，你最近更像是')
+        .replace(/^这更像现实中面对/, '你最近更像是在面对')
+        .replace(/^这更像现实里面对/, '你最近更像是在面对')
+        .replace(/^这更像你最近在/, '你最近像是在')
+        .replace(/^这更像/, '你最近更像是')
+        .replace(/^也可能对应你在/, '你最近可能正在')
+        .replace(/^这可能对应着/, '你最近可能正在经历')
+        .replace(/^这场梦更像在提醒你[:：]?/, '')
+        .trim();
+
+    text = text.replace(/。+$/, '').trim();
+
+    if (!text) return '';
+    if (!/^你|^放到现实里/.test(text)) {
+        text = `换成现实里的话，${text}`;
+    }
+    if (!/[。！？]$/.test(text)) text += '。';
+    return text;
+}
+
+function buildContextualRealityTakeaway(result, rawText = '', emotionLabel = '') {
+    const context = collectDreamSignalContext(result, rawText);
+    const { signals } = context;
+
+    if (signals.relative && signals.courtyard && (signals.callName || signals.crying)) {
+        return '换成现实里的话，你最近像是又碰到了那份和某个人、某个旧家有关的想念。日子表面上还能往前走，但心里还有一块温暖和缺席同时在场的位置，没有真正被安放好。';
+    }
+
+    if (signals.relative && signals.comfort) {
+        return '换成现实里的话，你最近更像是在怀念一种曾经让你安心的人或状态。你未必一直把这份想念说出来，但它在安静时刻还是会把你拉回去。';
+    }
+
+    if (signals.door && signals.water && signals.hesitation) {
+        return '换成现实里的话，你最近大概正被一个很吸引你的方向牵着走，但一认真靠近，又会担心自己会不会失去现在的稳定感。';
+    }
+
+    if (signals.forest && signals.door) {
+        return '换成现实里的话，你最近像是站在一个新阶段门口，心里知道该往前了，但还在反复确认自己能不能接住后面的变化。';
+    }
+
+    if (signals.water && signals.sinking) {
+        return '换成现实里的话，你最近可能对某件事很有感觉，可一想到真的往前走，心里又会冒出站不稳的担心。';
+    }
+
+    if (signals.house) {
+        return '换成现实里的话，你最近更像是在重新整理安全感和边界，有些熟悉的东西虽然还在，但已经不足够让你安心。';
+    }
+
+    if (signals.mirror) {
+        return '换成现实里的话，你最近像是在看见一个不太想回避的自己，所以才会一直停在那个需要直视的位置。';
+    }
+
+    if (emotionLabel === '宁静' || emotionLabel === '神秘') {
+        return '换成现实里的话，你不是完全排斥变化，而是想先确认自己不会在靠近的过程中失去立足点。';
+    }
+
+    return '换成现实里的话，你最近心里已经有一个很在意的方向了，只是还没完全准备好立刻往前走。';
+}
+
+function buildReadingTakeaway(result, rawText = '', emotionLabel = '', fallback = '') {
     const candidates = [
-        ...splitReadableSentences(summary),
-        ...splitReadableSentences(psychology)
+        ...splitReadableSentences(result?.reading?.groundedInterpretation),
+        ...splitReadableSentences(result?.summary),
+        ...(Array.isArray(result?.reading?.otherPossibleExplanations)
+            ? result.reading.otherPossibleExplanations.flatMap(item => splitReadableSentences(item))
+            : []),
+        ...splitReadableSentences(result?.psychology),
+        ...splitReadableSentences(result?.unconscious)
     ]
         .map(normalizeReadingSentence)
         .filter(Boolean);
 
-    return candidates.find(sentence => sentence.length >= 24)
-        || candidates[0]
+    const bestRealitySentence = candidates
+        .map(sentence => ({ sentence, score: scoreRealityTakeawaySentence(sentence) }))
+        .sort((a, b) => b.score - a.score || a.sentence.length - b.sentence.length)[0];
+
+    if (bestRealitySentence && bestRealitySentence.score >= 4) {
+        return humanizeRealityTakeaway(bestRealitySentence.sentence);
+    }
+
+    return buildContextualRealityTakeaway(result, rawText, emotionLabel)
         || fallback;
+}
+
+function normalizeDisplayedTensions(items = [], rawText = '') {
+    const normalized = (Array.isArray(items) ? items : [])
+        .map((item) => ({
+            contrast: normalizeReadingParagraph(item?.contrast || item?.pair || ''),
+            evidence: normalizeParagraph(item?.evidence || item?.basis || '')
+        }))
+        .filter((item) => item.contrast && item.evidence);
+
+    if (normalized.length >= 2) return normalized.slice(0, 4);
+
+    const fallbacks = [];
+    if (containsCue(rawText, ['靠近', '走近']) && containsCue(rawText, ['下沉', '坠落', '站不稳'])) {
+        fallbacks.push({ contrast: '靠近 vs 下沉', evidence: '梦里想继续靠近，但脚下同时开始变得不稳。' });
+    }
+    if (containsCue(rawText, ['发光', '亮光']) && containsCue(rawText, ['门', '半开的门'])) {
+        fallbacks.push({ contrast: '被吸引 vs 还没进入', evidence: '亮起来的画面在吸引你，但你没有真正走进那一头。' });
+    }
+    if (containsCue(rawText, ['平静', '安静']) && containsCue(rawText, ['迟疑', '犹豫'])) {
+        fallbacks.push({ contrast: '平静 vs 迟疑', evidence: '醒来后不是惊慌，而是安静里带着一点停顿。' });
+    }
+    if (containsCue(rawText, ['亲人', '家人', '故人', '外婆', '奶奶']) && containsCue(rawText, ['院子', '老家', '呼唤'])) {
+        fallbacks.push({ contrast: '熟悉感 vs 缺席感', evidence: '梦里同时有被安放的感觉，也有没法真正回到那里的空缺。' });
+    }
+
+    return [...normalized, ...fallbacks].slice(0, 4);
+}
+
+function normalizeDisplayedReading(result, rawText = '', emotionLabel = '') {
+    const reading = result?.reading && typeof result.reading === 'object' ? result.reading : null;
+    const coreFeeling = normalizeParagraph(
+        reading?.coreFeeling,
+        normalizeParagraph(result?.summary, '这场梦留下来的，通常是某种还没完全说清、但已经碰到你的感受。')
+    );
+    const groundedInterpretation = normalizeParagraph(
+        reading?.groundedInterpretation,
+        normalizeParagraph(result?.psychology, '更稳妥的理解，通常要先回到梦里实际发生了什么，再慢慢看它像哪种现实感受。')
+    );
+    const otherPossibleExplanations = ((Array.isArray(reading?.otherPossibleExplanations)
+        ? reading.otherPossibleExplanations
+        : splitReadingParagraphs(result?.unconscious).map(normalizeReadingParagraph))
+        .filter(Boolean)
+        .slice(0, 3));
+    const realityQuestions = ((Array.isArray(reading?.realityQuestions)
+        ? reading.realityQuestions
+        : [])
+        .filter(Boolean)
+        .slice(0, 3));
+    const boundaryNote = normalizeParagraph(
+        reading?.boundaryNote,
+        '梦的整理不是事实判断，它更适合作为自我观察的线索。'
+    );
+    const qualityNotice = normalizeReadingParagraph(result?.qualityNotice || reading?.qualityNotice || '');
+    const keyTensions = normalizeDisplayedTensions(reading?.keyTensions, rawText);
+    const fallbackRealityQuestions = realityQuestions.length
+        ? realityQuestions
+        : [
+            '梦里最让我停住的一幕，放到白天更像哪种熟悉感觉？',
+            '醒来后的余韵更接近想靠近、想退回，还是只是单纯疲惫？',
+            '如果不急着解释这个梦，我最想先确认的是哪一点？'
+        ];
+
+    return {
+        qualityNotice,
+        coreFeeling,
+        takeaway: buildReadingTakeaway(result, rawText, emotionLabel, groundedInterpretation),
+        tensionCards: keyTensions.map((item) => ({
+            label: item.contrast,
+            text: item.evidence
+        })),
+        groundedCards: [{
+            label: '先贴着原文来理解',
+            text: groundedInterpretation,
+            accent: true,
+            full: true,
+            emphasizeFirst: true
+        }],
+        alternativeCards: otherPossibleExplanations.map((item, index) => ({
+            label: `另一种可能 ${String(index + 1).padStart(2, '0')}`,
+            text: item,
+            emphasizeFirst: true
+        })),
+        questionCards: fallbackRealityQuestions.map((item, index) => ({
+            label: `可以问问自己 ${index + 1}`,
+            text: item,
+            emphasizeFirst: true
+        })),
+        boundaryCards: [{
+            label: '放轻一点看',
+            text: boundaryNote,
+            accent: true,
+            full: true,
+            emphasizeFirst: true
+        }]
+    };
+}
+
+function renderMeaningCardGroup(cards = [], options = {}) {
+    const validCards = (Array.isArray(cards) ? cards : [])
+        .map((card) => ({
+            label: normalizeReadingParagraph(card?.label),
+            text: normalizeParagraph(card?.text),
+            accent: !!card?.accent,
+            full: !!card?.full,
+            emphasizeFirst: card?.emphasizeFirst !== false
+        }))
+        .filter((card) => card.label && card.text);
+
+    if (!validCards.length) return '';
+
+    const groupClasses = ['az-reading-meaning-card-group'];
+    if (options.split) groupClasses.push('az-reading-meaning-card-group--split');
+
+    return `
+        <div class="${groupClasses.join(' ')}">
+            ${validCards.map((card) => `
+                <article class="az-reading-meaning-card${card.accent ? ' az-reading-meaning-card--accent' : ''}${card.full ? ' az-reading-meaning-card--full' : ''}">
+                    <p class="az-reading-meaning-card__eyebrow">${escapeReadingHtml(card.label)}</p>
+                    <div class="az-reading-meaning-card__body">
+                        ${renderReadingRichText(card.text, { emphasizeFirst: card.emphasizeFirst })}
+                    </div>
+                </article>
+            `).join('')}
+        </div>
+    `;
+}
+
+function setMeaningCardGroupContent(element, cards = [], options = {}) {
+    if (!element) return;
+    const markup = renderMeaningCardGroup(cards, options);
+    if (markup) {
+        element.innerHTML = markup;
+    } else {
+        element.textContent = '';
+    }
+}
+
+function buildEmotionRealityAnchor(result, rawText = '', emotionLabel = '') {
+    const context = collectDreamSignalContext(result, rawText);
+    const { signals } = context;
+
+    if (signals.relative && (signals.comfort || signals.crying)) {
+        return '这种“表面安静、心里却一下被碰到”的情绪，现实里更常见于想起某个人、某个旧地方，或某种已经回不去却仍然很想靠近的安心感时。';
+    }
+
+    if (signals.relative && signals.callName) {
+        return '这类情绪组合常出现在旧关系、家庭记忆，或者那些平时不常提起、但一被碰到就会突然变得很近的想念里。';
+    }
+
+    if (signals.door && signals.water && signals.hesitation) {
+        return '这种“被吸引又不敢完全靠近”的情绪，现实里常见于你已经感觉到某个方向有意义，但还在担心往前走会不会打乱现有秩序的时候。';
+    }
+
+    if (signals.water && signals.sinking) {
+        return '这种情绪不是突然爆开，而是慢慢往心里渗。现实里更像你对某件事一直有感觉，但每次认真靠近时，又会冒出站不稳的担心。';
+    }
+
+    if (signals.house) {
+        return '这种情绪更像在提醒你：你现在在意的，不只是某件事本身，而是它会不会碰到你对安全感、归属感和熟悉秩序的需要。';
+    }
+
+    const lines = {
+        宁静: '这类情绪常见于表面能维持平静，但心里其实已经被某个旧关系、旧记忆或新变化轻轻碰到的时候。',
+        焦虑: '这类情绪更常见于现实里事情已经逼近，但你还没找到最稳妥的进入方式，所以心里一直挂着。',
+        神秘: '这类情绪往往出现在你已经感觉到有东西在靠近自己，却还没完全看清它会把你带向哪里的时候。',
+        迷惘: '这类情绪通常对应旧答案已经不够用，但新方向还没有完全成形的阶段。',
+        压迫: '这类情绪更像有个问题已经压了很久，白天还能撑住，夜里就会变得更真实。'
+    };
+
+    return lines[emotionLabel] || '这组情绪更像现实里某件事已经触到你心里的重要位置，只是你白天还没完全把它说清楚。';
+}
+
+function buildMeaningPanelLayout(result, rawText = '', emotionLabel = '') {
+    const fallback = buildDreamInterpretation(result, emotionLabel, rawText);
+    const remoteInterpretation = result?.interpretation && typeof result.interpretation === 'object'
+        ? result.interpretation
+        : null;
+    const summaryParagraphs = splitReadingParagraphs(result?.summary);
+    const psychologyParagraphs = splitReadingParagraphs(result?.psychology);
+    const unconsciousParagraphs = splitReadingParagraphs(result?.unconscious).map(normalizeReadingParagraph).filter(Boolean);
+
+    const dreamFocusText = buildReadingCardText([
+        remoteInterpretation?.overview,
+        summaryParagraphs[0],
+        fallback.overview
+    ], 2) || fallback.overview;
+
+    const theoryText = buildReadingCardText([
+        psychologyParagraphs[0],
+        psychologyParagraphs[1],
+        remoteInterpretation?.overview
+    ], 2) || fallback.overview;
+
+    const realityText = buildReadingCardText([
+        psychologyParagraphs[2],
+        remoteInterpretation?.unconscious,
+        unconsciousParagraphs[2],
+        buildContextualRealityTakeaway(result, rawText, emotionLabel)
+    ], 2) || buildContextualRealityTakeaway(result, rawText, emotionLabel);
+
+    const emotionCoreText = buildReadingCardText([
+        remoteInterpretation?.emotion,
+        fallback.emotion
+    ], 1) || fallback.emotion;
+
+    const emotionRealityText = buildReadingCardText([
+        buildEmotionRealityAnchor(result, rawText, emotionLabel),
+        psychologyParagraphs[2]
+    ], 1) || buildEmotionRealityAnchor(result, rawText, emotionLabel);
+
+    const unconsciousCards = [];
+    const pushUnconsciousCard = (label, text, options = {}) => {
+        const normalizedText = buildReadingCardText([text], 1);
+        if (!normalizedText) return;
+        if (unconsciousCards.some((item) => item.text === normalizedText)) return;
+        unconsciousCards.push({
+            label,
+            text: normalizedText,
+            accent: !!options.accent,
+            full: !!options.full,
+            emphasizeFirst: options.emphasizeFirst !== false
+        });
+    };
+
+    pushUnconsciousCard('梦里最放不下的', unconsciousParagraphs[0] || remoteInterpretation?.unconscious || fallback.unconscious, { emphasizeFirst: true });
+    pushUnconsciousCard('它真正在提醒的', unconsciousParagraphs[1] || psychologyParagraphs[1] || theoryText, { emphasizeFirst: false });
+    pushUnconsciousCard('放到现实里', unconsciousParagraphs[2] || psychologyParagraphs[2] || buildContextualRealityTakeaway(result, rawText, emotionLabel), { accent: true, full: true, emphasizeFirst: false });
+
+    return {
+        lead: remoteInterpretation?.lead || fallback.lead,
+        overviewCards: [
+            { label: '梦里抓到的重点', text: dreamFocusText, emphasizeFirst: true },
+            { label: '为什么会这样理解', text: theoryText, emphasizeFirst: false },
+            { label: '放到现实里', text: realityText, accent: true, full: true, emphasizeFirst: false }
+        ],
+        emotionCards: [
+            { label: '这场梦的情绪主轴', text: emotionCoreText, emphasizeFirst: true },
+            { label: '现实里常见于', text: emotionRealityText, accent: true, emphasizeFirst: false }
+        ],
+        unconsciousCards,
+        emotionComposition: Array.isArray(remoteInterpretation?.emotionComposition) && remoteInterpretation.emotionComposition.length
+            ? remoteInterpretation.emotionComposition
+            : fallback.emotionComposition
+    };
 }
 
 function collectDreamAnchors(result, rawText = '') {
@@ -1158,6 +1645,37 @@ function getSymbolKeywordsByName(name) {
     return (SYMBOL_LIBRARY.find(item => item.name === name)?.keywords || []).slice();
 }
 
+function buildClueObservationText(symbol, matchedText = '') {
+    const name = symbol?.name || '这个画面';
+    const focus = matchedText || name;
+
+    if (['海洋', '水', '深处'].includes(name)) {
+        return `${focus} 在这里更适合先被当成情绪状态来读，而不是固定答案。先看它是平静、逼近、包围，还是只以声音出现，这通常比“水象征什么”更可靠。`;
+    }
+
+    if (name.includes('森林') || name === '树') {
+        return `${focus} 更像一块还没完全看清、但已经把你吸引进去的区域。重点不在“森林代表什么”，而在你走进去时是更想探索，还是开始迟疑。`;
+    }
+
+    if (name.includes('门')) {
+        return `${focus} 在梦里通常是一道边界或入口。比起直接判断它“意味着什么”，更值得看的是：你有没有靠近、为什么停下、门后还有什么在牵引你。`;
+    }
+
+    if (name.includes('家') || name.includes('房')) {
+        return `${focus} 让梦把注意力带回熟悉感、安全感和内部空间。更重要的不是套它的象征，而是看这个空间让你安心、压抑，还是有点想回去却回不去。`;
+    }
+
+    if (name.includes('镜')) {
+        return `${focus} 更像一次对自己的照面。先看你在镜前是想确认、想躲开，还是被迫停住，而不是立刻给它下一个完整结论。`;
+    }
+
+    if (name.includes('人物') || name.includes('孩子') || name.includes('长者')) {
+        return `${focus} 出现在梦里时，重点往往不只是“是谁”，而是这个人和你的距离、语气、动作，以及他让你立刻感到什么。`;
+    }
+
+    return `${focus} 之所以值得被单独看，不是因为它一定有固定含义，而是因为它在这场梦里承担了明显的情绪重量。先看它怎么出现，再决定要不要给它更进一步的解释。`;
+}
+
 function buildDreamClueCollection(result, rawText, emotionLabel = '') {
     const text = rawText || '';
     const clues = [];
@@ -1220,7 +1738,7 @@ function buildDreamClueCollection(result, rawText, emotionLabel = '') {
             title: symbol.name,
             matchedText: match.matchedText,
             tokens: match.tokens,
-            explanation: symbol.meaning
+            explanation: buildClueObservationText(symbol, match.matchedText)
         });
         usedTitles.add(symbol.name);
     });
@@ -1448,6 +1966,14 @@ function pickCue(text, cues, fallback = '') {
 }
 
 function getInterpretationOpening(theme, signals) {
+    if (signals.relative && signals.courtyard) {
+        return '这场梦在说，一份和亲人、旧家或旧安心感有关的想念，并没有真的离开你。';
+    }
+
+    if (signals.relative && signals.callName) {
+        return '这场梦在说，有些和某个人有关的情感联结并没有结束，它只是退到了更安静、也更深的地方。';
+    }
+
     if (signals.forest && signals.door && signals.water) {
         return '这场梦在说，你已经感觉到一个新的方向在召唤你，但你还没有真正跨进去。';
     }
@@ -1487,6 +2013,10 @@ function getInterpretationEmotionLine(label, signals) {
 }
 
 function getInterpretationClosing(theme, signals) {
+    if (signals.relative && (signals.callName || signals.crying)) {
+        return '它真正想传达的不是神秘讯号，而是那份想念仍然在你心里有位置。真正重要的，不是把它压下去，而是承认这份联结还会在某些时刻回来。';
+    }
+
     if (signals.door && signals.water) {
         return '它真正想传达的不是危险，而是过渡。门后的声音已经出现了，接下来真正重要的，不是继续观望，而是承认自己确实想靠近。';
     }
@@ -1730,6 +2260,10 @@ function renderEmotionComposition(items) {
 }
 
 function buildUnconsciousTransmission(theme, signals) {
+    if (signals.relative && (signals.callName || signals.crying)) {
+        return '潜意识真正想传达的，可能不是某种超自然预兆，而是那份和某个人、某段旧关系有关的情感联结还没有真正被安放。它让你在梦里重新感到安心，不是要你停在过去，而是要你承认这份想念依然真实。';
+    }
+
     if (signals.door && signals.water) {
         return '潜意识真正想传达的，不是危险，而是过渡已经开始。门后的声音反复出现，是因为你内在更深处已经知道：真正的问题不是要不要改变，而是你愿不愿意承认自己已经想靠近。';
     }
@@ -1752,7 +2286,10 @@ function buildUnconsciousTransmission(theme, signals) {
 function collectDreamSignalContext(result, rawText = '') {
     const text = rawText || '';
     const symbols = Array.isArray(result?.symbols) ? result.symbols : [];
-    const { detail } = deriveMeaningCopy(result?.summary, result?.psychology, result?.unconscious);
+    const summarySource = result?.reading?.groundedInterpretation || result?.summary;
+    const psychologySource = (Array.isArray(result?.reading?.otherPossibleExplanations) ? result.reading.otherPossibleExplanations.join(' ') : '') || result?.psychology;
+    const unconsciousSource = (Array.isArray(result?.reading?.realityQuestions) ? result.reading.realityQuestions.join(' ') : '') || result?.unconscious;
+    const { detail } = deriveMeaningCopy(summarySource, psychologySource, unconsciousSource);
     const signals = {
         forest: containsCue(text, ['发光的森林', '森林', '树林', '丛林']) || symbols.some(item => (item.name || '').includes('森林') || (item.name || '').includes('树')),
         door: containsCue(text, ['半开的门', '门', '大门', '木门']) || symbols.some(item => (item.name || '').includes('门')),
@@ -1761,6 +2298,12 @@ function collectDreamSignalContext(result, rawText = '') {
         light: containsCue(text, ['发光', '光', '亮光', '光线']) || symbols.some(item => (item.name || '').includes('光')),
         house: containsCue(text, ['房间', '房子', '屋', '家']) || symbols.some(item => (item.name || '').includes('家') || (item.name || '').includes('房')),
         mirror: containsCue(text, ['镜子', '镜', '倒影']) || symbols.some(item => (item.name || '').includes('镜')),
+        courtyard: containsCue(text, ['院子', '庭院', '院落', '老院子', '老家']),
+        relative: containsCue(text, ['亲人', '家人', '故人', '故去', '已故', '离世', '奶奶', '爷爷', '外婆', '外公', '妈妈', '母亲', '爸爸', '父亲', '叔叔', '阿姨']),
+        callName: containsCue(text, ['呼唤', '呼喊', '喊我', '叫我', '叫你的名字', '叫我名字']),
+        crying: containsCue(text, ['流泪', '眼泪', '泪水', '泪流', '哭', '哭了']),
+        silence: containsCue(text, ['无言', '沉默', '没说话', '不说话']),
+        comfort: containsCue(text, ['安心', '安稳', '温和', '温暖', '踏实', '轻声', '柔和']),
         calm: containsCue(text, ['平静', '安静', '宁静']),
         hesitation: containsCue(text, ['迟疑', '犹豫', '靠近却停下', '想靠近'])
     };
@@ -1772,6 +2315,8 @@ function collectDreamSignalContext(result, rawText = '') {
     const lightWord = pickCue(text, ['发光', '光线', '亮光', '光'], signals.light ? '光' : '');
     const houseWord = pickCue(text, ['旧房间', '房间', '房子', '家'], signals.house ? '房间' : '');
     const mirrorWord = pickCue(text, ['镜子', '镜', '倒影'], signals.mirror ? '镜子' : '');
+    const relativeWord = pickCue(text, ['故去亲人', '故人', '亲人', '家人', '奶奶', '爷爷', '外婆', '外公', '妈妈', '爸爸'], signals.relative ? '亲人' : '');
+    const courtyardWord = pickCue(text, ['院子', '庭院', '院落', '老家'], signals.courtyard ? '院子' : '');
 
     return {
         text,
@@ -1785,7 +2330,9 @@ function collectDreamSignalContext(result, rawText = '') {
             sinkingWord,
             lightWord,
             houseWord,
-            mirrorWord
+            mirrorWord,
+            relativeWord,
+            courtyardWord
         }
     };
 }
@@ -1829,42 +2376,7 @@ function buildDreamInterpretation(result, emotionLabel, rawText = '') {
 }
 
 function buildDisplayedInterpretation(result, emotionLabel, rawText = '') {
-    const fallback = buildDreamInterpretation(result, emotionLabel, rawText);
-    const remoteInterpretation = result?.interpretation && typeof result.interpretation === 'object'
-        ? result.interpretation
-        : null;
-
-    if (!remoteInterpretation) {
-        return fallback;
-    }
-
-    const summaryParagraphs = splitReadingParagraphs(result?.summary);
-    const psychologyParagraphs = splitReadingParagraphs(result?.psychology);
-    const unconsciousParagraphs = splitReadingParagraphs(result?.unconscious);
-
-    return {
-        lead: remoteInterpretation.lead || fallback.lead,
-        overview: joinReadingParagraphs([
-            remoteInterpretation.overview,
-            result?.summary,
-            summaryParagraphs[0],
-            psychologyParagraphs[0],
-            psychologyParagraphs[1]
-        ], 4) || fallback.overview,
-        emotion: joinReadingParagraphs([
-            remoteInterpretation.emotion,
-            psychologyParagraphs[2],
-            psychologyParagraphs[1],
-            summaryParagraphs[1]
-        ], 3) || fallback.emotion,
-        emotionComposition: Array.isArray(remoteInterpretation.emotionComposition) && remoteInterpretation.emotionComposition.length
-            ? remoteInterpretation.emotionComposition
-            : fallback.emotionComposition,
-        unconscious: joinReadingParagraphs([
-            remoteInterpretation.unconscious,
-            ...unconsciousParagraphs
-        ], 4) || fallback.unconscious
-    };
+    return normalizeDisplayedReading(result, rawText, emotionLabel);
 }
 
 function buildActionGuidance(result, rawText = '', emotionLabel = '') {
@@ -1924,53 +2436,21 @@ function buildDisplayedActionGuidance(result, rawText = '', emotionLabel = '') {
     const remoteAction = result?.actionGuidance && typeof result.actionGuidance === 'object'
         ? result.actionGuidance
         : null;
-    const usedAdviceParagraphs = new Set();
-    const actionBridge = buildGuidanceBridge(result, rawText, 'action');
-    const directionBridge = buildGuidanceBridge(result, rawText, 'direction');
 
     if (!remoteAction) {
         return {
             actionCue: fallback.actionCue,
-            actionBody: joinReadingParagraphs([
-                actionBridge,
-                fallback.actionBody
-            ], 2) || fallback.actionBody,
+            actionBody: fallback.actionBody,
             directionCue: fallback.directionCue,
-            directionBody: joinReadingParagraphs([
-                directionBridge,
-                fallback.directionBody
-            ], 2) || fallback.directionBody
+            directionBody: fallback.directionBody
         };
     }
 
-    const actionSupportParagraphs = selectAnchoredAdviceParagraphs(
-        result,
-        rawText,
-        remoteAction.actionCue || fallback.actionCue,
-        usedAdviceParagraphs,
-        1
-    );
-    const directionSupportParagraphs = selectAnchoredAdviceParagraphs(
-        result,
-        rawText,
-        remoteAction.directionCue || fallback.directionCue,
-        usedAdviceParagraphs,
-        1
-    );
-
     return {
         actionCue: remoteAction.actionCue || fallback.actionCue,
-        actionBody: joinReadingParagraphs([
-            actionBridge,
-            remoteAction.actionBody,
-            ...actionSupportParagraphs
-        ], 3) || fallback.actionBody,
+        actionBody: normalizeParagraph(remoteAction.actionBody, fallback.actionBody),
         directionCue: remoteAction.directionCue || fallback.directionCue,
-        directionBody: joinReadingParagraphs([
-            directionBridge,
-            remoteAction.directionBody,
-            ...directionSupportParagraphs
-        ], 3) || fallback.directionBody
+        directionBody: normalizeParagraph(remoteAction.directionBody, fallback.directionBody)
     };
 }
 
@@ -2076,10 +2556,10 @@ function startAnalysis() {
     const input = getUnifiedDreamInput();
     const btn   = getAnalyzeButton();
 
-    if (input.length < 20) {
+    if (input.length < 8) {
         typeof showToast === 'function'
-            ? showToast('请描述至少20个字的梦境内容～')
-            : alert('请描述至少20个字的梦境内容～');
+            ? showToast('请至少写下 8 个字，让这场梦有一个可以整理的起点。')
+            : alert('请至少写下 8 个字，让这场梦有一个可以整理的起点。');
         return;
     }
 
@@ -2118,7 +2598,7 @@ async function showResult() {
     if (requestId !== activeAnalyzeRequestId) return;
     renderAnalysisResult(input, result);
     if (result?._usedFallback && typeof showToast === 'function') {
-        showToast(result._fallbackMessage || '云端深度解析暂时不可用，已先为你展示基础解析结果。');
+        showToast(result._fallbackMessage || '云端整理暂时不可用，已为你展示基于原文的初步整理。');
     }
 }
 
@@ -2140,7 +2620,7 @@ function renderAnalysisResult(input, result, options = {}) {
     const emotion = getEmotionCenter(result.emotions);
     const interpretation = buildDisplayedInterpretation(result, emotion.label, input);
     const actionGuidance = buildDisplayedActionGuidance(result, input, emotion.label);
-    const takeaway = buildReadingTakeaway(result?.summary, result?.psychology, interpretation.lead);
+    const takeaway = buildReadingTakeaway(result, input, emotion.label, interpretation.coreFeeling);
 
     // Hero
     const titleEl = document.getElementById('resultTitle');
@@ -2149,7 +2629,18 @@ function renderAnalysisResult(input, result, options = {}) {
     updateDreamClueModule(input, result, emotion.label);
 
     const dreamInterpretationLeadEl = document.getElementById('dreamInterpretationLead');
-    if (dreamInterpretationLeadEl) dreamInterpretationLeadEl.textContent = interpretation.lead;
+    if (dreamInterpretationLeadEl) dreamInterpretationLeadEl.textContent = interpretation.coreFeeling;
+
+    const dreamInterpretationNoticeEl = document.getElementById('dreamInterpretationNotice');
+    if (dreamInterpretationNoticeEl) {
+        if (interpretation.qualityNotice) {
+            dreamInterpretationNoticeEl.textContent = interpretation.qualityNotice;
+            dreamInterpretationNoticeEl.hidden = false;
+        } else {
+            dreamInterpretationNoticeEl.textContent = '';
+            dreamInterpretationNoticeEl.hidden = true;
+        }
+    }
 
     const dreamInterpretationTakeawayEl = document.getElementById('dreamInterpretationTakeaway');
     const dreamInterpretationTakeawayTextEl = document.getElementById('dreamInterpretationTakeawayText');
@@ -2164,18 +2655,19 @@ function renderAnalysisResult(input, result, options = {}) {
     }
 
     const dreamInterpretationOverviewEl = document.getElementById('dreamInterpretationOverview');
-    setReadingRichContent(dreamInterpretationOverviewEl, interpretation.overview, { emphasizeFirst: true });
+    setMeaningCardGroupContent(dreamInterpretationOverviewEl, interpretation.tensionCards, { split: true });
 
-    const dreamInterpretationEmotionEl = document.getElementById('dreamInterpretationEmotion');
-    setReadingRichContent(dreamInterpretationEmotionEl, interpretation.emotion, { emphasizeFirst: true });
+    const dreamInterpretationInterpretationEl = document.getElementById('dreamInterpretationInterpretation');
+    setMeaningCardGroupContent(dreamInterpretationInterpretationEl, interpretation.groundedCards);
 
-    const dreamInterpretationEmotionMixEl = document.getElementById('dreamInterpretationEmotionMix');
-    if (dreamInterpretationEmotionMixEl) {
-        dreamInterpretationEmotionMixEl.innerHTML = renderEmotionComposition(interpretation.emotionComposition);
-    }
+    const dreamInterpretationAlternativesEl = document.getElementById('dreamInterpretationAlternatives');
+    setMeaningCardGroupContent(dreamInterpretationAlternativesEl, interpretation.alternativeCards, { split: true });
 
-    const dreamInterpretationUnconsciousEl = document.getElementById('dreamInterpretationUnconscious');
-    setReadingRichContent(dreamInterpretationUnconsciousEl, interpretation.unconscious, { emphasizeFirst: true });
+    const dreamInterpretationQuestionsEl = document.getElementById('dreamInterpretationQuestions');
+    setMeaningCardGroupContent(dreamInterpretationQuestionsEl, interpretation.questionCards, { split: true });
+
+    const dreamInterpretationBoundaryEl = document.getElementById('dreamInterpretationBoundary');
+    setMeaningCardGroupContent(dreamInterpretationBoundaryEl, interpretation.boundaryCards);
 
     const dreamInterpretationPanelEl = document.getElementById('dreamInterpretationPanel');
     if (dreamInterpretationPanelEl) {
@@ -2264,6 +2756,9 @@ function saveDreamToLocalStorage(text, analysis) {
             timestamp: ts,
             // 完整 AI 解析数据（供日记页详情展示）
             analysis: {
+                qualityNotice: analysis.qualityNotice || '',
+                reading:     analysis.reading     || null,
+                actionGuidance: analysis.actionGuidance || null,
                 summary:    analysis.summary    || '',
                 emotions:   analysis.emotions   || [],
                 symbols:    analysis.symbols    || [],
@@ -2314,7 +2809,7 @@ function restoreAnalyzeStateFromRoute(options = {}) {
     if (route.view === 'result') {
         const restored = snapshot?.result
             ? { input: snapshot.input || currentInput, result: snapshot.result }
-            : (currentInput.length >= 20 ? { input: currentInput, result: analyzeUserDreamLocal(currentInput) } : null);
+            : (currentInput.length >= 8 ? { input: currentInput, result: analyzeUserDreamLocal(currentInput) } : null);
 
         if (restored) {
             if (snapshot?.selectedEmotion) selectedEmotion = snapshot.selectedEmotion;
@@ -2323,7 +2818,7 @@ function restoreAnalyzeStateFromRoute(options = {}) {
         }
     }
 
-    if (route.view === 'loading' && currentInput.length >= 20) {
+    if (route.view === 'loading' && currentInput.length >= 8) {
         showAnalyzeLoadingView();
         if (allowLoadingSequence) {
             startLoadingPhaseSequence(showResult);

@@ -262,170 +262,38 @@ function summarizeDebugTail(content) {
     .slice(-120);
 }
 
-const FRAMEWORK_MARKERS = [
-  '荣格', '周公', '东方', '阴阳', '五行', '阈限', '阴影', '自性', '人格面具', '阿尼玛', '阿尼姆斯', '家宅', '门槛', '山水'
+const MIN_DREAM_TEXT_LENGTH = 8;
+const LIMITED_DREAM_TEXT_LENGTH = 38;
+const BANNED_STYLE_MARKERS = [
+  '集体无意识', '命运召唤', '能量值', '情绪占比', '潜意识警告', '五行相克', '重大心理危机', '注定', '预示'
+];
+const OVERCONFIDENT_MARKERS = [
+  '你就是', '说明你一定', '这证明', '显然是', '毫无疑问', '注定', '一定会', '必然', '已经说明'
 ];
 const REALITY_MARKERS = [
-  '工作', '关系', '家庭', '亲密', '沟通', '表达', '边界', '稳定', '责任', '告别', '决定', '现实', '生活', '压力', '角色', '拉扯', '靠近', '退缩'
+  '现实', '生活', '最近', '平时', '白天', '关系', '沟通', '家庭', '工作', '边界', '表达', '靠近', '退回', '停住', '迟疑'
 ];
-const GUIDANCE_ACTION_MARKERS = [
-  '写下', '记下', '记录', '回想', '回看', '留意', '观察', '补写', '对照', '分清', '分辨', '问自己', '圈出', '标出'
-];
-
-const ANALYSIS_SYSTEM_RULES = [
-  '你是 DreamLens 的梦境解析助手，需要基于用户原文输出结果页直接可用的结构化 JSON。',
-  '只允许输出合法 JSON，不要输出 Markdown、解释、标题、代码块。',
-  '语言必须是简体中文，语气细腻、安静、直接、有洞察力，但不要玄学化、不要广告化、不要空泛鸡汤。',
-  '解读必须尽量贴着梦本身来写：优先抓原文中的画面、声音、动作、空间关系、颜色变化和醒来后的感受，不要先讲大而空的道理。',
-  '不要杜撰原文没有出现的具体情节，只能沿着原文里的意象和动作做心理层面的延展。',
-  '解析必须融合三个层次：东方象征意义、荣格分析心理学、周公解梦中的传统意象语义；不要只提理论名字，必须说明它们如何对应梦里的具体画面。',
-  '引用周公解梦时，不要写宿命式吉凶断语，不要直接说“预示发财”“必有灾祸”之类的话；要把它转写为传统文化中的象征含义，再和现代心理线索对照。',
-  '引用荣格时，优先使用有原文支撑的具体概念，例如阴影、阈限、人格面具、阿尼玛/阿尼姆斯、自性、个体化、自我与无意识的关系；不要空喊“潜意识”“原型”却不解释。',
-  '引用东方象征时，可结合阴阳、五行、山水、家宅、门槛、桥路、方位、颜色、动物、月夜、水火等传统语义，但必须和梦里的实际细节一一对应。',
-  '每个主要意象至少回答三件事：它在梦里是怎样出现的；它在某个文化/心理框架里意味着什么；把它放回这场梦，更像哪一种现实中的情绪冲突、关系压力或内在拉扯。',
-  '每个字段最后都尽量往现实生活落一步，例如工作沟通、亲密关系、家庭角色、边界拿捏、难以开口、害怕失去稳定、未完成的告别；不要只停在抽象象征。',
-  '如果原文细节不足，不要硬凑三套理论；宁可只抓 1 到 2 个核心意象做扎实解释，也不要泛泛铺开。',
-  '少用套话，避免反复出现“这场梦在说”“潜意识在提醒你”“某个方向正在浮现”“你需要学会”这类空泛句式。',
-  '尽量少谈宽泛的人生成长、疗愈、自我觉察，除非它能被梦里的具体细节明确支撑。',
-  '联系现实处境时，不要做武断诊断；优先使用“更像你最近在……时的感受”“也可能对应你在……里的拉扯”这种贴近日常但保留余地的表达。',
-  '每一段最好都能落回梦里的具体线索，例如门、森林、水声、楼梯、追逐、停下、回头、醒来后的残留感。',
-  '强调梦境感、夜色感、潜意识线索，但表达必须清楚、克制、具体。',
-  '可以写得比之前更充分，但不要用空话灌水；长度增加必须带来更多细节、更多现实映射、更多画面对应。',
-  '不要把任何参数、UI、按钮、模型信息写进输出。'
+const ACTION_MARKERS = [
+  '写下', '记下', '补一句', '圈出', '留意', '观察', '回想', '对照', '问自己', '记一笔'
 ];
 
-const ANALYSIS_USER_REQUIREMENTS = [
-  '1. theme 必须是指定枚举之一。',
-  '2. tags 只输出简短中文标签。',
-  '3. emotions 输出 4 项左右，百分比总和约为 100。',
-  '4. interpretation.emotionComposition 需要输出 4 项左右，总和约为 100。',
-  '5. 如果原文明显包含森林、门、海浪、下沉、平静与迟疑这些线索，请优先准确反映。',
-  '6. summary 必须直接点出梦里最关键的 1 到 2 个画面，以及这些画面之间最具体的心理张力；结尾最好落回一个现实中的矛盾，例如想靠近又退缩、想表达又卡住、想稳定又怕失去。',
-  '7. symbols 至少覆盖 3 个关键意象，优先写最反复、最异常、最有情绪重量的意象。meaning 要具体写出它在东方象征、荣格或周公语义中的对应，并补一句它更像现实里的哪种压力、关系或情绪处境。',
-  '8. psychology 尽量写成 3 段：第一段偏荣格心理学，第二段偏东方象征或周公传统，第三段把两者收束回做梦者当下的真实处境。每段都必须引用梦里细节，不要空谈理论；第三段至少写出 1 到 2 个可能的生活场景。',
-  '9. unconscious / advice / interpretation.* 要尽量少套话，多落回梦里的具体意象、动作、情绪和关系位置；最好出现“这更像你最近在……”这一类现实映射。',
-  '10. actionGuidance 和 advice 必须顺着 summary / interpretation 已经点出的核心张力往下写，最好复用同一两个意象或动作；不要另起炉灶，也不要写“比如新项目、新关系、某次深夜沉思”这类原梦没有支撑的假设例子。',
-  '11. 如果用到传统解梦或原型概念，必须解释为什么它和这场梦有关，不能只报术语名称。',
-  '12. 可以写得更充实，但不要重复同一句话；每一段增加的字数都应该换来新的梦境细节、理论对应或现实联系。',
-  '13. 输出必须是纯 JSON，不要有任何额外文本。'
-];
-
-const RECOVERY_SYSTEM_RULES = [
-  '你是 DreamLens 的梦境解析助手。',
-  '上一次输出没有成功解析，这一次请只返回合法 JSON，不要输出任何解释、Markdown、代码块或多余文字。',
-  '所有字段都可以写得紧凑，但必须完整，而且要比基础解析更具体。',
-  '优先根据梦里最明确的画面、动作、声音、空间关系和醒来后的感受来写，不要套话。',
-  '仍然要融入荣格心理学、东方象征和周公解梦中的传统意象语义，但只能写和原文细节直接对应的部分。',
-  '周公相关内容只作为传统文化象征参考，不要写宿命吉凶判断。',
-  '每一段至少往现实生活落一步，例如工作、关系、家庭、表达、边界或稳定感，不要只停在概念层。',
-  '如果某个字段拿不准，就写得克制、具体，也不要离开梦本身。'
-];
-
-const RECOVERY_USER_REQUIREMENTS = [
-  '1. summary 要直接点明最关键的梦中画面，并补一句现实中的心理张力。',
-  '2. symbols 的 meaning 不要空泛，至少落到一个具体框架或具体心理冲突，并补一句现实映射。',
-  '3. psychology 尽量覆盖荣格角度 + 东方/周公角度，并明确回到现实心理处境。',
-  '4. advice 和 actionGuidance 只给具体可执行的小动作，并写出它为什么正好对应前面已经点出的梦中张力；不要举原梦没有支撑的例子。',
-  '5. 可以比之前多一点内容，但必须完整，尤其不要把第三段现实映射写丢。',
-  '6. 只返回 JSON。'
-];
-
-function buildRepairMessages(rawContent, dreamText, scaffold = {}) {
-  const compactSchema = {
-    title: '梦境标题',
-    theme: 'water/chase/fall/fly/forest/house/death/light/general 之一',
-    tags: ['简短中文标签'],
-    summary: '1段总结',
-    symbols: [{ name: '意象名', meaning: '具体含义' }],
-    emotions: [{ label: '情绪名', pct: 30 }],
-    psychology: '3段心理分析',
-    unconscious: '3小段',
-    advice: '3小段',
-    interpretation: {
-      lead: '一句核心判断',
-      overview: '补充正文',
-      emotion: '情绪分析',
-      emotionComposition: [{ key: 'pressure', label: '压迫', pct: 30, tone: 'ember' }],
-      unconscious: '潜意识传达'
-    },
-    actionGuidance: {
-      actionCue: '一句行动提示',
-      actionBody: '行动正文',
-      directionCue: '一句继续观察提示',
-      directionBody: '继续观察正文'
-    }
-  };
-
-  return [
-    {
-      role: 'system',
-      content: [
-        '你是 JSON 修复助手。',
-        '下面会给你一段 DreamLens 解析模型输出的原始文本，它不是合法 JSON。',
-        '请保留其中有价值的解析内容，修复为合法 JSON。',
-        '如果原始文本里缺少某些字段，就根据梦境原文和 scaffold 补全，但不要脱离原梦。',
-        '只返回合法 JSON，不要输出解释、Markdown、代码块。'
-      ].join('\n')
-    },
-    {
-      role: 'user',
-      content: [
-        '梦境原文：',
-        dreamText,
-        '',
-        'scaffold：',
-        JSON.stringify(scaffold, null, 2),
-        '',
-        '需要修复的原始文本：',
-        rawContent,
-        '',
-        '目标 JSON 结构：',
-        JSON.stringify(compactSchema, null, 2)
-      ].join('\n')
-    }
-  ];
-}
-
-function buildRescueMessages(dreamText, scaffold = {}) {
-  const miniSchema = {
-    title: '梦境标题，2到10字',
-    theme: 'water/chase/fall/fly/forest/house/death/light/general 之一',
-    tags: ['3个简短中文标签'],
-    summary: '55到80字',
-    symbols: [{ name: '意象名', meaning: '24到42字，必须具体' }],
-    emotions: [{ label: '情绪名', pct: 30 }],
-    psychology: '3段，总计120到180字',
-    unconscious: '3小段，总计80到120字',
-    advice: '3小段，总计80到120字'
-  };
-
-  return [
-    {
-      role: 'system',
-      content: [
-        '你是 DreamLens 的救援解析助手。',
-        '前面的输出没有成功，现在请只生成最核心且稳定的 JSON 字段。',
-        '必须具体、贴近梦的画面，必须带荣格、东方象征或周公语义中的至少两个明确对应。',
-        '只返回合法 JSON，不要输出解释、Markdown、代码块。'
-      ].join('\n')
-    },
-    {
-      role: 'user',
-      content: [
-        '请根据这段梦境生成一份稳定、具体的最小可用 JSON：',
-        '',
-        '梦境原文：',
-        dreamText,
-        '',
-        'scaffold：',
-        JSON.stringify(scaffold, null, 2),
-        '',
-        '目标 JSON 结构：',
-        JSON.stringify(miniSchema, null, 2)
-      ].join('\n')
-    }
-  ];
-}
+const ANALYSIS_SYSTEM_PROMPT = [
+  '你是一名帮助用户整理梦境体验的中文写作助手。',
+  '你的任务不是给出神秘、权威、确定的“梦的答案”，而是基于用户提供的梦境描述，做出贴近文本、克制、清楚、有边界感的整理与解释。',
+  '只返回合法 JSON，不要输出 Markdown、标题、解释、代码块或任何额外文字。',
+  '梦没有标准答案，不要把单个符号固定翻译成单一含义，不要把“门、海浪、森林、下沉、房间、陌生人”等直接套进固定词典。',
+  '优先分析用户原文里能直接看到的内容：场景、动作、距离感、阻碍方式、声音、空间关系、情绪变化、醒来后的余韵。',
+  '先描述，再解释；先证据，再推测。每个结论都尽量能在原文里找到依据。',
+  '推测性的内容必须明确保留余地，使用“可能、也许、像是、另一种理解是、也不排除”这类表达，不要写成定论。',
+  '不要做心理诊断，不要假装知道用户现实中一定发生了什么，不要自动推断事业、关系、童年创伤、人格转变等宏大主题，除非原文非常支持。',
+  '不要为了“深刻感”堆砌词藻，不要反复换词说同一个意思，不要制造玄学气氛。',
+  '不要使用会制造权威感但缺乏约束的词，例如“集体无意识、能量、命运召唤、潜意识警告、五行定性、重大心理危机、注定、预示”。',
+  '不要输出百分比、情绪占比、分值、能量条解释，也不要做伪量化判断。',
+  '当梦更像普通压力梦、白天情绪延续或感官残留时，可以直接这样说，不要强行拔高成重大象征。',
+  '对醒来后的感受给予高权重，因为它通常比单个符号更可靠。',
+  '写作风格可以有一点文学感，但核心必须清楚、节制、可读、可核对。',
+  '如果用户描述较少，必须明确提示“描述较少，下面只能给出非常初步的整理”，并减少延伸，不要硬分析。'
+].join('\n');
 
 function normalizeComparableText(value) {
   return normalizeString(value)
@@ -434,42 +302,217 @@ function normalizeComparableText(value) {
     .toLowerCase();
 }
 
-function isSummaryTooCloseToDream(summary, dreamText) {
-  const normalizedSummary = normalizeComparableText(summary);
-  const normalizedDream = normalizeComparableText(dreamText);
-
-  if (!normalizedSummary || !normalizedDream) return false;
-  if (normalizedSummary === normalizedDream) return true;
-
-  const shorter = normalizedSummary.length < normalizedDream.length ? normalizedSummary : normalizedDream;
-  const longer = shorter === normalizedSummary ? normalizedDream : normalizedSummary;
-  return shorter.length >= 18 && longer.includes(shorter) && shorter.length / longer.length > 0.6;
-}
-
-function countFrameworkBackedSymbols(symbols) {
-  if (!Array.isArray(symbols)) return 0;
-  return symbols
-    .slice(0, 3)
-    .filter((item) => FRAMEWORK_MARKERS.some((marker) => normalizeString(item?.meaning).includes(marker)))
-    .length;
-}
-
-function countParagraphs(text) {
+function countReadableSentences(text) {
   return normalizeParagraph(text)
-    .split(/\n{2,}/)
-    .map((part) => part.trim())
+    .split(/[。！？!?]+/)
+    .map((item) => item.trim())
     .filter(Boolean)
     .length;
 }
 
+function isLimitedDreamText(dreamText) {
+  const text = normalizeString(dreamText);
+  if (!text) return true;
+  if (text.length < LIMITED_DREAM_TEXT_LENGTH) return true;
+  return text.length < 60 && countReadableSentences(text) <= 1;
+}
+
+function getQualityNotice(dreamText) {
+  return isLimitedDreamText(dreamText)
+    ? '描述较少，下面只能给出非常初步的整理。'
+    : '';
+}
+
+function buildPromptSchema(limitedInput = false) {
+  return {
+    qualityNotice: limitedInput ? '描述较少，下面只能给出非常初步的整理。' : '',
+    reading: {
+      coreFeeling: '对应页面里的“核心感受”，1段，45到95字，描述最突出的情绪基调，不夸张',
+      keyTensions: [
+        {
+          contrast: '对应页面里的“画面里的关键张力”，短语形式，例如“靠近 vs 下沉”',
+          evidence: '12到38字，说明这个对照关系为什么能从原文里看出来'
+        }
+      ],
+      groundedInterpretation: '对应页面里的“一种较稳妥的解释”，1到2段，总体80到170字，必须先贴着文本，再给出克制解释',
+      otherPossibleExplanations: [
+        '对应页面里的“还可能有的其他解释”，2到3条，每条28到72字，明确是其他可能，不是定论'
+      ],
+      realityQuestions: [
+        '对应页面里的“和现实的连接问题”，固定3条，都要是真问题，帮助用户自我对照'
+      ],
+      boundaryNote: '对应页面里的“边界提示”，一句短提醒，18到36字'
+    },
+    actionGuidance: {
+      actionCue: '一句小标题，10到18字',
+      actionBody: '一个现在可以做的小动作，35到88字，必须紧贴前面的核心张力，不要凭空扩展现实背景',
+      directionCue: '一句继续观察方向的小标题，10到18字',
+      directionBody: '一个接下来可以留意的方向，35到88字，仍然只围绕梦里已有线索'
+    }
+  };
+}
+
+function buildPromptRequirements(limitedInput = false) {
+  return [
+    '1. 输出必须是纯 JSON，不要有任何额外文本。',
+    '2. qualityNotice 只有在描述较少时才填写固定句子，否则留空字符串。',
+    '3. reading.keyTensions 输出 2 到 4 条，优先写动作、距离、阻碍、情绪反差，不要写空泛对照。',
+    '4. reading.groundedInterpretation 先说文本里能支持的观察，再给较稳妥的解释；不要反向先下结论再套符号。',
+    '5. reading.otherPossibleExplanations 输出 2 到 3 条，并明确它们只是其他可能。',
+    '6. reading.realityQuestions 固定输出 3 条，问题要具体、可自我核对，不要像鸡汤。',
+    '7. reading.boundaryNote 必须提醒“这不是事实判断，只是观察线索”这一层意思。',
+    '8. actionGuidance 必须顺着前面已经抓住的张力来写，不要另起炉灶，不要举“新项目、新关系、换工作”这类原文没有支撑的例子。',
+    '9. 不要写百分比，不要写“能量”“命运”“预示”“重大转变”之类词。',
+    limitedInput
+      ? '10. 因为描述较少，请主动减少延伸，宁可承认信息不足，也不要硬把普通画面说成重大主题。'
+      : '10. 当现实连接拿不准时，可以只写成“像是最近某种靠近又停住的感觉”，不要假装知道用户真实处境。'
+  ];
+}
+
+function buildScaffoldReference(scaffold = {}) {
+  return JSON.stringify({
+    title: scaffold.title || '',
+    theme: scaffold.theme || 'general',
+    tags: Array.isArray(scaffold.tags) ? scaffold.tags : [],
+    symbols: Array.isArray(scaffold.symbols) ? scaffold.symbols : [],
+    reading: scaffold.reading || null
+  }, null, 2);
+}
+
+function buildMessages(dreamText, scaffold = {}) {
+  const limitedInput = isLimitedDreamText(dreamText);
+  return [
+    {
+      role: 'system',
+      content: ANALYSIS_SYSTEM_PROMPT
+    },
+    {
+      role: 'user',
+      content: [
+        '请根据下面这段梦境原文，输出一份“梦境整理与可能解释”的 JSON。',
+        '',
+        '梦境原文：',
+        dreamText,
+        '',
+        '本地整理出的线索（仅供参考，不要照抄，也不要把这些线索当成定论）：',
+        buildScaffoldReference(scaffold),
+        '',
+        '输出 JSON 结构：',
+        JSON.stringify(buildPromptSchema(limitedInput), null, 2),
+        '',
+        '写作与输出要求：',
+        ...buildPromptRequirements(limitedInput)
+      ].join('\n')
+    }
+  ];
+}
+
+function buildRecoveryMessages(dreamText, scaffold = {}) {
+  const limitedInput = isLimitedDreamText(dreamText);
+  return [
+    {
+      role: 'system',
+      content: [
+        ANALYSIS_SYSTEM_PROMPT,
+        '上一次输出没有成功解析。这一次请更简洁、更稳、更克制，只保留最必要的内容。'
+      ].join('\n')
+    },
+    {
+      role: 'user',
+      content: [
+        '请重新输出合法 JSON。',
+        '',
+        '梦境原文：',
+        dreamText,
+        '',
+        '本地参考线索：',
+        buildScaffoldReference(scaffold),
+        '',
+        '输出 JSON 结构：',
+        JSON.stringify(buildPromptSchema(limitedInput), null, 2),
+        '',
+        '补充要求：',
+        '1. 如果拿不准，就写得更短、更保守。',
+        '2. 不要重复同一个意思的换词扩写。',
+        '3. 不要输出任何百分比或伪精确判断。',
+        '4. 如果像普通压力梦或感官残留，可以直接这么写。',
+        ...buildPromptRequirements(limitedInput)
+      ].join('\n')
+    }
+  ];
+}
+
+function buildRepairMessages(rawContent, dreamText, scaffold = {}) {
+  const limitedInput = isLimitedDreamText(dreamText);
+  return [
+    {
+      role: 'system',
+      content: [
+        '你是 JSON 修复助手。',
+        '下面会给你一段不是合法 JSON 的模型输出。请尽量保留其中贴近文本、克制、可核对的部分，修成合法 JSON。',
+        '不要擅自补写夸张、玄学或伪精确内容。缺失字段可以参考梦境原文和 scaffold 谨慎补全。',
+        '只返回合法 JSON。'
+      ].join('\n')
+    },
+    {
+      role: 'user',
+      content: [
+        '梦境原文：',
+        dreamText,
+        '',
+        '本地参考线索：',
+        buildScaffoldReference(scaffold),
+        '',
+        '目标 JSON 结构：',
+        JSON.stringify(buildPromptSchema(limitedInput), null, 2),
+        '',
+        '需要修复的原始文本：',
+        rawContent
+      ].join('\n')
+    }
+  ];
+}
+
+function buildRescueMessages(dreamText, scaffold = {}) {
+  const limitedInput = isLimitedDreamText(dreamText);
+  return [
+    {
+      role: 'system',
+      content: [
+        ANALYSIS_SYSTEM_PROMPT,
+        '前面的输出没有成功。现在请只生成最小可用、最稳妥的一版 JSON，宁可少一点，也不要玄、满、假确定。'
+      ].join('\n')
+    },
+    {
+      role: 'user',
+      content: [
+        '请生成一份最小可用 JSON。',
+        '',
+        '梦境原文：',
+        dreamText,
+        '',
+        '本地参考线索：',
+        buildScaffoldReference(scaffold),
+        '',
+        '输出 JSON 结构：',
+        JSON.stringify(buildPromptSchema(limitedInput), null, 2),
+        '',
+        '额外要求：',
+        '1. keyTensions 可以只写 2 条，但必须是原文里真的能看到的张力。',
+        '2. groundedInterpretation 最多 2 段，不要展开成长叙事。',
+        '3. 只返回 JSON。'
+      ].join('\n')
+    }
+  ];
+}
+
 function countRealityAnchors(payload = {}) {
+  const reading = payload?.reading || {};
   const text = [
-    payload.summary,
-    payload.psychology,
-    payload.unconscious,
-    payload.advice,
-    payload?.interpretation?.overview,
-    payload?.interpretation?.unconscious,
+    reading.coreFeeling,
+    reading.groundedInterpretation,
+    ...(Array.isArray(reading.otherPossibleExplanations) ? reading.otherPossibleExplanations : []),
+    ...(Array.isArray(reading.realityQuestions) ? reading.realityQuestions : []),
     payload?.actionGuidance?.actionBody,
     payload?.actionGuidance?.directionBody
   ]
@@ -480,256 +523,117 @@ function countRealityAnchors(payload = {}) {
   return REALITY_MARKERS.filter((marker) => text.includes(marker)).length;
 }
 
-function averageSymbolMeaningLength(symbols) {
-  if (!Array.isArray(symbols) || !symbols.length) return 0;
-  const items = symbols
-    .slice(0, 3)
-    .map((item) => normalizeString(item?.meaning))
-    .filter(Boolean);
-  if (!items.length) return 0;
-  return items.reduce((sum, item) => sum + item.length, 0) / items.length;
-}
-
-function collectGuidanceText(payload = {}) {
-  return [
-    payload.advice,
+function countActionMarkers(payload = {}) {
+  const text = [
     payload?.actionGuidance?.actionBody,
     payload?.actionGuidance?.directionBody
   ]
     .map((item) => normalizeString(item))
     .join('\n');
-}
 
-function countGuidanceActionMarkers(payload = {}) {
-  const text = collectGuidanceText(payload);
   if (!text) return 0;
-  return GUIDANCE_ACTION_MARKERS.filter((marker) => text.includes(marker)).length;
+  return ACTION_MARKERS.filter((marker) => text.includes(marker)).length;
 }
 
-function countGuidanceDreamAnchors(payload = {}, dreamText = '') {
-  const guidanceText = collectGuidanceText(payload);
-  if (!guidanceText) return 0;
+function countDreamAnchors(payload = {}, dreamText = '') {
+  const text = [
+    ...(Array.isArray(payload?.reading?.keyTensions) ? payload.reading.keyTensions.map((item) => `${item?.contrast || ''} ${item?.evidence || ''}`) : []),
+    payload?.reading?.groundedInterpretation,
+    ...(Array.isArray(payload?.reading?.otherPossibleExplanations) ? payload.reading.otherPossibleExplanations : []),
+    payload?.actionGuidance?.actionBody,
+    payload?.actionGuidance?.directionBody
+  ]
+    .map((item) => normalizeString(item))
+    .join('\n');
 
-  const source = normalizeString(dreamText);
+  if (!text) return 0;
+
   const anchors = [
-    ...(Array.isArray(payload.symbols)
-      ? payload.symbols.slice(0, 4).map((item) => normalizeString(item?.name)).filter(Boolean)
-      : []),
-    ...(source.includes('森林') || source.includes('树林') ? ['森林'] : []),
-    ...(source.includes('门') ? ['门'] : []),
-    ...(source.includes('海') || source.includes('水') ? ['海', '水'] : []),
-    ...(source.includes('下沉') || source.includes('坠落') || source.includes('落下') ? ['下沉', '坠落'] : []),
-    ...(source.includes('发光') || source.includes('光线') || source.includes('亮光') ? ['光'] : []),
-    ...(source.includes('房间') || source.includes('房子') || source.includes('家') ? ['房间', '家'] : []),
-    ...(source.includes('镜') || source.includes('倒影') ? ['镜子'] : [])
+    ...(dreamText.includes('门') ? ['门'] : []),
+    ...(dreamText.includes('海') || dreamText.includes('水') ? ['海', '水'] : []),
+    ...(dreamText.includes('森林') || dreamText.includes('树') ? ['森林', '树'] : []),
+    ...(dreamText.includes('下沉') || dreamText.includes('坠落') ? ['下沉', '坠落'] : []),
+    ...(dreamText.includes('房') || dreamText.includes('家') ? ['房', '家'] : []),
+    ...(dreamText.includes('平静') ? ['平静'] : []),
+    ...(dreamText.includes('迟疑') || dreamText.includes('犹豫') ? ['迟疑', '犹豫'] : []),
+    ...(dreamText.includes('哭') || dreamText.includes('眼泪') ? ['哭', '眼泪'] : [])
   ];
 
   const uniqueAnchors = [...new Set(anchors.filter(Boolean))];
-  return uniqueAnchors.filter((anchor) => guidanceText.includes(anchor)).length;
+  return uniqueAnchors.filter((anchor) => text.includes(anchor)).length;
 }
 
-function guidanceLooksSpeculative(payload = {}, dreamText = '') {
-  const text = collectGuidanceText(payload);
-  if (!text) return false;
-
-  const hasLooseExample = /(比如|例如)/.test(text);
-  const hasFabricatedScenario = /(新项目|新关系|换工作|深夜沉思|某次|某个邀请|某段关系|若即若离)/.test(text);
-  if (!hasLooseExample && !hasFabricatedScenario) return false;
-
-  return countGuidanceDreamAnchors(payload, dreamText) < 2;
+function containsBannedStyle(text) {
+  const content = normalizeString(text);
+  return BANNED_STYLE_MARKERS.some((marker) => content.includes(marker))
+    || OVERCONFIDENT_MARKERS.some((marker) => content.includes(marker))
+    || /%/.test(content);
 }
 
 function needsQualityRefinement(payload, dreamText) {
   if (!payload || typeof payload !== 'object') return false;
 
-  const summaryTooClose = isSummaryTooCloseToDream(payload.summary, dreamText);
-  const symbolSpecificityTooLow = countFrameworkBackedSymbols(payload.symbols) < 2;
-  const symbolDetailTooThin = averageSymbolMeaningLength(payload.symbols) < 30;
-  const psychologyTooThin = countParagraphs(payload.psychology) < 3 || normalizeString(payload.psychology).length < 150;
-  const adviceTooThin = normalizeString(payload.advice).length < 90;
-  const realityTooWeak = countRealityAnchors(payload) < 2;
-  const guidanceDreamGroundingTooWeak = countGuidanceDreamAnchors(payload, dreamText) < 1;
-  const guidanceActionTooWeak = countGuidanceActionMarkers(payload) < 2;
-  const guidanceTooSpeculative = guidanceLooksSpeculative(payload, dreamText);
+  const reading = payload.reading || {};
+  const keyTensions = Array.isArray(reading.keyTensions) ? reading.keyTensions : [];
+  const alternatives = Array.isArray(reading.otherPossibleExplanations) ? reading.otherPossibleExplanations : [];
+  const realityQuestions = Array.isArray(reading.realityQuestions) ? reading.realityQuestions : [];
+  const combinedText = [
+    reading.coreFeeling,
+    ...keyTensions.map((item) => `${item?.contrast || ''} ${item?.evidence || ''}`),
+    reading.groundedInterpretation,
+    ...alternatives,
+    ...realityQuestions,
+    reading.boundaryNote,
+    payload?.actionGuidance?.actionBody,
+    payload?.actionGuidance?.directionBody
+  ].join('\n');
 
-  return summaryTooClose
-    || symbolSpecificityTooLow
-    || symbolDetailTooThin
-    || psychologyTooThin
-    || adviceTooThin
-    || realityTooWeak
-    || guidanceDreamGroundingTooWeak
-    || guidanceActionTooWeak
-    || guidanceTooSpeculative;
+  return !normalizeString(reading.coreFeeling)
+    || keyTensions.length < 2
+    || normalizeString(reading.groundedInterpretation).length < 55
+    || alternatives.length < 2
+    || realityQuestions.length < 3
+    || countRealityAnchors(payload) < 1
+    || countDreamAnchors(payload, dreamText) < 2
+    || countActionMarkers(payload) < 2
+    || containsBannedStyle(combinedText);
 }
 
 function buildRefinementMessages(dreamText, scaffold = {}, payload = {}) {
+  const limitedInput = isLimitedDreamText(dreamText);
   return [
     {
       role: 'system',
       content: [
-        '你是 DreamLens 的梦境解析助手，现在需要在保留 JSON 结构的前提下，把一份过于泛化的解析改写得更具体、更有理论支撑。',
-        '只返回合法 JSON，不要输出解释、Markdown、代码块。',
-        'summary 不能只是复述用户原梦，必须提炼梦里最关键的心理张力。',
-        '前 3 个 symbols.meaning 至少有 2 个要明确写出荣格、东方象征或周公语义中的具体对应，并落回这场梦里的情绪、关系或行动冲突。',
-        'psychology 请写成 3 段：第一段偏荣格，第二段偏东方象征/周公，第三段回到这位做梦者当下的具体处境。',
-        '每个重要字段都要更具体一些，尤其是 summary、symbols、advice、interpretation.overview，不能只写一层意思。',
-        '至少在 3 个字段里把梦里的意象落回现实生活，例如工作沟通、亲密关系、家庭角色、边界拿捏、难以开口、害怕失去稳定等。',
-        'advice 和 actionGuidance 必须承接 summary / interpretation 已经点出的核心张力，最好复用同一两个意象或动作，不要另起一套建议逻辑。',
-        '不要举原梦没有支撑的例子，不要写“比如新项目、新关系、某次深夜沉思”这类看起来具体但其实凭空猜测的场景。',
-        '周公语义只能作为传统文化象征参考，不要写吉凶预言。',
-        '不要空话，不要模板句，不要只说“象征变化”“代表成长”“提示你关注自己”。'
+        ANALYSIS_SYSTEM_PROMPT,
+        '现在需要把一份仍然偏泛、偏像模板的 JSON 改写得更贴近原文、更克制、更有层次。'
       ].join('\n')
     },
     {
       role: 'user',
       content: [
-        '请重写下面这份解析 JSON，让它更具体：',
+        '请重写下面这份 JSON，但保持字段结构不变。',
         '',
         '梦境原文：',
         dreamText,
         '',
-        '本地结构线索：',
-        JSON.stringify(scaffold, null, 2),
+        '本地参考线索：',
+        buildScaffoldReference(scaffold),
         '',
-        '当前过于泛化的 JSON：',
+        '当前 JSON：',
         JSON.stringify(payload, null, 2),
         '',
         '重写要求：',
-        '1. 保持字段结构不变，仍然输出完整 JSON。',
-        '2. title / theme / tags 可以微调，但不要脱离原梦。',
-        '3. summary 必须是提炼，不是照抄。',
-        '4. symbols.meaning 要更具体，至少有两个写出明确框架及其在这场梦里的含义，并补一句现实映射。',
-        '5. psychology 必须三段分明，并且每段都要引用原梦里的具体线索，例如场景、门槛、动物、水、追逐、停下、回头、醒后感受等对应部分；第三段要更明确联系现实生活。',
-        '6. unconscious / advice / interpretation.* 也要更贴近梦里的动作和情绪，不要空泛；尽量把现实中的关系、工作、家庭、表达或边界处境写出来。',
-        '7. advice 和 actionGuidance 必须顺着 summary / interpretation 已经抓住的那条核心张力继续往下写，最好复用同一两个意象或动作，不要另起炉灶。',
-        '8. 不要举原梦没有支撑的现实例子，不要写“比如新项目、新关系、某次深夜沉思”之类的假设场景。',
-        '9. 如果内容偏短，请在不灌水的前提下补足细节。',
-        '10. 只返回 JSON。'
-      ].join('\n')
-    }
-  ];
-}
-
-function buildMessages(dreamText, scaffold = {}) {
-  const scaffoldSummary = JSON.stringify({
-    title: scaffold.title || '',
-    theme: scaffold.theme || 'general',
-    tags: Array.isArray(scaffold.tags) ? scaffold.tags : [],
-    symbols: Array.isArray(scaffold.symbols) ? scaffold.symbols : [],
-    emotions: Array.isArray(scaffold.emotions) ? scaffold.emotions : []
-  }, null, 2);
-
-  const schema = {
-    title: '梦境标题，2到12个字',
-    theme: '只能是 water/chase/fall/fly/forest/house/death/light/general 之一',
-    tags: ['3个简短中文标签'],
-    summary: '1段总结，52到86字，要点出画面张力并带现实映射',
-    symbols: [{ name: '意象名', meaning: '该意象的心理含义，28到52字，要写框架对应，并补一句现实里的情绪或关系处境' }],
-    emotions: [{ label: '宁静/焦虑/神秘/自由/迷惘/恐惧/好奇/压迫 之一', pct: 30 }],
-    psychology: '3段，整体156到252字，用\\n\\n分段，第三段必须具体联系现实生活',
-    unconscious: '3小段，用①②③开头，总体96到150字',
-    advice: '3小段，用①②③开头，总体96到150字，要写得更具体；必须承接 summary / psychology 已点出的核心张力，不要举原梦没支撑的例子',
-    interpretation: {
-      lead: '统一解读核心判断，18到32字',
-      overview: '统一解读补充正文，42到82字，要落回现实张力',
-      emotion: '情绪能量分析，42到76字',
-      emotionComposition: [
-        { key: 'attraction/hesitation/calm/unease/pressure/vigilance/release/curiosity', label: '中文情绪名', pct: 30, tone: 'violet/slate/moon/ember/pearl/cyan' }
-      ],
-      unconscious: '潜意识传达，42到76字，要指出现实中的内在冲突'
-    },
-    actionGuidance: {
-      actionCue: '现在就能做的一句提示，12到22字',
-      actionBody: '具体的小动作，38到78字，要直接承接前面总结里的核心张力，并说明它为什么有助于看清这场梦对应的现实困扰',
-      directionCue: '继续留意的一句提示，12到22字',
-      directionBody: '继续观察的方向，38到78字，要复用前面已经点出的意象或动作，并说明它在现实里可能出现在哪里；不要凭空举例'
-    }
-  };
-
-  return [
-    {
-      role: 'system',
-      content: ANALYSIS_SYSTEM_RULES.join('\n')
-    },
-    {
-      role: 'user',
-      content: [
-        '请分析这段梦境原文，并返回指定 JSON：',
-        '',
-        '梦境原文：',
-        dreamText,
-        '',
-        '本地识别出的结构线索（仅供参考，不要机械复述）：',
-        scaffoldSummary,
-        '',
-        '输出 JSON 的字段结构：',
-        JSON.stringify(schema, null, 2),
-        '',
-        '额外要求：',
-        ...ANALYSIS_USER_REQUIREMENTS
-      ].join('\n')
-    }
-  ];
-}
-
-function buildRecoveryMessages(dreamText, scaffold = {}) {
-  const scaffoldSummary = JSON.stringify({
-    title: scaffold.title || '',
-    theme: scaffold.theme || 'general',
-    tags: Array.isArray(scaffold.tags) ? scaffold.tags : [],
-    symbols: Array.isArray(scaffold.symbols) ? scaffold.symbols : [],
-    emotions: Array.isArray(scaffold.emotions) ? scaffold.emotions : []
-  }, null, 2);
-
-  const compactSchema = {
-    title: '梦境标题，2到10字',
-    theme: 'water/chase/fall/fly/forest/house/death/light/general 之一',
-    tags: ['3个简短中文标签'],
-    summary: '1段总结，46到72字，要点出画面张力并带现实映射',
-    symbols: [{ name: '意象名', meaning: '心理含义，24到42字，要带具体框架和现实映射' }],
-    emotions: [{ label: '宁静/焦虑/神秘/自由/迷惘/恐惧/好奇/压迫 之一', pct: 30 }],
-    psychology: '3段，整体132到210字，用\\n\\n分段，第三段必须具体联系现实生活',
-    unconscious: '3小段，用①②③开头，总体84到132字',
-    advice: '3小段，用①②③开头，总体84到132字，要更具体；必须承接前面已经总结出的梦中张力，不要举原梦没支撑的例子',
-    interpretation: {
-      lead: '统一解读核心判断，18到30字',
-      overview: '统一解读补充正文，36到68字，要落回现实张力',
-      emotion: '情绪能量分析，36到64字',
-      emotionComposition: [
-        { key: 'attraction/hesitation/calm/unease/pressure/vigilance/release/curiosity', label: '中文情绪名', pct: 30, tone: 'violet/slate/moon/ember/pearl/cyan' }
-      ],
-      unconscious: '潜意识传达，36到64字，要指出现实中的内在冲突'
-    },
-    actionGuidance: {
-      actionCue: '现在就能做的一句提示，12到22字',
-      actionBody: '具体的小动作，30到64字，要说明它为什么正好对应前面总结出的现实困扰',
-      directionCue: '继续留意的一句提示，12到22字',
-      directionBody: '继续观察的方向，30到64字，要复用前面已点出的意象或动作，不要凭空举例'
-    }
-  };
-
-  return [
-    {
-      role: 'system',
-      content: RECOVERY_SYSTEM_RULES.join('\n')
-    },
-    {
-      role: 'user',
-      content: [
-        '请重新分析这段梦境原文，并严格返回合法 JSON：',
-        '',
-        '梦境原文：',
-        dreamText,
-        '',
-        '本地识别出的结构线索（仅供参考，不要机械复述）：',
-        scaffoldSummary,
-        '',
-        '输出 JSON 的字段结构：',
-        JSON.stringify(compactSchema, null, 2),
-        '',
-        '额外要求：',
-        ...RECOVERY_USER_REQUIREMENTS
+        '1. reading.keyTensions 要更像原文里真的存在的对照关系，不要写成抽象命题。',
+        '2. groundedInterpretation 先落回文本，再做保守解释，不要神秘化。',
+        '3. otherPossibleExplanations 要明确写成“其他可能”，不能像隐藏结论。',
+        '4. realityQuestions 必须是帮助用户自我核对的问题，不是建议句。',
+        '5. actionGuidance 必须只围绕前面已经抓到的画面和张力。',
+        limitedInput
+          ? '6. 因为描述较少，请进一步压缩延伸，宁可承认信息有限。'
+          : '6. 当现实连接拿不准时，只写成“像最近某种感觉”即可，不要假装知道真实处境。',
+        '7. 不要出现任何百分比、能量、预示、命运、注定、重大危机等说法。',
+        '8. 只返回 JSON。'
       ].join('\n')
     }
   ];
@@ -808,31 +712,139 @@ async function tryParseOrRepair(apiKey, rawContent, dreamText, scaffold = {}) {
   }
 }
 
+function normalizeKeyTensions(value, fallback = []) {
+  const items = Array.isArray(value)
+    ? value
+      .map((item) => ({
+        contrast: normalizeString(item?.contrast || item?.pair || item?.title),
+        evidence: normalizeParagraph(item?.evidence || item?.basis || item?.detail)
+      }))
+      .filter((item) => item.contrast && item.evidence)
+    : [];
+
+  const normalized = [];
+  for (const item of [...items, ...fallback]) {
+    const contrast = normalizeString(item?.contrast);
+    const evidence = normalizeParagraph(item?.evidence);
+    if (!contrast || !evidence) continue;
+    if (normalized.some((entry) => entry.contrast === contrast)) continue;
+    normalized.push({ contrast, evidence });
+    if (normalized.length >= 4) break;
+  }
+
+  return normalized;
+}
+
+function normalizeStringArray(value, fallback = [], min = 0, max = 3) {
+  const items = Array.isArray(value)
+    ? value.map((item) => normalizeParagraph(item)).filter(Boolean)
+    : [];
+
+  const merged = [];
+  for (const item of [...items, ...fallback]) {
+    const text = normalizeParagraph(item);
+    if (!text || merged.includes(text)) continue;
+    merged.push(text);
+    if (merged.length >= max) break;
+  }
+
+  if (merged.length >= min) return merged.slice(0, max);
+  return fallback.slice(0, max).map((item) => normalizeParagraph(item)).filter(Boolean);
+}
+
+function normalizeReading(value, fallback = {}, limitedInput = false) {
+  const reading = value && typeof value === 'object' ? value : {};
+  const fallbackReading = fallback && typeof fallback === 'object' ? fallback : {};
+  const defaultBoundaryNote = '梦的解读不是事实判断，它更适合作为自我观察的线索。';
+  const defaultQuestions = [
+    '梦里最让我停住的一幕，放到白天更像哪种熟悉感觉？',
+    '如果不急着解释这个梦，我最想先确认的是哪一点？',
+    '醒来后的余韵更靠近想靠近、想退回，还是只是单纯疲惫？'
+  ];
+  const fallbackTensions = normalizeKeyTensions(fallbackReading.keyTensions, []);
+
+  return {
+    coreFeeling: normalizeParagraph(
+      reading.coreFeeling,
+      normalizeParagraph(
+        fallbackReading.coreFeeling,
+        limitedInput
+          ? '这段描述里最明显的是一小股还没完全说清的感受。因为信息不多，这里更适合先把它当成一次初步整理，而不是下更大的判断。'
+          : '这场梦最突出的不是戏剧性，而是一种被画面牵住、又没有完全走进去的感受。醒来后剩下来的情绪，往往比单个符号更接近它真正的重心。'
+      )
+    ),
+    keyTensions: normalizeKeyTensions(reading.keyTensions, fallbackTensions),
+    groundedInterpretation: normalizeParagraph(
+      reading.groundedInterpretation,
+      normalizeParagraph(
+        fallbackReading.groundedInterpretation,
+        limitedInput
+          ? '因为原文信息有限，这里更稳妥的做法，是先承认这场梦只呈现出一种模糊但真实的感受轮廓，而不是急着把它解释成更大的主题。'
+          : '更稳妥的理解，通常要先回到梦里反复出现的动作、阻碍和醒来后的余韵，再决定它更像哪种还在整理中的现实感受。'
+      )
+    ),
+    otherPossibleExplanations: normalizeStringArray(
+      reading.otherPossibleExplanations,
+      normalizeStringArray(fallbackReading.otherPossibleExplanations, [
+        limitedInput
+          ? '也不排除这只是白天残留情绪在夜里被重新排了一次，所以画面清楚，但能下的结论还不多。'
+          : '也可能这场梦只是把白天已经有的牵挂重新排了一遍，让那股感觉在夜里变得更容易被看见。',
+        limitedInput
+          ? '另一种可能是，你只记住了最醒目的片段，真正重要的线索还没有被完整写出来。'
+          : '另一种可能是，梦并不在要求你立刻决定什么，而是在让你看见自己靠近时最容易卡住的位置。'
+      ], 2, 3),
+      2,
+      3
+    ),
+    realityQuestions: normalizeStringArray(
+      reading.realityQuestions,
+      normalizeStringArray(fallbackReading.realityQuestions, defaultQuestions, 3, 3),
+      3,
+      3
+    ),
+    boundaryNote: normalizeParagraph(
+      reading.boundaryNote,
+      normalizeParagraph(fallbackReading.boundaryNote, defaultBoundaryNote)
+    )
+  };
+}
+
+function normalizeActionGuidance(value, fallback = {}) {
+  const action = value && typeof value === 'object' ? value : {};
+  const fallbackAction = fallback && typeof fallback === 'object' ? fallback : {};
+  return {
+    actionCue: normalizeString(action.actionCue, normalizeString(fallbackAction.actionCue, '如果你想继续整理')),
+    actionBody: normalizeParagraph(
+      action.actionBody,
+      normalizeParagraph(fallbackAction.actionBody, '先写下一句最清楚的画面，再补一句醒来后残留最久的感觉。这个动作不需要完整，但能帮你把梦里的重点留在白天。')
+    ),
+    directionCue: normalizeString(action.directionCue, normalizeString(fallbackAction.directionCue, '接下来可以留意')),
+    directionBody: normalizeParagraph(
+      action.directionBody,
+      normalizeParagraph(fallbackAction.directionBody, '接下来只要留意现实里哪些时刻会让你出现和梦里相近的靠近、停住、退回或松一口气，不必急着立刻解释完。')
+    )
+  };
+}
+
 function normalizeAnalysisPayload(payload = {}, scaffold = {}, meta = {}) {
   const useScaffoldNarrativeFallback = meta.source === 'stable-fallback' || meta.provider === 'local' || meta.usedFallback;
   const fallbackTheme = normalizeTheme(scaffold.theme, 'general');
-  const fallbackTitle = normalizeString(scaffold.title, '梦境解析');
+  const fallbackTitle = normalizeString(scaffold.title, '梦境整理');
   const fallbackTags = normalizeTags(scaffold.tags, DEFAULT_TAGS);
   const fallbackSymbols = normalizeSymbols(scaffold.symbols, DEFAULT_SYMBOLS);
   const fallbackEmotions = normalizeEmotions(scaffold.emotions, DEFAULT_EMOTIONS);
-  const fallbackInterpretation = useScaffoldNarrativeFallback ? normalizeScaffoldInterpretation(scaffold.interpretation) : null;
-  const fallbackActionGuidance = useScaffoldNarrativeFallback ? normalizeScaffoldActionGuidance(scaffold.actionGuidance) : null;
-  const fallbackSummary = useScaffoldNarrativeFallback
-    ? normalizeString(scaffold.summary, '这场梦把一些白天还没说清的感受重新带回了你面前。')
-    : '这场梦把一些白天还没说清的感受重新带回了你面前。';
-  const fallbackPsychology = useScaffoldNarrativeFallback
-    ? normalizeString(scaffold.psychology, '这场梦里最反复的画面、声音和动作，往往比结论更接近你当下真正卡住或在意的位置。')
-    : '这场梦里最反复的画面、声音和动作，往往比结论更接近你当下真正卡住或在意的位置。';
-  const fallbackUnconscious = useScaffoldNarrativeFallback
-    ? normalizeString(scaffold.unconscious, '① 先看梦里反复出现的画面。\n\n② 再看你在梦里是靠近、停下，还是绕开它。\n\n③ 这些动作通常比抽象结论更接近这场梦真正的重心。')
-    : '① 先看梦里反复出现的画面。\n\n② 再看你在梦里是靠近、停下，还是绕开它。\n\n③ 这些动作通常比抽象结论更接近这场梦真正的重心。';
-  const fallbackAdvice = useScaffoldNarrativeFallback
-    ? normalizeString(scaffold.advice, '① 先写下梦里最清楚的一幕。\n\n② 再补一句醒来后残留最久的感受。\n\n③ 只记录具体细节，先不要急着替它下结论。')
-    : '① 先写下梦里最清楚的一幕。\n\n② 再补一句醒来后残留最久的感受。\n\n③ 只记录具体细节，先不要急着替它下结论。';
+  const limitedInput = isLimitedDreamText(meta.dreamText || '');
+  const fallbackReading = useScaffoldNarrativeFallback && scaffold.reading && typeof scaffold.reading === 'object'
+    ? scaffold.reading
+    : {};
+  const fallbackActionGuidance = useScaffoldNarrativeFallback && scaffold.actionGuidance && typeof scaffold.actionGuidance === 'object'
+    ? scaffold.actionGuidance
+    : {};
 
   const emotions = normalizeEmotions(payload.emotions, fallbackEmotions);
-  const interpretation = payload.interpretation || {};
-  const actionGuidance = payload.actionGuidance || {};
+  const reading = normalizeReading(payload.reading, fallbackReading, limitedInput);
+  const actionGuidance = normalizeActionGuidance(payload.actionGuidance, fallbackActionGuidance);
+  const qualityNotice = normalizeString(payload.qualityNotice, getQualityNotice(meta.dreamText || ''));
 
   return {
     source: meta.source || 'deepseek',
@@ -843,25 +855,15 @@ function normalizeAnalysisPayload(payload = {}, scaffold = {}, meta = {}) {
     title: normalizeString(payload.title, fallbackTitle),
     theme: normalizeTheme(payload.theme, fallbackTheme),
     tags: normalizeTags(payload.tags, fallbackTags),
-    summary: normalizeParagraph(payload.summary, fallbackSummary),
     symbols: normalizeSymbols(payload.symbols, fallbackSymbols),
     emotions,
-    psychology: normalizeParagraph(payload.psychology, fallbackPsychology),
-    unconscious: normalizeParagraph(payload.unconscious, fallbackUnconscious),
-    advice: normalizeParagraph(payload.advice, fallbackAdvice),
-    interpretation: {
-      lead: normalizeParagraph(interpretation.lead, normalizeString(fallbackInterpretation?.lead, '这场梦把最关键的画面放在你面前，让你看见自己正在靠近什么，又为什么会停一下。')),
-      overview: normalizeParagraph(interpretation.overview, normalizeString(fallbackInterpretation?.overview, '梦里的画面不是分开的：场景、声音和动作连在一起，才能看出它真正聚焦的心理位置。')),
-      emotion: normalizeParagraph(interpretation.emotion, normalizeString(fallbackInterpretation?.emotion, '这场梦里的情绪不是单一的，它通常会跟着画面和动作一起变化。')),
-      emotionComposition: normalizeEmotionComposition(interpretation.emotionComposition, normalizeEmotions(payload.emotions, fallbackEmotions)),
-      unconscious: normalizeParagraph(interpretation.unconscious, normalizeString(fallbackInterpretation?.unconscious, '梦里最反复的细节，通常不是为了给出漂亮结论，而是为了把真正重要的那一点留在你面前。'))
-    },
-    actionGuidance: {
-      actionCue: normalizeString(actionGuidance.actionCue, normalizeString(fallbackActionGuidance?.actionCue, '先记下梦里最具体的一个细节。')),
-      actionBody: normalizeParagraph(actionGuidance.actionBody, normalizeString(fallbackActionGuidance?.actionBody, '先把那一幕写下来：它发生在哪里，里面有什么声音、光线、动作，醒来后你身体里还留着什么感觉。')),
-      directionCue: normalizeString(actionGuidance.directionCue, normalizeString(fallbackActionGuidance?.directionCue, '接下来，继续留意梦里那个最反复的意象。')),
-      directionBody: normalizeParagraph(actionGuidance.directionBody, normalizeString(fallbackActionGuidance?.directionBody, '先不要急着把它解释成某种大道理。只要观察它在现实里会不会以相似的情绪、场景或动作再次出现。'))
-    }
+    qualityNotice,
+    reading,
+    actionGuidance,
+    summary: reading.coreFeeling,
+    psychology: reading.groundedInterpretation,
+    unconscious: reading.otherPossibleExplanations.map((item, index) => `${['①', '②', '③'][index] || '-'} ${item}`).join('\n\n'),
+    advice: [actionGuidance.actionBody, actionGuidance.directionBody].filter(Boolean).join('\n\n')
   };
 }
 
@@ -888,7 +890,7 @@ module.exports = async (req, res) => {
   const { dreamText = '', scaffold = {} } = req.body || {};
   const normalizedDreamText = normalizeString(dreamText);
 
-  if (normalizedDreamText.length < 20) {
+  if (normalizedDreamText.length < MIN_DREAM_TEXT_LENGTH) {
     res.status(400).json({ error: 'Dream text is too short' });
     return;
   }
@@ -952,7 +954,8 @@ module.exports = async (req, res) => {
         provider: 'local',
         model: 'local-fallback',
         usedFallback: true,
-        fallbackMessage: '云端深度解析这次没有稳定完成，已回退为结构化基础解析。'
+        fallbackMessage: '云端整理这次没有稳定完成，已回退为基于原文的初步整理。',
+        dreamText: normalizedDreamText
       });
 
       if (debug) fallbackResponse._debug = trace;
@@ -988,7 +991,9 @@ module.exports = async (req, res) => {
       }
     }
 
-    const successResponse = normalizeAnalysisPayload(payload, scaffold);
+    const successResponse = normalizeAnalysisPayload(payload, scaffold, {
+      dreamText: normalizedDreamText
+    });
     if (debug) successResponse._debug = trace;
     res.status(200).json(successResponse);
   } catch (error) {
@@ -997,7 +1002,8 @@ module.exports = async (req, res) => {
       provider: 'local',
       model: 'local-fallback',
       usedFallback: true,
-      fallbackMessage: error.message || 'Dream analysis failed'
+      fallbackMessage: error.message || 'Dream analysis failed',
+      dreamText: normalizedDreamText
     });
 
     if (debug) {

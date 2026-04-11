@@ -1082,6 +1082,96 @@ function buildDetailBody(d) {
     if (d.analysis) {
         const a = d.analysis;
 
+        if (a.reading) {
+            const reading = a.reading;
+            const tensions = Array.isArray(reading.keyTensions) ? reading.keyTensions : [];
+            const alternatives = Array.isArray(reading.otherPossibleExplanations) ? reading.otherPossibleExplanations : [];
+            const questions = Array.isArray(reading.realityQuestions) ? reading.realityQuestions : [];
+            const guidance = a.actionGuidance || null;
+
+            if (reading.coreFeeling) {
+                html += `
+        <div class="dy-detail-section">
+          <div class="dy-detail-section__head"><i class="fas fa-feather-pointed"></i> 梦境整理与可能解释</div>
+          <div class="dy-detail-ai">
+            ${a.qualityNotice ? `<div class="dy-detail-ai__title">${escHtml(a.qualityNotice)}</div>` : ''}
+            <div class="dy-detail-ai__title"><i class="fas fa-wave-square"></i> 核心感受</div>
+            <div class="dy-detail-ai__text">${escHtml(reading.coreFeeling)}</div>
+          </div>
+        </div>`;
+            }
+
+            if (tensions.length) {
+                html += `
+        <div class="dy-detail-section">
+          <div class="dy-detail-section__head"><i class="fas fa-arrows-left-right"></i> 画面里的关键张力</div>
+          <div class="dy-detail-ai">
+            <div class="dy-detail-ai__text">
+              ${tensions.map(item => `<p><strong>${escHtml(item.contrast)}</strong><br>${escHtml(item.evidence)}</p>`).join('')}
+            </div>
+          </div>
+        </div>`;
+            }
+
+            if (reading.groundedInterpretation) {
+                html += `
+        <div class="dy-detail-section">
+          <div class="dy-detail-section__head"><i class="fas fa-layer-group"></i> 一种较稳妥的解释</div>
+          <div class="dy-detail-ai">
+            <div class="dy-detail-ai__text">
+              ${reading.groundedInterpretation.split('\n\n').map(p => `<p>${escHtml(p)}</p>`).join('')}
+            </div>
+          </div>
+        </div>`;
+            }
+
+            if (alternatives.length) {
+                html += `
+        <div class="dy-detail-section">
+          <div class="dy-detail-section__head"><i class="fas fa-compass-drafting"></i> 还可能有的其他解释</div>
+          <div class="dy-detail-ai">
+            <div class="dy-detail-ai__text">
+              ${alternatives.map(p => `<p>${escHtml(p)}</p>`).join('')}
+            </div>
+          </div>
+        </div>`;
+            }
+
+            if (questions.length) {
+                html += `
+        <div class="dy-detail-section">
+          <div class="dy-detail-section__head"><i class="fas fa-circle-question"></i> 和现实的连接问题</div>
+          <div class="dy-detail-ai">
+            <div class="dy-detail-ai__text">
+              ${questions.map(p => `<p>${escHtml(p)}</p>`).join('')}
+            </div>
+          </div>
+        </div>`;
+            }
+
+            if (reading.boundaryNote) {
+                html += `
+        <div class="dy-detail-section">
+          <div class="dy-detail-section__head"><i class="fas fa-hand"></i> 边界提示</div>
+          <div class="dy-detail-ai">
+            <div class="dy-detail-ai__text"><p>${escHtml(reading.boundaryNote)}</p></div>
+          </div>
+        </div>`;
+            }
+
+            if (guidance && (guidance.actionBody || guidance.directionBody)) {
+                html += `
+        <div class="dy-detail-section">
+          <div class="dy-detail-section__head"><i class="fas fa-route"></i> 如果你想继续整理</div>
+          <div class="dy-detail-ai">
+            ${guidance.actionBody ? `<div class="dy-detail-ai__title">${escHtml(guidance.actionCue || '如果你想继续整理')}</div><div class="dy-detail-ai__text"><p>${escHtml(guidance.actionBody)}</p></div>` : ''}
+            ${guidance.directionBody ? `<div class="dy-detail-ai__title">${escHtml(guidance.directionCue || '接下来可以留意')}</div><div class="dy-detail-ai__text"><p>${escHtml(guidance.directionBody)}</p></div>` : ''}
+          </div>
+        </div>`;
+            }
+
+        } else {
+
         /* 概要 */
         if (a.summary) {
             html += `
@@ -1150,6 +1240,8 @@ function buildDetailBody(d) {
             </div>
           </div>
         </div>`;
+        }
+
         }
 
     } else {
