@@ -589,22 +589,49 @@ function normalizeAnalyzeErrorMessage(error) {
     }
 
     if (message.includes('Failed to fetch') || message.includes('NetworkError')) {
-        return '当前无法连接到梦境解析服务，请稍后再试。';
+        return '当前无法稳定连接云端整理，已先为你展示基于原文的初步整理。';
     }
 
     if (message.includes('timed out') || message.includes('timeout')) {
-        return '这次云端整理等待太久，已改为基于原文的初步整理。';
+        return '这次云端整理等待太久，已先为你展示基于原文的初步整理。';
     }
 
     if (message.includes('invalid') || message.includes('JSON')) {
-        return '这次解析结果没有成功生成，请再试一次。';
+        return '这次云端整理没有完整返回，已先为你展示基于原文的初步整理。';
     }
 
-    return '这次 DeepSeek 整理暂时没有完成，请稍后再试。';
+    return '这次云端整理没有完整完成，已先为你展示基于原文的初步整理。';
+}
+
+function buildRecoveryResult(rawText, error) {
+    const base = analyzeUserDreamLocal(rawText || '');
+    return {
+        ...base,
+        source: 'local-recovery',
+        provider: 'local',
+        _usedFallback: true,
+        _isBackgroundUpgradePending: false,
+        _fallbackMessage: normalizeAnalyzeErrorMessage(error)
+    };
 }
 
 function handleAnalyzeFailure(error) {
     console.error('[DreamLens analyze] analysis failed', error);
+    const input = getUnifiedDreamInput();
+
+    if ((input || '').length >= 8) {
+        const fallbackResult = buildRecoveryResult(input, error);
+        try {
+            renderAnalysisResult(input, fallbackResult);
+            if (typeof showToast === 'function') {
+                showToast(fallbackResult._fallbackMessage || '这次整理没有完整完成，先为你展示基于原文的初步整理。');
+            }
+            return;
+        } catch (recoveryError) {
+            console.error('[DreamLens analyze] recovery render failed', recoveryError);
+        }
+    }
+
     showAnalyzeInputView({ resetTop: true });
     updateAnalyzeRouteState({ view: 'input' }, { replace: true });
     if (typeof showToast === 'function') {
@@ -996,6 +1023,18 @@ function normalizeReadingParagraph(text) {
         .trim();
 }
 
+function ensureResultViewVisible() {
+    const inputSection   = document.getElementById('inputSection');
+    const loadingSection = document.getElementById('loadingSection');
+    const resultSection  = document.getElementById('resultSection');
+    if (inputSection) inputSection.style.display = 'none';
+    if (loadingSection) loadingSection.style.display = 'none';
+    if (resultSection) resultSection.style.display = 'block';
+    setAnalyzeViewState('result');
+    clearLoadingPhaseTimers();
+    setAnalyzeButtonLoading(false);
+}
+
 function joinReadingParagraphs(items, limit = 3) {
     const normalized = [];
 
@@ -1261,6 +1300,89 @@ function setMeaningCardGroupContent(element, cards = [], options = {}) {
     } else {
         element.textContent = '';
     }
+}
+
+function renderEmergencyCard(text, label = '整理结果') {
+    const body = escapeReadingHtml(normalizeReadingParagraph(text || '这场梦已经生成了结果，只是当前的展示层没有完整展开。'));
+    return `
+        <div class="az-reading-meaning-card-group">
+            <article class="az-reading-meaning-card az-reading-meaning-card--accent az-reading-meaning-card--full">
+                <p class="az-reading-meaning-card__eyebrow">${escapeReadingHtml(label)}</p>
+                <div class="az-reading-meaning-card__body">
+                    <p class="az-reading-rich-text__paragraph is-primary">${body}</p>
+                </div>
+            </article>
+        </div>
+    `;
+}
+
+function renderEmergencyAnalysisResult(input, result, options = {}) {
+    const { scroll = true, persist = true, refreshArt = persist } = options;
+    analysisResult = result;
+    ensureResultViewVisible();
+
+    const reading = result?.reading || {};
+    const title = result?.title || '梦境整理';
+    const lead = reading.coreFeeling || result?.summary || '这场梦已经被整理好了，只是结果页这次没有完整展开。';
+    const notice = result?.qualityNotice || reading.qualityNotice || '';
+    const interpretation = reading.groundedInterpretation || result?.psychology || '更稳妥的理解，通常要先回到梦里实际发生了什么，再慢慢看它像哪种现实感受。';
+    const alternatives = Array.isArray(reading.otherPossibleExplanations) && reading.otherPossibleExplanations.length
+        ? reading.otherPossibleExplanations.join('\n\n')
+        : (result?.unconscious || '');
+    const questions = Array.isArray(reading.realityQuestions) && reading.realityQuestions.length
+        ? reading.realityQuestions.join('\n\n')
+        : '梦里最让我停住的一幕，放到白天更像哪种熟悉感觉？';
+    const boundary = reading.boundaryNote || '梦的整理不是事实判断，它更适合作为自我观察的线索。';
+    const actionCue = result?.actionGuidance?.actionCue || '如果你想继续整理';
+    const actionBody = result?.actionGuidance?.actionBody || result?.advice || '先记下梦里最清楚的一幕，再补一句醒来后残留最久的感觉。';
+    const directionCue = result?.actionGuidance?.directionCue || '接下来可以留意';
+    const directionBody = result?.actionGuidance?.directionBody || '接下来只要留意现实里哪些时刻会让你再次出现和梦里相近的感觉。';
+
+    const titleEl = document.getElementById('resultTitle');
+    if (titleEl) titleEl.textContent = title;
+
+    const leadEl = document.getElementById('dreamInterpretationLead');
+    if (leadEl) leadEl.textContent = lead;
+
+    const noticeEl = document.getElementById('dreamInterpretationNotice');
+    if (noticeEl) {
+        noticeEl.textContent = notice;
+        noticeEl.hidden = !notice;
+    }
+
+    const takeawayEl = document.getElementById('dreamInterpretationTakeaway');
+    const takeawayTextEl = document.getElementById('dreamInterpretationTakeawayText');
+    if (takeawayEl && takeawayTextEl) {
+        takeawayTextEl.textContent = buildReadingTakeaway(result, input, '', lead) || '';
+        takeawayEl.hidden = !takeawayTextEl.textContent;
+    }
+
+    const setEmergencyMarkup = (id, text, label) => {
+        const element = document.getElementById(id);
+        if (element) element.innerHTML = renderEmergencyCard(text, label);
+    };
+
+    setEmergencyMarkup('dreamInterpretationOverview', Array.isArray(reading.keyTensions) && reading.keyTensions.length
+        ? reading.keyTensions.map((item) => `${item.contrast}\n${item.evidence}`).join('\n\n')
+        : lead, '画面里的关键张力');
+    setEmergencyMarkup('dreamInterpretationInterpretation', interpretation, '一种较稳妥的解释');
+    setEmergencyMarkup('dreamInterpretationAlternatives', alternatives, '还可能有的其他解释');
+    setEmergencyMarkup('dreamInterpretationQuestions', questions, '和现实的连接问题');
+    setEmergencyMarkup('dreamInterpretationBoundary', boundary, '边界提示');
+
+    const actionCueEl = document.getElementById('resultActionCue');
+    if (actionCueEl) actionCueEl.textContent = actionCue;
+    const directionCueEl = document.getElementById('resultDirectionCue');
+    if (directionCueEl) directionCueEl.textContent = directionCue;
+    setReadingRichContent(document.getElementById('resultActionBody'), actionBody, { emphasizeFirst: true });
+    setReadingRichContent(document.getElementById('resultDirectionBody'), directionBody, { emphasizeFirst: true });
+
+    if (scroll) window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+    persistAnalyzeDraft(input);
+    if (persist) persistAnalyzeResultSnapshot(input, result);
+    updateAnalyzeRouteState({ view: 'result' }, { replace: true });
+    if (persist) saveDreamToLocalStorage(input, result);
+    if (refreshArt && typeof artOnAnalysisComplete === 'function') artOnAnalysisComplete(input);
 }
 
 function buildEmotionRealityAnchor(result, rawText = '', emotionLabel = '') {
@@ -2602,119 +2724,120 @@ function startAnalysis() {
 async function showResult() {
     const input = getUnifiedDreamInput();
     const requestId = ++activeAnalyzeRequestId;
-    const result = await analyzeUserDream(input);
+    try {
+        const result = await analyzeUserDream(input);
 
-    if (requestId !== activeAnalyzeRequestId) return;
-    renderAnalysisResult(input, result);
-    if (result?._usedFallback && typeof showToast === 'function') {
-        showToast(result._fallbackMessage || '云端整理暂时不可用，已为你展示基于原文的初步整理。');
+        if (requestId !== activeAnalyzeRequestId) return;
+        renderAnalysisResult(input, result);
+        if (result?._usedFallback && typeof showToast === 'function') {
+            showToast(result._fallbackMessage || '云端整理暂时不可用，已为你展示基于原文的初步整理。');
+        }
+    } catch (error) {
+        if (requestId !== activeAnalyzeRequestId) return;
+        handleAnalyzeFailure(error);
     }
 }
 
 function renderAnalysisResult(input, result, options = {}) {
-    const { scroll = true, persist = true, refreshArt = persist } = options;
-    analysisResult = result;
+    try {
+        const { scroll = true, persist = true, refreshArt = persist } = options;
+        analysisResult = result;
 
-    const inputSection   = document.getElementById('inputSection');
-    const loadingSection = document.getElementById('loadingSection');
-    const resultSection  = document.getElementById('resultSection');
-    if (inputSection)   inputSection.style.display  = 'none';
-    if (loadingSection) loadingSection.style.display = 'none';
-    if (resultSection)  resultSection.style.display  = 'block';
-    if (inputSection)   inputSection.classList.remove('az-input-card--transitioning');
-    setAnalyzeViewState('result');
-    clearLoadingPhaseTimers();
-    setAnalyzeButtonLoading(false);
+        ensureResultViewVisible();
+        const inputSection = document.getElementById('inputSection');
+        if (inputSection) inputSection.classList.remove('az-input-card--transitioning');
 
-    const emotion = getEmotionCenter(result.emotions);
-    const interpretation = buildDisplayedInterpretation(result, emotion.label, input);
-    const actionGuidance = buildDisplayedActionGuidance(result, input, emotion.label);
-    const takeaway = buildReadingTakeaway(result, input, emotion.label, interpretation.coreFeeling);
+        const emotion = getEmotionCenter(result.emotions);
+        const interpretation = buildDisplayedInterpretation(result, emotion.label, input);
+        const actionGuidance = buildDisplayedActionGuidance(result, input, emotion.label);
+        const takeaway = buildReadingTakeaway(result, input, emotion.label, interpretation.coreFeeling);
 
-    // Hero
-    const titleEl = document.getElementById('resultTitle');
-    if (titleEl) titleEl.textContent = result.title;
+        const titleEl = document.getElementById('resultTitle');
+        if (titleEl) titleEl.textContent = result.title;
 
-    updateDreamClueModule(input, result, emotion.label);
+        updateDreamClueModule(input, result, emotion.label);
 
-    const dreamInterpretationLeadEl = document.getElementById('dreamInterpretationLead');
-    if (dreamInterpretationLeadEl) dreamInterpretationLeadEl.textContent = interpretation.coreFeeling;
+        const dreamInterpretationLeadEl = document.getElementById('dreamInterpretationLead');
+        if (dreamInterpretationLeadEl) dreamInterpretationLeadEl.textContent = interpretation.coreFeeling;
 
-    const dreamInterpretationNoticeEl = document.getElementById('dreamInterpretationNotice');
-    if (dreamInterpretationNoticeEl) {
-        if (interpretation.qualityNotice) {
-            dreamInterpretationNoticeEl.textContent = interpretation.qualityNotice;
-            dreamInterpretationNoticeEl.hidden = false;
-        } else {
-            dreamInterpretationNoticeEl.textContent = '';
-            dreamInterpretationNoticeEl.hidden = true;
+        const dreamInterpretationNoticeEl = document.getElementById('dreamInterpretationNotice');
+        if (dreamInterpretationNoticeEl) {
+            if (interpretation.qualityNotice) {
+                dreamInterpretationNoticeEl.textContent = interpretation.qualityNotice;
+                dreamInterpretationNoticeEl.hidden = false;
+            } else {
+                dreamInterpretationNoticeEl.textContent = '';
+                dreamInterpretationNoticeEl.hidden = true;
+            }
         }
-    }
 
-    const dreamInterpretationTakeawayEl = document.getElementById('dreamInterpretationTakeaway');
-    const dreamInterpretationTakeawayTextEl = document.getElementById('dreamInterpretationTakeawayText');
-    if (dreamInterpretationTakeawayEl && dreamInterpretationTakeawayTextEl) {
-        if (takeaway) {
-            dreamInterpretationTakeawayTextEl.textContent = takeaway;
-            dreamInterpretationTakeawayEl.hidden = false;
-        } else {
-            dreamInterpretationTakeawayTextEl.textContent = '';
-            dreamInterpretationTakeawayEl.hidden = true;
+        const dreamInterpretationTakeawayEl = document.getElementById('dreamInterpretationTakeaway');
+        const dreamInterpretationTakeawayTextEl = document.getElementById('dreamInterpretationTakeawayText');
+        if (dreamInterpretationTakeawayEl && dreamInterpretationTakeawayTextEl) {
+            if (takeaway) {
+                dreamInterpretationTakeawayTextEl.textContent = takeaway;
+                dreamInterpretationTakeawayEl.hidden = false;
+            } else {
+                dreamInterpretationTakeawayTextEl.textContent = '';
+                dreamInterpretationTakeawayEl.hidden = true;
+            }
         }
-    }
 
-    const dreamInterpretationOverviewEl = document.getElementById('dreamInterpretationOverview');
-    setMeaningCardGroupContent(dreamInterpretationOverviewEl, interpretation.tensionCards, { split: true });
+        const dreamInterpretationOverviewEl = document.getElementById('dreamInterpretationOverview');
+        setMeaningCardGroupContent(dreamInterpretationOverviewEl, interpretation.tensionCards, { split: true });
 
-    const dreamInterpretationInterpretationEl = document.getElementById('dreamInterpretationInterpretation');
-    setMeaningCardGroupContent(dreamInterpretationInterpretationEl, interpretation.groundedCards);
+        const dreamInterpretationInterpretationEl = document.getElementById('dreamInterpretationInterpretation');
+        setMeaningCardGroupContent(dreamInterpretationInterpretationEl, interpretation.groundedCards);
 
-    const dreamInterpretationAlternativesEl = document.getElementById('dreamInterpretationAlternatives');
-    setMeaningCardGroupContent(dreamInterpretationAlternativesEl, interpretation.alternativeCards, { split: true });
+        const dreamInterpretationAlternativesEl = document.getElementById('dreamInterpretationAlternatives');
+        setMeaningCardGroupContent(dreamInterpretationAlternativesEl, interpretation.alternativeCards, { split: true });
 
-    const dreamInterpretationQuestionsEl = document.getElementById('dreamInterpretationQuestions');
-    setMeaningCardGroupContent(dreamInterpretationQuestionsEl, interpretation.questionCards, { split: true });
+        const dreamInterpretationQuestionsEl = document.getElementById('dreamInterpretationQuestions');
+        setMeaningCardGroupContent(dreamInterpretationQuestionsEl, interpretation.questionCards, { split: true });
 
-    const dreamInterpretationBoundaryEl = document.getElementById('dreamInterpretationBoundary');
-    setMeaningCardGroupContent(dreamInterpretationBoundaryEl, interpretation.boundaryCards);
+        const dreamInterpretationBoundaryEl = document.getElementById('dreamInterpretationBoundary');
+        setMeaningCardGroupContent(dreamInterpretationBoundaryEl, interpretation.boundaryCards);
 
-    const dreamInterpretationPanelEl = document.getElementById('dreamInterpretationPanel');
-    if (dreamInterpretationPanelEl) {
-        dreamInterpretationPanelEl.classList.remove('is-refreshed');
-        void dreamInterpretationPanelEl.offsetWidth;
-        dreamInterpretationPanelEl.classList.add('is-refreshed');
-    }
+        const dreamInterpretationPanelEl = document.getElementById('dreamInterpretationPanel');
+        if (dreamInterpretationPanelEl) {
+            dreamInterpretationPanelEl.classList.remove('is-refreshed');
+            void dreamInterpretationPanelEl.offsetWidth;
+            dreamInterpretationPanelEl.classList.add('is-refreshed');
+        }
 
-    // 行动建议
-    const actionCueEl = document.getElementById('resultActionCue');
-    if (actionCueEl) actionCueEl.textContent = actionGuidance.actionCue;
+        const actionCueEl = document.getElementById('resultActionCue');
+        if (actionCueEl) actionCueEl.textContent = actionGuidance.actionCue;
 
-    const actionBodyEl = document.getElementById('resultActionBody');
-    setReadingRichContent(actionBodyEl, actionGuidance.actionBody, { emphasizeFirst: true });
+        const actionBodyEl = document.getElementById('resultActionBody');
+        setReadingRichContent(actionBodyEl, actionGuidance.actionBody, { emphasizeFirst: true });
 
-    const directionCueEl = document.getElementById('resultDirectionCue');
-    if (directionCueEl) directionCueEl.textContent = actionGuidance.directionCue;
+        const directionCueEl = document.getElementById('resultDirectionCue');
+        if (directionCueEl) directionCueEl.textContent = actionGuidance.directionCue;
 
-    const directionBodyEl = document.getElementById('resultDirectionBody');
-    setReadingRichContent(directionBodyEl, actionGuidance.directionBody, { emphasizeFirst: true });
+        const directionBodyEl = document.getElementById('resultDirectionBody');
+        setReadingRichContent(directionBodyEl, actionGuidance.directionBody, { emphasizeFirst: true });
 
-    // 结果页需要从页面顶部进入，避免 fixed 导航压住首个结果卡片
-    if (scroll) {
-        window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
-    }
+        if (scroll) {
+            window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+        }
 
-    persistAnalyzeDraft(input);
-    if (persist) persistAnalyzeResultSnapshot(input, result);
-    updateAnalyzeRouteState({ view: 'result' }, { replace: true });
+        persistAnalyzeDraft(input);
+        if (persist) persistAnalyzeResultSnapshot(input, result);
+        updateAnalyzeRouteState({ view: 'result' }, { replace: true });
 
-    // 保存到本地：只在真实解析完成时写入，避免刷新结果页重复落库
-    if (persist) {
-        saveDreamToLocalStorage(input, result);
-    }
+        if (persist) {
+            saveDreamToLocalStorage(input, result);
+        }
 
-    // 通知 AI 艺术模块
-    if (refreshArt && typeof artOnAnalysisComplete === 'function') {
-        artOnAnalysisComplete(input);
+        if (refreshArt && typeof artOnAnalysisComplete === 'function') {
+            artOnAnalysisComplete(input);
+        }
+    } catch (error) {
+        console.error('[DreamLens analyze] render failed, switching to emergency result', error);
+        renderEmergencyAnalysisResult(input, result, options);
+        if (typeof showToast === 'function') {
+            showToast('结果页已切换到兼容展示模式。');
+        }
     }
 }
 
